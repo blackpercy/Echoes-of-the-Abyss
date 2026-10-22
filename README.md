@@ -1,40 +1,48 @@
-# Ekon från Avgrunden
+# Echoes of the Abyss
 
-Ett idle-spel i webbläsaren, inspirerat av *Melvor Idle*. Världen blandar klassisk fantasy i D&D-stil med kosmisk skräck i H.P. Lovecrafts anda.
+A browser idle game inspired by *Melvor Idle*, set in a world that mixes classic D&D-style fantasy with H.P. Lovecraft's cosmic horror.
 
-> Kungariket Aldmark var en gång ett land av riddare, magiker och gudar som svarade när man bad. Sedan föll stjärnan.
+> The Kingdom of Aldmark was once a land of knights and wizards, and of gods who answered when you prayed. Then the star fell.
 
-## Spela
+## Play
 
-Inget byggsteg behövs. Öppna `index.html` i en webbläsare, eller servera mappen:
+No build step is needed. Open `index.html` in a browser, or serve the folder:
 
 ```sh
 python3 -m http.server 8000
-# öppna http://localhost:8000
+# open http://localhost:8000
 ```
 
-Spelet fungerar också direkt på GitHub Pages (Settings → Pages → deploy from branch).
+The game also runs as-is on GitHub Pages (Settings → Pages → deploy from branch).
 
-## Innehåll
+## Features
 
-- **12 färdigheter**
-  - Insamling: Vedhuggning, Fiske, Gruvdrift, Örtsamling
-  - Hantverk: Matlagning, Smide, Alkemi, Ockultism
-  - Strid: Anfall, Styrka, Försvar, Livskraft
-- **Förstånd**: en andra livsmätare. Väsen från bortom och ockulta studier tär på den. Når den noll flyr du i panik. Amuletter ger förståndsskydd och drycker återställer den.
-- **5 stridsområden** med 15 fiender, från krabbor på Saltmyrs strand till Fader Dagon i Avgrunden.
-- **Utrustning** i fem metallnivåer (järn → stjärnmetall), unika fynd och ockulta amuletter.
-- **Handelsbod** med mat, drycker och verktygsuppgraderingar som snabbar upp insamlingen.
-- **Offline-framsteg** i upp till 24 timmar, automatisk sparning samt export och import av sparfiler.
+- **World map.** Travel along roads between 12 settlements, wild places and dungeons. Journeys take time, and some roads have requirements: a lantern for the Drowned Catacombs, a ferryman's fee for Devil's Reef, a diving helm for the Abyss.
+- **Where you are matters.** Each location has its own trees, fishing waters, ore veins, herbs, workplaces (fire, forge, star forge, alchemy lab, forbidden library, elder altar), enemies and services (bank, shop, inn).
+- **What you carry matters.**
+  - Your pack has limited slots, and banks only exist in some towns.
+  - Gathering needs the right tool in your pack, and better tools work faster.
+  - A tinderbox or an alchemy kit lets you cook or brew anywhere.
+- **12 skills.**
+  - Gathering: Woodcutting, Fishing, Mining, Foraging
+  - Crafting: Cooking, Smithing, Alchemy, Occultism
+  - Combat: Attack, Strength, Defence, Hitpoints
+- **Sanity.** A second health bar that eldritch enemies and occult study wear down. If it reaches zero you flee in panic. Amulets ward it, potions restore it, and inns let you recover.
+- **16 enemies**, from giant crabs on Saltmire Shore to Father Dagon in the Abyss.
+- **Gear** in five metal tiers (iron → starmetal), rare drops, occult amulets and bags (up to a Bag of Holding).
+- **Offline progress** for up to 24 hours (including travel), autosave, and save export/import.
 
-## Kodstruktur
+## Code layout
 
-| Fil | Innehåll |
+| File | Contents |
 | --- | --- |
-| `js/data.js` | All speldata: färdigheter, föremål, handlingar, monster, områden, butik och berättelse |
-| `js/game.js` | Spelmotorn: tillstånd, tick-loop, strid, förstånd, sparning, offline-simulering |
-| `js/ui.js` | Rendering av sidor och mätare samt klickhantering |
-| `js/main.js` | Start, spelloop och automatisk sparning |
-| `css/style.css` | Utseende, inklusive mobillayout |
+| `js/data.js` | All game data: skills, items, actions, monsters, shops, locations, roads and lore |
+| `js/game.js` | Engine: state, tick loop, travel and route finding, pack and bank, combat, sanity, saving, offline simulation |
+| `js/ui.js` | Page rendering, the SVG world map, meters and click handling |
+| `js/main.js` | Boot, game loop and autosave |
+| `css/style.css` | Styling, including the mobile layout |
 
-Nytt innehåll läggs till i `js/data.js`. En ny handling är en rad i `ACTIONS`, ett nytt monster en rad i `MONSTERS` plus en referens i `AREAS`.
+New content goes in `js/data.js`:
+
+- **New activity:** add an entry to `ACTIONS`, then list it in a location's `gather` or give it a `station`.
+- **New place:** add an entry to `LOCATIONS` and at least one road to `ROADS`.

@@ -1,12 +1,13 @@
-// Spelmotor: tillstånd, tick-loop, strid, sparning och offline-framsteg.
+// Game engine: state, tick loop, travel, pack and bank, combat, saving and offline progress.
 
-const SAVE_KEY = 'ekon-fran-avgrunden-save-v1';
+const SAVE_KEY = 'echoes-of-the-abyss-save-v2';
 const MAX_LEVEL = 99;
 const MAX_OFFLINE_MS = 24 * 60 * 60 * 1000;
 const RESPAWN_MS = 1500;
 const AUTO_EAT_THRESHOLD = 0.4;
 const SANITY_REGEN_MS = 2000;
 const HP_REGEN_MS = 5000;
+const INN_REGEN_MULTIPLIER = 4;
 
 const XP_TABLE = (() => {
   const table = [0, 0];
@@ -32,6 +33,14 @@ function findAction(skill, id) {
   return (ACTIONS[skill] || []).find(a => a.id === id);
 }
 
+function findRoad(a, b) {
+  return ROADS.find(r => (r.a === a && r.b === b) || (r.a === b && r.b === a));
+}
+
+function roadsFrom(loc) {
+  return ROADS.filter(r => r.a === loc || r.b === loc).map(r => ({ road: r, to: r.a === loc ? r.b : r.a }));
+}
+
 const Game = {
   state: null,
   listeners: [],
@@ -40,22 +49,24 @@ const Game = {
   newState() {
     const skills = {};
     for (const id in SKILLS) skills[id] = { xp: 0 };
-    skills.livskraft.xp = XP_TABLE[10];
-    const tools = {};
-    for (const id in TOOL_UPGRADES) tools[id] = 0;
+    skills.hitpoints.xp = XP_TABLE[10];
     return {
-      version: 1,
-      gold: 25,
+      version: 2,
+      gold: 50,
       skills,
-      bank: { brod: 10 },
-      equipment: { vapen: 'rostig_dolk', huvud: null, kropp: null, amulett: null },
-      food: 'brod',
+      pack: { bread: 10, hatchet: 1, fishing_rod: 1 },
+      bank: {},
+      equipment: { weapon: 'rusty_dagger', head: null, body: null, amulet: null, back: null },
+      food: 'bread',
       hp: 100,
       sanity: 100,
+      location: START_LOCATION,
+      home: START_LOCATION,
+      visited: { [START_LOCATION]: true },
+      travel: null,
       action: null,
       combat: null,
-      combatStyle: 'anfall',
-      tools,
+      combatStyle: 'attack',
       kills: {},
       log: [],
       regen: { hp: 0, sanity: 0 },
@@ -64,7 +75,7 @@ const Game = {
     };
   },
 
-  // --- Händelser ---
+  // --- Events ---
   emit(type) {
     for (const fn of this.listeners) fn(type);
   },
@@ -75,7 +86,7 @@ const Game = {
     this.emit('log');
   },
 
-  // --- Färdigheter ---
+  // --- Skills ---
   level(skill) {
     return levelFromXp(this.state.skills[skill].xp);
   },
@@ -85,60 +96,122 @@ const Game = {
     s.xp += amount;
     const after = levelFromXp(s.xp);
     if (after > before) {
-      this.log(`${SKILLS[skill].icon} ${SKILLS[skill].name} nådde nivå ${after}!`, 'level');
-      if (skill === 'livskraft') this.state.hp = Math.min(this.maxHp(), this.state.hp + (after - before) * 10);
+      this.log(`${SKILLS[skill].icon} ${SKILLS[skill].name} reached level ${after}!`, 'level');
+      if (skill === 'hitpoints') this.state.hp = Math.min(this.maxHp(), this.state.hp + (after - before) * 10);
       this.emit('level');
     }
   },
 
-  // --- Bank ---
+  // --- Location ---
+  here() {
+    return LOCATIONS[this.state.location];
+  },
+  hasStation(station) {
+    const def = STATIONS[station];
+    return (this.here().stations || []).includes(station) || (def.portable && this.carries(def.portable));
+  },
+
+  // --- Pack (carried items) ---
   count(item) {
-    return this.state.bank[item] || 0;
+    return this.state.pack[item] || 0;
+  },
+  carries(item) {
+    return this.count(item) > 0 || Object.values(this.state.equipment).includes(item);
+  },
+  capacity(equipment = this.state.equipment) {
+    const bag = equipment.back;
+    return BASE_PACK_SLOTS + (bag ? ITEMS[bag].stats.slots : 0);
+  },
+  usedSlots() {
+    return Object.keys(this.state.pack).length;
+  },
+  canAdd(item) {
+    return this.count(item) > 0 || this.usedSlots() < this.capacity();
   },
   addItem(item, qty = 1) {
-    this.state.bank[item] = this.count(item) + qty;
-    this.emit('bank');
+    if (!this.canAdd(item)) return false;
+    this.state.pack[item] = this.count(item) + qty;
+    this.emit('pack');
+    return true;
   },
   removeItem(item, qty = 1) {
     const left = this.count(item) - qty;
     if (left < 0) return false;
-    if (left === 0) delete this.state.bank[item];
-    else this.state.bank[item] = left;
-    if (this.state.food === item && left === 0) this.log(`Du har slut på ${ITEMS[item].name.toLowerCase()}.`, 'warn');
-    this.emit('bank');
+    if (left === 0) delete this.state.pack[item];
+    else this.state.pack[item] = left;
+    if (this.state.food === item && left === 0) this.log(`You have run out of ${ITEMS[item].name}.`, 'warn');
+    this.emit('pack');
     return true;
   },
   hasAll(input) {
     if (!input) return true;
     return Object.entries(input).every(([item, qty]) => this.count(item) >= qty);
   },
+  drop(item) {
+    const qty = this.count(item);
+    if (!qty) return;
+    this.removeItem(item, qty);
+    this.log(`You leave ${qty} × ${ITEMS[item].name} by the roadside.`);
+  },
+  toolTier(skill) {
+    let best = -1;
+    TOOLS[skill].forEach((id, tier) => { if (this.carries(id)) best = tier; });
+    return best;
+  },
+
+  // --- Bank ---
+  bankCount(item) {
+    return this.state.bank[item] || 0;
+  },
+  deposit(item, qty = this.count(item)) {
+    if (!this.here().bank) return;
+    qty = Math.min(qty, this.count(item));
+    if (qty <= 0) return;
+    this.removeItem(item, qty);
+    this.state.bank[item] = this.bankCount(item) + qty;
+  },
+  depositAll() {
+    if (!this.here().bank) return;
+    for (const item of Object.keys(this.state.pack)) {
+      if (ITEMS[item].type !== 'tool' && item !== this.state.food) this.deposit(item);
+    }
+    this.log('You deposit everything except your tools and chosen food.');
+  },
+  withdraw(item, qty = this.bankCount(item)) {
+    if (!this.here().bank) return;
+    qty = Math.min(qty, this.bankCount(item));
+    if (qty <= 0) return;
+    if (!this.addItem(item, qty)) return this.log('Your pack is full.', 'warn');
+    const left = this.bankCount(item) - qty;
+    if (left) this.state.bank[item] = left;
+    else delete this.state.bank[item];
+  },
+
+  // --- Shop ---
+  shop() {
+    return this.here().shop ? SHOPS[this.here().shop] : null;
+  },
   sell(item, qty) {
+    if (!this.shop()) return;
     qty = Math.min(qty, this.count(item));
     if (qty <= 0) return;
     this.removeItem(item, qty);
     const gold = ITEMS[item].sell * qty;
     this.state.gold += gold;
-    this.log(`Sålde ${qty} × ${ITEMS[item].name} för ${gold} guld.`);
+    this.log(`Sold ${qty} × ${ITEMS[item].name} for ${gold} gold.`);
   },
-  buy(item, price, qty = 1) {
-    const cost = price * qty;
-    if (this.state.gold < cost) return this.log('Du har inte råd.', 'warn');
+  buy(item, qty = 1) {
+    const shop = this.shop();
+    const entry = shop && shop.stock.find(s => s.item === item);
+    if (!entry) return;
+    const cost = entry.price * qty;
+    if (this.state.gold < cost) return this.log('You cannot afford that.', 'warn');
+    if (!this.addItem(item, qty)) return this.log('Your pack is full.', 'warn');
     this.state.gold -= cost;
-    this.addItem(item, qty);
-    this.log(`Köpte ${qty} × ${ITEMS[item].name} för ${cost} guld.`);
-  },
-  buyTool(skill) {
-    const lvl = this.state.tools[skill];
-    if (lvl >= TOOL_COSTS.length) return;
-    const cost = TOOL_COSTS[lvl];
-    if (this.state.gold < cost) return this.log('Du har inte råd.', 'warn');
-    this.state.gold -= cost;
-    this.state.tools[skill] = lvl + 1;
-    this.log(`Köpte ${TOOL_UPGRADES[skill].tiers[lvl]}! ${SKILLS[skill].name} går nu snabbare.`, 'good');
-    this.emit('bank');
+    this.log(`Bought ${qty} × ${ITEMS[item].name} for ${cost} gold.`);
   },
 
-  // --- Utrustning ---
+  // --- Equipment ---
   meetsReq(item) {
     const req = ITEMS[item].req;
     if (!req) return true;
@@ -147,64 +220,78 @@ const Game = {
   equip(item) {
     const def = ITEMS[item];
     if (def.type !== 'equipment' || this.count(item) < 1) return;
-    if (!this.meetsReq(item)) return this.log('Du uppfyller inte kraven för att bära detta.', 'warn');
-    const current = this.state.equipment[def.slot];
+    if (!this.meetsReq(item)) return this.log('You do not meet the requirements to wear this.', 'warn');
+    const eq = this.state.equipment;
+    const old = eq[def.slot];
+    const packBefore = Object.assign({}, this.state.pack);
     this.removeItem(item, 1);
-    if (current) this.addItem(current, 1);
-    this.state.equipment[def.slot] = item;
-    this.log(`Du utrustar ${def.name}.`);
+    eq[def.slot] = item;
+    if (old) this.state.pack[old] = this.count(old) + 1;
+    if (this.usedSlots() > this.capacity()) {
+      // Swapping would overflow the pack (e.g. a smaller bag); undo.
+      this.state.pack = packBefore;
+      eq[def.slot] = old;
+      return this.log('Your pack has no room for that swap.', 'warn');
+    }
+    this.log(`You equip the ${def.name}.`);
+    this.emit('pack');
   },
   unequip(slot) {
-    const item = this.state.equipment[slot];
+    const eq = this.state.equipment;
+    const item = eq[slot];
     if (!item) return;
-    this.state.equipment[slot] = null;
-    this.addItem(item, 1);
+    const after = Object.assign({}, eq, { [slot]: null });
+    const needsSlot = this.count(item) === 0 ? 1 : 0;
+    if (this.usedSlots() + needsSlot > this.capacity(after)) return this.log('Your pack is too full to take that off.', 'warn');
+    eq[slot] = null;
+    this.state.pack[item] = this.count(item) + 1;
+    this.emit('pack');
   },
   setFood(item) {
     if (ITEMS[item].type !== 'food') return;
     this.state.food = item;
-    this.log(`${ITEMS[item].name} är nu vald som mat.`);
-    this.emit('bank');
+    this.log(`${ITEMS[item].name} is now your chosen food.`);
+    this.emit('pack');
   },
   playerStats() {
     const total = { attack: 0, strength: 0, defence: 0, sanityResist: 0 };
     for (const slot in this.state.equipment) {
       const item = this.state.equipment[slot];
       if (!item) continue;
-      for (const [k, v] of Object.entries(ITEMS[item].stats || {})) total[k] += v;
+      for (const [k, v] of Object.entries(ITEMS[item].stats || {})) if (k in total) total[k] += v;
     }
     total.sanityResist = Math.min(0.75, total.sanityResist);
-    const weapon = this.state.equipment.vapen;
+    const weapon = this.state.equipment.weapon;
     total.speed = weapon ? ITEMS[weapon].speed : 2400;
     return total;
   },
   maxHp() {
-    return this.level('livskraft') * 10;
+    return this.level('hitpoints') * 10;
   },
   maxSanity() {
     return 100;
   },
   maxHit() {
-    const eff = this.level('styrka') + 8 + (this.state.combatStyle === 'styrka' ? 3 : 0);
+    const eff = this.level('strength') + 8 + (this.state.combatStyle === 'strength' ? 3 : 0);
     const str = this.playerStats().strength;
     return Math.floor(10 * (1.3 + eff / 10 + str / 80 + (eff * str) / 640));
   },
   accuracy() {
-    const eff = this.level('anfall') + 8 + (this.state.combatStyle === 'anfall' ? 3 : 0);
+    const eff = this.level('attack') + 8 + (this.state.combatStyle === 'attack' ? 3 : 0);
     return eff * (64 + this.playerStats().attack);
   },
   evasion() {
-    const eff = this.level('forsvar') + 8 + (this.state.combatStyle === 'forsvar' ? 3 : 0);
+    const eff = this.level('defence') + 8 + (this.state.combatStyle === 'defence' ? 3 : 0);
     return eff * (64 + this.playerStats().defence);
   },
   eldritchBonus() {
-    return this.level('ockultism') / 100;
+    return this.level('occultism') / 100;
   },
   hitChance(acc, eva) {
     return acc < eva ? 0.5 * acc / eva : 1 - 0.5 * eva / acc;
   },
 
-  // --- Förbrukning ---
+  // --- Consumables ---
   heal(amount) {
     this.state.hp = Math.min(this.maxHp(), this.state.hp + amount);
   },
@@ -225,66 +312,174 @@ const Game = {
     if (def.type === 'food') {
       this.removeItem(item, 1);
       this.heal(def.heal);
-      this.log(`Du äter ${def.name.toLowerCase()}.`);
+      this.log(`You eat the ${def.name}.`);
     } else if (def.type === 'potion') {
       this.removeItem(item, 1);
       if (def.heal) this.heal(def.heal);
       if (def.sanity) this.restoreSanity(def.sanity);
-      this.log(`Du dricker ${def.name.toLowerCase()}.`, 'good');
+      this.log(`You drink the ${def.name}.`, 'good');
     }
   },
 
-  // --- Handlingar ---
+  // --- Actions ---
   actionTime(skill, action) {
-    const toolLvl = this.state.tools[skill] || 0;
-    return Math.round(action.time * (1 - toolLvl * TOOL_SPEEDUP));
+    const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;
+    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]));
   },
-  canDo(skill, action) {
-    if (this.level(skill) < action.level) return 'För låg nivå';
-    if (!this.hasAll(action.input)) return 'Saknar material';
-    if (action.sanityCost && this.state.sanity < action.sanityCost) return 'För lite förstånd';
+  availableHere(skill, action) {
+    if (action.station) return this.hasStation(action.station);
+    return ((this.here().gather || {})[skill] || []).includes(action.id);
+  },
+  // Why an action cannot be done right now, or null if it can.
+  actionBlocker(skill, action) {
+    if (this.state.travel) return 'You are travelling';
+    if (this.level(skill) < action.level) return `Requires level ${action.level}`;
+    if (!this.availableHere(skill, action)) return action.station ? `Needs a ${STATIONS[action.station].name}` : 'Not found here';
+    if (TOOLS[skill] && this.toolTier(skill) < 0) return `Needs a ${ITEMS[TOOLS[skill][0]].name}`;
+    if (!this.hasAll(action.input)) return 'Missing materials';
+    if (action.sanityCost && this.state.sanity < action.sanityCost) return 'Not enough sanity';
+    if (!Object.keys(action.output).every(item => this.canAdd(item))) return 'Your pack is full';
     return null;
+  },
+  // Locations where an action can be performed (ignoring portable tools).
+  whereAvailable(skill, action) {
+    return Object.keys(LOCATIONS).filter(id => {
+      const loc = LOCATIONS[id];
+      if (action.station) return (loc.stations || []).includes(action.station);
+      return ((loc.gather || {})[skill] || []).includes(action.id);
+    });
   },
   startAction(skill, id) {
     const action = findAction(skill, id);
     if (!action) return;
     const a = this.state.action;
     if (a && a.skill === skill && a.id === id) return this.stop();
-    const why = this.canDo(skill, action);
+    const why = this.actionBlocker(skill, action);
     if (why) return this.log(why + '.', 'warn');
     this.stop(true);
     this.state.action = { skill, id, progress: 0 };
     this.emit('action');
   },
   stop(quiet) {
-    if (this.state.combat && !quiet) this.log('Du drar dig tillbaka från striden.');
+    if (this.state.combat && !quiet) this.log('You withdraw from the fight.');
     this.state.action = null;
     this.state.combat = null;
     this.emit('action');
   },
   completeAction(skill, action) {
-    const why = this.canDo(skill, action);
+    const why = this.actionBlocker(skill, action);
     if (why) {
-      this.log(`${SKILLS[skill].name} avbröts: ${why.toLowerCase()}.`, 'warn');
+      this.log(`${SKILLS[skill].name} stopped: ${why.toLowerCase()}.`, 'warn');
       this.state.action = null;
       this.emit('action');
       return false;
     }
     for (const [item, qty] of Object.entries(action.input || {})) this.removeItem(item, qty);
     if (action.sanityCost) this.state.sanity -= action.sanityCost;
-    for (const [item, qty] of Object.entries(action.output || {})) this.addItem(item, qty);
+    for (const [item, qty] of Object.entries(action.output)) this.addItem(item, qty);
     for (const b of action.bonus || []) {
-      if (Math.random() < b.chance) {
-        this.addItem(b.item, b.qty);
-        this.log(`Något ovanligt: ${ITEMS[b.item].name}!`, 'rare');
-      }
+      if (Math.random() < b.chance && this.addItem(b.item, b.qty)) this.log(`Something unusual: ${ITEMS[b.item].name}!`, 'rare');
     }
     this.addXp(skill, action.xp);
     return true;
   },
 
-  // --- Strid ---
+  // --- Travel ---
+  roadBlocker(road) {
+    const missing = (road.req || []).filter(item => !this.carries(item));
+    if (missing.length) return 'Requires ' + missing.map(i => ITEMS[i].name).join(', ');
+    return null;
+  },
+  // Fastest passable route (Dijkstra). Returns { path, time, cost } or null.
+  findRoute(target) {
+    const start = this.state.location;
+    const dist = { [start]: 0 };
+    const prev = {};
+    const open = new Set([start]);
+    while (open.size) {
+      let cur = null;
+      for (const n of open) if (cur === null || dist[n] < dist[cur]) cur = n;
+      open.delete(cur);
+      if (cur === target) break;
+      for (const { road, to } of roadsFrom(cur)) {
+        if (this.roadBlocker(road)) continue;
+        const d = dist[cur] + road.time;
+        if (dist[to] === undefined || d < dist[to]) {
+          dist[to] = d;
+          prev[to] = cur;
+          open.add(to);
+        }
+      }
+    }
+    if (dist[target] === undefined) return null;
+    const path = [target];
+    while (path[0] !== start) path.unshift(prev[path[0]]);
+    let cost = 0;
+    for (let i = 0; i < path.length - 1; i++) cost += findRoad(path[i], path[i + 1]).cost || 0;
+    return { path, time: dist[target], cost };
+  },
+  travelTo(target) {
+    if (target === this.state.location || !LOCATIONS[target]) return;
+    const route = this.findRoute(target);
+    if (!route) return this.log(`You cannot find a way to ${LOCATIONS[target].name} with what you carry.`, 'warn');
+    if (route.cost > this.state.gold) return this.log(`The journey costs ${route.cost} gold, which you do not have.`, 'warn');
+    this.stop(true);
+    this.state.travel = { path: route.path, leg: 0, progress: 0 };
+    this.startLeg();
+    this.log(`You set out for ${LOCATIONS[target].name}.`);
+    this.emit('action');
+  },
+  startLeg() {
+    const t = this.state.travel;
+    const road = findRoad(t.path[t.leg], t.path[t.leg + 1]);
+    if (road.cost) {
+      if (this.state.gold < road.cost) {
+        this.log('You cannot pay the ferryman. Your journey ends here.', 'warn');
+        this.state.travel = null;
+        return;
+      }
+      this.state.gold -= road.cost;
+      this.log(`You pay ${road.cost} gold for passage.`);
+    }
+  },
+  travelProgress() {
+    const t = this.state.travel;
+    if (!t) return null;
+    const from = t.path[t.leg];
+    const to = t.path[t.leg + 1];
+    const legTime = findRoad(from, to).time * 1000;
+    let remaining = legTime - t.progress;
+    for (let i = t.leg + 1; i < t.path.length - 1; i++) remaining += findRoad(t.path[i], t.path[i + 1]).time * 1000;
+    return { from, to, frac: t.progress / legTime, remaining, target: t.path[t.path.length - 1] };
+  },
+  arriveAt(loc) {
+    const s = this.state;
+    s.location = loc;
+    s.visited[loc] = true;
+    if (LOCATIONS[loc].inn) s.home = loc;
+  },
+  tickTravel(dt) {
+    const t = this.state.travel;
+    t.progress += dt;
+    while (this.state.travel) {
+      const legTime = findRoad(t.path[t.leg], t.path[t.leg + 1]).time * 1000;
+      if (t.progress < legTime) break;
+      t.progress -= legTime;
+      t.leg++;
+      this.arriveAt(t.path[t.leg]);
+      if (t.leg >= t.path.length - 1) {
+        this.state.travel = null;
+        this.log(`You arrive at ${LOCATIONS[t.path[t.leg]].name}.`, 'good');
+      } else {
+        this.startLeg();
+      }
+      this.emit('action');
+    }
+  },
+
+  // --- Combat ---
   startCombat(monsterId) {
+    if (this.state.travel || !(this.here().monsters || []).includes(monsterId)) return;
     this.stop(true);
     if (this.state.hp <= 0) this.state.hp = 1;
     this.state.combat = {
@@ -294,7 +489,7 @@ const Game = {
       monsterTimer: 0,
       respawn: 0,
     };
-    this.log(`Du ger dig i strid med ${MONSTERS[monsterId].name.toLowerCase()}.`);
+    this.log(`You engage the ${MONSTERS[monsterId].name}.`);
     this.emit('action');
   },
   setStyle(style) {
@@ -309,7 +504,7 @@ const Game = {
     dmg = Math.min(dmg, c.monsterHp);
     c.monsterHp -= dmg;
     this.addXp(this.state.combatStyle, dmg * 0.4);
-    this.addXp('livskraft', dmg * 0.133);
+    this.addXp('hitpoints', dmg * 0.133);
   },
   monsterAttack(m) {
     const acc = (m.attack + 9) * 64;
@@ -324,10 +519,12 @@ const Game = {
     this.state.kills[c.monster] = (this.state.kills[c.monster] || 0) + 1;
     this.state.gold += randInt(m.gold[0], m.gold[1]);
     for (const d of m.drops) {
-      if (Math.random() < d.chance) {
-        const qty = randInt(d.qty[0], d.qty[1]);
-        this.addItem(d.item, qty);
-        if (d.chance <= 0.05) this.log(`Sällsynt fynd: ${ITEMS[d.item].name}!`, 'rare');
+      if (Math.random() >= d.chance) continue;
+      const qty = randInt(d.qty[0], d.qty[1]);
+      if (!this.addItem(d.item, qty)) {
+        this.log(`Your pack is full. You leave the ${ITEMS[d.item].name} behind.`, 'warn');
+      } else if (d.chance <= 0.05) {
+        this.log(`Rare find: ${ITEMS[d.item].name}!`, 'rare');
       }
     }
     c.respawn = RESPAWN_MS;
@@ -364,34 +561,43 @@ const Game = {
       }
     }
   },
-  playerDied() {
+  wakeAtHome() {
     this.state.combat = null;
+    this.state.travel = null;
+    this.state.location = this.state.home;
+  },
+  playerDied() {
+    this.wakeAtHome();
     this.state.hp = this.maxHp();
     const lost = Math.floor(this.state.gold * 0.1);
     this.state.gold -= lost;
-    this.log(`Du har stupat. Du vaknar på Saltmyrs värdshus, ${lost} guld fattigare.`, 'bad');
+    this.log(`You have fallen. You wake at ${LOCATIONS[this.state.home].name}, ${lost} gold poorer.`, 'bad');
     this.emit('action');
   },
   playerMaddened() {
-    this.state.combat = null;
+    this.wakeAtHome();
     this.state.sanity = 10;
-    this.log('Ditt förstånd brister. Du flyr skrikande och vaknar senare på stranden, utan minne av hur du kom dit.', 'bad');
+    this.log(`Your mind breaks. You flee screaming, and later wake at ${LOCATIONS[this.state.home].name} with no memory of the journey.`, 'bad');
     this.emit('action');
   },
 
   // --- Tick ---
   tick(dt) {
     const s = this.state;
-    if (s.combat) {
+    if (s.travel) {
+      this.tickTravel(dt);
+    } else if (s.combat) {
       this.tickCombat(dt);
-    } else {
-      s.regen.hp += dt;
+    }
+    if (!s.combat) {
+      const rate = this.here().inn && !s.travel ? INN_REGEN_MULTIPLIER : 1;
+      s.regen.hp += dt * rate;
       while (s.regen.hp >= HP_REGEN_MS) {
         s.regen.hp -= HP_REGEN_MS;
         this.heal(Math.ceil(this.maxHp() * 0.02));
       }
-      const regenSanity = !s.action || s.action.skill !== 'ockultism';
-      s.regen.sanity += dt;
+      const regenSanity = !s.action || s.action.skill !== 'occultism';
+      s.regen.sanity += dt * rate;
       while (s.regen.sanity >= SANITY_REGEN_MS) {
         s.regen.sanity -= SANITY_REGEN_MS;
         if (regenSanity) this.restoreSanity(1);
@@ -410,37 +616,38 @@ const Game = {
 
   // --- Offline ---
   simulateOffline(ms) {
-    const before = { bank: Object.assign({}, this.state.bank), gold: this.state.gold, xp: {} };
-    for (const id in SKILLS) before.xp[id] = this.state.skills[id].xp;
+    const s = this.state;
+    const before = { pack: Object.assign({}, s.pack), gold: s.gold, xp: {}, location: s.location };
+    for (const id in SKILLS) before.xp[id] = s.skills[id].xp;
     this.silent = true;
     const step = 500;
     let left = Math.min(ms, MAX_OFFLINE_MS);
-    while (left > 0 && (this.state.action || this.state.combat || this.state.hp < this.maxHp() || this.state.sanity < this.maxSanity())) {
+    while (left > 0 && (s.action || s.combat || s.travel || s.hp < this.maxHp() || s.sanity < this.maxSanity())) {
       const dt = Math.min(step, left);
       this.tick(dt);
       left -= dt;
     }
     this.silent = false;
-    const diff = { ms, items: {}, gold: this.state.gold - before.gold, xp: {} };
-    const ids = new Set([...Object.keys(before.bank), ...Object.keys(this.state.bank)]);
+    const diff = { ms, items: {}, gold: s.gold - before.gold, xp: {}, moved: s.location !== before.location ? s.location : null };
+    const ids = new Set([...Object.keys(before.pack), ...Object.keys(s.pack)]);
     for (const id of ids) {
-      const d = (this.state.bank[id] || 0) - (before.bank[id] || 0);
+      const d = (s.pack[id] || 0) - (before.pack[id] || 0);
       if (d) diff.items[id] = d;
     }
     for (const id in SKILLS) {
-      const d = this.state.skills[id].xp - before.xp[id];
+      const d = s.skills[id].xp - before.xp[id];
       if (d >= 1) diff.xp[id] = Math.floor(d);
     }
     return diff;
   },
 
-  // --- Sparning ---
+  // --- Saving ---
   save() {
     this.state.lastSave = Date.now();
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(this.state));
     } catch (e) {
-      console.warn('Kunde inte spara', e);
+      console.warn('Could not save', e);
     }
   },
   load() {
@@ -448,7 +655,7 @@ const Game = {
     try {
       raw = localStorage.getItem(SAVE_KEY);
     } catch (e) {
-      console.warn('Kunde inte läsa sparfil', e);
+      console.warn('Could not read save', e);
     }
     this.state = raw ? this.migrate(JSON.parse(raw)) : this.newState();
     if (!raw) return null;
@@ -456,14 +663,16 @@ const Game = {
     return away > 10000 ? this.simulateOffline(away) : null;
   },
   migrate(saved) {
-    // Fyll på fält som saknas i äldre sparfiler så att nytt innehåll inte kraschar spelet.
-    const fresh = this.newState();
-    const state = Object.assign(fresh, saved);
+    // Fill in fields missing from older saves so new content does not break the game.
+    const state = Object.assign(this.newState(), saved);
     for (const id in SKILLS) if (!state.skills[id]) state.skills[id] = { xp: 0 };
-    for (const id in TOOL_UPGRADES) if (state.tools[id] == null) state.tools[id] = 0;
-    for (const id in state.bank) if (!ITEMS[id]) delete state.bank[id];
+    for (const store of [state.pack, state.bank]) for (const id in store) if (!ITEMS[id]) delete store[id];
+    for (const slot in SLOTS) if (!(slot in state.equipment) || (state.equipment[slot] && !ITEMS[state.equipment[slot]])) state.equipment[slot] = null;
+    if (!LOCATIONS[state.location]) state.location = START_LOCATION;
+    if (!LOCATIONS[state.home]) state.home = START_LOCATION;
     if (state.action && !findAction(state.action.skill, state.action.id)) state.action = null;
     if (state.combat && !MONSTERS[state.combat.monster]) state.combat = null;
+    if (state.travel && !state.travel.path.every(l => LOCATIONS[l])) state.travel = null;
     return state;
   },
   exportSave() {

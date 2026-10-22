@@ -41,8 +41,11 @@ p { line-height: 1.45; }
 .warning { background: #1e1529; border: 1px solid var(--eldritch); padding: .6rem .8rem; border-radius: 6px; }
 .sanity-text { color: #a98be6; }
 .lack-text { color: #e07a74; }
+.good-text { color: #8fd1a8; }
+.loc-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
+.loc-link:hover { text-decoration: underline; }
 
-/* --- Topprad --- */
+/* --- Top bar --- */
 #top {
   grid-area: top;
   display: flex;
@@ -60,7 +63,7 @@ p { line-height: 1.45; }
 .activity { color: var(--muted); font-style: italic; }
 .menu-btn { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 1.2rem; border-radius: 4px; cursor: pointer; }
 
-/* --- Meny --- */
+/* --- Navigation --- */
 #nav {
   grid-area: nav;
   overflow-y: auto;
@@ -78,12 +81,13 @@ p { line-height: 1.45; }
 }
 .nav-btn:hover { background: var(--panel-2); }
 .nav-btn.active { background: var(--panel-2); border-left-color: var(--accent); }
+.nav-btn.dim { opacity: .45; }
 .nav-btn.busy .nav-name::after { content: ' •'; color: var(--accent); animation: pulse 1.5s infinite; }
 .nav-icon { width: 1.4rem; text-align: center; }
 .nav-name { flex: 1; }
 .nav-extra { font-size: .8rem; color: var(--muted); }
 
-/* --- Huvudyta --- */
+/* --- Main area --- */
 #page { grid-area: page; overflow-y: auto; padding: 1.2rem 1.5rem 3rem; }
 
 #log {
@@ -101,7 +105,7 @@ p { line-height: 1.45; }
 .log-line.warn { color: #d9b26b; }
 .log-line.good { color: #8fd1a8; }
 
-/* --- Mätare --- */
+/* --- Meters --- */
 .bar {
   position: relative; height: 20px; background: #0a0c0f;
   border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin: .3rem 0;
@@ -118,7 +122,7 @@ p { line-height: 1.45; }
   font-size: .8rem; text-shadow: 0 1px 2px #000; white-space: nowrap;
 }
 
-/* --- Färdighetssidor --- */
+/* --- Skill pages --- */
 .skill-header { margin-bottom: 1rem; }
 .skill-title { display: flex; gap: 1rem; align-items: center; }
 .skill-title p { margin: 0; }
@@ -134,7 +138,7 @@ p { line-height: 1.45; }
   display: flex; flex-direction: column; gap: .3rem;
 }
 .card.active { border-color: var(--accent); box-shadow: 0 0 14px rgba(95, 179, 154, .25); }
-.card.missing { opacity: .75; }
+.card.blocked { opacity: .7; }
 .card.locked { opacity: .45; align-items: center; justify-content: center; text-align: center; }
 .card.eldritch { background: linear-gradient(180deg, #1a1424, var(--panel)); }
 .card-icon { font-size: 1.8rem; }
@@ -148,7 +152,7 @@ p { line-height: 1.45; }
 .chip.lack { border-color: var(--danger); color: #e07a74; }
 .boss { font-size: .7rem; background: var(--danger); padding: 0 .3rem; border-radius: 3px; vertical-align: middle; }
 
-/* --- Knappar --- */
+/* --- Buttons --- */
 .btn {
   background: var(--accent-dim); color: var(--text); border: 1px solid var(--accent);
   border-radius: 5px; padding: .4rem .8rem; font: inherit; cursor: pointer;
@@ -167,7 +171,7 @@ select, textarea {
 }
 textarea { width: 100%; margin-top: .6rem; font-family: monospace; font-size: .8rem; }
 
-/* --- Strid --- */
+/* --- Combat --- */
 .combat { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
 .fighter { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: .9rem; }
 .fighter h2 { margin-top: 0; }
@@ -175,7 +179,7 @@ textarea { width: 100%; margin-top: .6rem; font-family: monospace; font-size: .8
 .style-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .5rem 0; }
 .area { margin-bottom: 1.5rem; }
 
-/* --- Karaktär och bank --- */
+/* --- Character, pack and bank --- */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 .slots { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
 .slot { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: .6rem; min-height: 90px; }
@@ -189,6 +193,7 @@ textarea { width: 100%; margin-top: .6rem; font-family: monospace; font-size: .8
   display: flex; flex-direction: column; align-items: center;
 }
 .bank-item:hover, .bank-item.selected { border-color: var(--accent); }
+.bank-item.food::after { content: '🍴'; position: absolute; top: 2px; left: 4px; font-size: .7rem; }
 .bank-icon { font-size: 1.7rem; }
 .bank-qty { position: absolute; top: 2px; right: 5px; font-size: .75rem; color: var(--gold); }
 .bank-name { font-size: .72rem; text-align: center; line-height: 1.1; margin-top: .2rem; }
@@ -198,13 +203,39 @@ textarea { width: 100%; margin-top: .6rem; font-family: monospace; font-size: .8
 .lore { max-width: 820px; }
 .lore p { font-size: 1.05rem; }
 
+/* --- World map --- */
+.map-layout { display: grid; grid-template-columns: 1fr; gap: 1rem; max-width: 1100px; }
+.map-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.map { display: block; width: 100%; height: auto; }
+.map .deco text { font-size: 22px; fill: #3a4a43; opacity: .55; text-anchor: middle; }
+.map .deco .sea-text { font-family: 'Cinzel', serif; font-size: 18px; fill: #2c4652; letter-spacing: .3em; opacity: .8; }
+.road { stroke: #6f6550; stroke-width: 3; stroke-dasharray: 8 6; }
+.road.blocked { stroke: #7a3434; }
+.road.route { stroke: var(--accent); stroke-width: 4; stroke-dasharray: none; filter: drop-shadow(0 0 4px var(--accent)); }
+.road-mark { font-size: 16px; text-anchor: middle; dominant-baseline: middle; }
+.road-time { font-size: 12px; fill: #8a8778; text-anchor: middle; }
+.node { cursor: pointer; }
+.node circle { fill: #11161a; stroke: #5fb39a; stroke-width: 2.5; transition: r .15s; }
+.node.town circle { stroke: var(--gold); }
+.node.dungeon circle { stroke: #9a6bd8; }
+.node:hover circle { r: 28; }
+.node.selected circle { stroke-width: 5; filter: drop-shadow(0 0 8px currentColor); }
+.node.current circle { fill: #1f3a33; }
+.node-icon { font-size: 22px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.node-label { font-family: 'Cinzel', serif; font-size: 16px; fill: var(--text); text-anchor: middle; paint-order: stroke; stroke: #0b0d10; stroke-width: 4px; pointer-events: none; }
+#map-player { fill: var(--accent); stroke: #0b0d10; stroke-width: 2; filter: drop-shadow(0 0 6px var(--accent)); pointer-events: none; }
+.map-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+.map-panel h2 { margin-top: 0; }
+.features > div { margin: .25rem 0; }
+.roads { margin-top: .8rem; line-height: 1.6; }
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 1rem; }
 .modal-box { background: var(--panel); border: 1px solid var(--accent-dim); border-radius: 10px; padding: 1.4rem; max-width: 620px; max-height: 90vh; overflow-y: auto; }
 .modal-box h2 { margin-top: 0; color: var(--accent); font-size: 1.5rem; }
 
-/* --- Lågt förstånd: världen börjar glida isär --- */
+/* --- Low sanity: the world starts to come apart --- */
 body.low-sanity #page { animation: unease 6s ease-in-out infinite; }
 body.low-sanity { filter: hue-rotate(20deg) saturate(1.3); }
 
@@ -215,7 +246,7 @@ body.low-sanity { filter: hue-rotate(20deg) saturate(1.3); }
   75% { transform: skewX(-.4deg) translateX(-1px); }
 }
 
-/* --- Mobil --- */
+/* --- Mobile --- */
 @media (max-width: 1000px) {
   body { grid-template-columns: 1fr; grid-template-rows: auto 1fr 140px; grid-template-areas: 'top' 'page' 'log'; }
   #log { border-left: none; border-top: 1px solid var(--border); }
@@ -224,5 +255,7 @@ body.low-sanity { filter: hue-rotate(20deg) saturate(1.3); }
   body.nav-open #nav { transform: none; box-shadow: 4px 0 20px #000; }
   #page { padding: 1rem; }
   .combat, .two-col { grid-template-columns: 1fr; }
+  .map-wrap { overflow-x: auto; }
+  .map { min-width: 640px; }
   .activity { width: 100%; }
 }

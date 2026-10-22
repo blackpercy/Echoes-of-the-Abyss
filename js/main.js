@@ -1,4 +1,4 @@
-// Startar spelet: laddar sparfil, kör tick-loopen och sparar automatiskt.
+// Boots the game: loads the save, runs the tick loop and saves automatically.
 
 (function main() {
   const offline = Game.load();
@@ -12,7 +12,7 @@
     const dt = now - last;
     last = now;
     if (dt > 60000) {
-      // Fliken har sovit länge (t.ex. datorn i viloläge): räkna ikapp som offline.
+      // The tab slept for a long time (e.g. the computer was suspended): catch up as offline time.
       const diff = Game.simulateOffline(dt);
       UI.dirty = true;
       UI.showOffline(diff);
