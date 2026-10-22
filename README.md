@@ -52,9 +52,17 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 - **Gifts of madness.** Each madness level unlocks an ability, such as *Speak with the Dead*, *Walk the Dream Roads* or *Feast on Fear*.
 - **Hallucinations.** From *Unmoored* onward, harmless phantoms appear: fake log lines, items that are not in your pack, enemies and places that vanish when touched.
 - **A third path: your own cult.** Recruit followers in Saltmire and assign them tasks. They gather gold and resources while you are away. Leading the cult has its own quest line and ending.
-- **Companions.** Hire Gorim the dwarven sellsword, Brother Tobias the healer or Mad Meg. They fight beside you and have minds of their own to lose.
+- **Companions.** Six companions can fight beside you, each with a mind of their own to lose:
+  - Gorim, the dwarven sellsword.
+  - Brother Tobias, the healer.
+  - Mad Meg.
+  - Ysolde the Hunter, after *Wolf Season*.
+  - Old Gnaw, who cannot go mad and feeds on the fallen. For the touched, after *Hungry Company*.
+  - Professor Peaslee, who gives you +2 to sanity saves, after *Samples from the Star*.
+
+  You can lead one companion, plus one more for every 5 Fellowship levels. Each extra companion draws more of the enemy's attacks away from you, up to 75% in total.
 - **Fellowship.** A skill trained by fighting and travelling with a companion.
-  - Each level makes your companion tougher: more hitpoints and sanity, and better to-hit and damage.
+  - Each level makes your companions tougher: more hitpoints and sanity, and better to-hit and damage. Every 5 levels let you lead one more companion.
   - Its perk tree adds companion bonuses, healing, a bodyguard stance and *Never Leave a Friend* (a downed companion gets back up without an inn).
   - Some Fellowship perks make travel up to 25% faster.
 - **Expeditions.** The Catacomb Depths, the Sealed Shaft and the Sunken Temple are chains of fights with no rest in between and a treasure at the end.

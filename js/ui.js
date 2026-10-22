@@ -166,7 +166,7 @@ const UI = {
       case 'perk': Game.choosePerk(d.skill, +d.tier, +d.index); break;
       case 'respec': if (confirm(`Unlearn every ${SKILLS[d.skill].name} perk for ${Game.respecCost(d.skill)} gold?`)) Game.respecPerks(d.skill); break;
       case 'expedition': Game.startExpedition(d.id); this.page = 'combat'; break;
-      case 'dismiss': if (confirm(`Part ways with ${Game.companion().name}?`)) Game.dismissCompanion(); break;
+      case 'dismiss': if (confirm(`Part ways with ${COMPANIONS[d.id].name}?`)) Game.dismissCompanion(d.id); break;
       case 'recruit': Game.recruit(); break;
       case 'collect': Game.collectCult(); break;
       case 'assign': Game.assignFollower(d.from, d.to); break;
@@ -570,8 +570,9 @@ const UI = {
     }
     if (skill === 'fellowship') {
       const lvl = Game.level('fellowship');
-      html += `<p class="small">🤝 Fellowship grows when a companion fights beside you (${Math.round(FELLOWSHIP_KILL_SHARE * 100)}% of each enemy's xp) and when you travel together. Each level gives your companion +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100)}% hitpoints and +1 sanity; every 10 levels +1 to hit, every 8 levels +1 damage.</p>
-        ${Game.state.companion ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, at the Silent Abbey and, for the touched, in Saltmire.</p>'}
+      html += `<p class="small">🤝 Fellowship grows when a companion fights beside you (${Math.round(FELLOWSHIP_KILL_SHARE * 100)}% of each enemy's xp) and when you travel together. Each level gives your companions +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100)}% hitpoints and +1 sanity; every 10 levels +1 to hit, every 8 levels +1 damage.</p>
+        <p class="small"><b>You can lead ${Game.companionCapacity()} companion${Game.companionCapacity() > 1 ? 's' : ''}</b> (one more every ${FELLOWSHIP_LEVELS_PER_COMPANION} Fellowship levels). With you now: ${Game.companions().length}.</p>
+        ${Game.companions().length ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, at the Silent Abbey and, for the touched, in Saltmire. Others may join you once you have helped them.</p>'}
         <p class="small muted">Right now: +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100 * (lvl - 1))}% hitpoints, ${withSign(Math.floor(lvl / 10))} to hit, ${withSign(Math.floor(lvl / 8))} damage.</p>`;
     }
     if (skill === 'occultism') {
@@ -711,7 +712,7 @@ const UI = {
       <tr><td>Madness</td><td>${MADNESS_STAGES[s.madness]} (${s.madness} / ${MADNESS_STAGES.length - 1})</td></tr>
     </table>
     ${s.madness ? `<h2>Gifts of madness</h2>${MADNESS_ABILITIES.slice(1, s.madness + 1).map(a => `<div class="derangement"><b>✦ ${a.name}</b><div class="small muted">${a.desc}</div></div>`).join('')}` : ''}
-    ${s.companion ? `<h2>Companion</h2>${this.companionBlock(true)}` : ''}
+    ${s.companions.length ? `<h2>Companions <span class="small muted">${s.companions.length} / ${Game.companionCapacity()}</span></h2>${this.companionBlock(true)}` : ''}
     ${s.derangements.length ? `<div class="derangements">${s.derangements.map(d => `<div class="derangement"><b>${DERANGEMENTS[d].icon} ${DERANGEMENTS[d].name}</b><div class="small muted">${DERANGEMENTS[d].desc}</div></div>`).join('')}</div>` : '<p class="small muted">No derangements. Yet.</p>'}
     </div><div><h2>Skills</h2><table class="stats">`;
     for (const g of SKILL_GROUPS) {
@@ -843,13 +844,13 @@ const UI = {
   },
 
   companionBlock(full) {
-    const comp = Game.state.companion;
-    if (!comp) return '';
-    const def = Game.companion();
-    const st = Game.companionStats();
-    return `<div class="companion"><b>${def.icon} ${esc(def.name)}</b> <span class="small muted">🤝 Fellowship ${Game.level('fellowship')}</span>${comp.downed ? ` <span class="lack-text">(down: ${Game.perk('rally') ? 'catching their breath' : 'rest at an inn'})</span>` : ''}
-      <div class="small">❤️ ${comp.hp} / ${st.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / ${st.sanity} · AC ${st.ac} · ${withSign(st.hit)} to hit, ${Game.companionDamageText()}${st.heals ? ` · heals you ${st.heals}` : ''}</div>
-      ${full ? `<div class="small muted">${esc(def.desc)}</div><button class="btn small danger" data-act="dismiss">Part ways</button>` : ''}</div>`;
+    return Game.companions().map(comp => {
+      const def = COMPANIONS[comp.id];
+      const st = Game.companionStats(comp);
+      return `<div class="companion${comp.downed ? ' downed' : ''}"><b>${def.icon} ${esc(def.name)}</b>${comp.downed ? ` <span class="lack-text">(down: ${Game.perk('rally') ? 'catching their breath' : 'rest at an inn'})</span>` : ''}
+        <div class="small">❤️ ${comp.hp} / ${st.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / ${st.sanity} · AC ${st.ac} · ${withSign(st.hit)} to hit, ${Game.companionDamageText(comp)}${st.heals ? ` · heals you ${st.heals}` : ''}</div>
+        ${full ? `<div class="small muted">${esc(def.desc)}</div><button class="btn small danger" data-act="dismiss" data-id="${comp.id}">Part ways</button>` : ''}</div>`;
+    }).join('');
   },
 
   pageCult() {

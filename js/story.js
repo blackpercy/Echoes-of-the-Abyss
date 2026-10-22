@@ -130,7 +130,10 @@ const NPCS = {
     ],
   },
   ghoul: {
-    name: 'The Ghoul Who Speaks', icon: '🧟', title: 'who will not eat you, yet', location: 'graveyard', if: { minMadness: 1 },
+    name: 'The Ghoul Who Speaks', icon: '🧟', title: 'who will not eat you, yet', location: 'graveyard', if: { minMadness: 1, noCompanion: 'gnaw' },
+    interactions: [
+      { id: 'hire', label: 'Ask Old Gnaw to come with you', if: { quests: { ghoul_company: 'done' } }, cost: { items: { raw_pale_eel: 5 } }, gain: { companion: 'gnaw' }, result: '"Fresh meat on every road? Old Gnaw comes."' },
+    ],
     lines: [
       { if: { quests: { ghoul_company: 'done' } }, text: '"Go on down to the Market, warm one. Tell them Old Gnaw sent you."' },
       { text: 'A crouched figure looks up from a gnawed bone. Its voice is a dry rustle. "You smell of the threshold. The Market Under the Hill might let you in, if someone vouches for you. Someone with a full belly."' },

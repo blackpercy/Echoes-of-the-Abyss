@@ -8,6 +8,11 @@ const BASE_TRAVEL_SPEED = 2;
 // Fellowship: each level adds this share to a companion's hitpoints; Rally brings a downed companion back after this long.
 const FELLOWSHIP_HP_PER_LEVEL = 0.03;
 const RALLY_MS = 30000;
+// One extra companion slot for every this many Fellowship levels.
+const FELLOWSHIP_LEVELS_PER_COMPANION = 5;
+// Each companion beyond the first draws this much more of the enemy's attention, up to the cap.
+const EXTRA_COMPANION_TARGET_CHANCE = 0.15;
+const MAX_COMPANION_TARGET_CHANCE = 0.75;
 // Fellowship xp: a share of each enemy's xp when your companion fights beside you, and per second travelled together.
 const FELLOWSHIP_KILL_SHARE = 0.6;
 const FELLOWSHIP_XP_PER_ROAD_SECOND = 2;
@@ -168,51 +173,72 @@ Object.assign(Game, {
   },
 
   // --- Companions ---
-  companion() {
-    return this.state.companion ? COMPANIONS[this.state.companion.id] : null;
+  // You can lead one companion, plus one more for every few Fellowship levels.
+  companionCapacity() {
+    return 1 + Math.floor(this.level('fellowship') / FELLOWSHIP_LEVELS_PER_COMPANION);
+  },
+  companions() {
+    return this.state.companions;
+  },
+  activeCompanions() {
+    return this.state.companions.filter(c => !c.downed);
   },
   companionActive() {
-    return !!this.state.companion && !this.state.companion.downed;
+    return this.activeCompanions().length > 0;
+  },
+  hasCompanion(id) {
+    return this.state.companions.some(c => c.id === id);
+  },
+  companionRoom() {
+    return this.state.companions.length < this.companionCapacity();
   },
   // A companion's numbers: their own, improved by your Fellowship level and perks.
-  companionStats() {
-    const def = this.companion();
+  companionStats(comp) {
+    const def = COMPANIONS[comp.id];
     const lvl = this.level('fellowship');
-    const comp = this.state.companion;
     return {
       hp: Math.round(def.hp * (1 + FELLOWSHIP_HP_PER_LEVEL * (lvl - 1))) + this.perk('compHp'),
       ac: def.ac + this.perk('compAc'),
       hit: def.hit + Math.floor(lvl / 10) + this.perk('compHit'),
-      dmgBonus: Math.floor(lvl / 8) + this.perk('compDmg') + (comp ? comp.rage * 2 : 0),
+      dmgBonus: Math.floor(lvl / 8) + this.perk('compDmg') + comp.rage * 2,
       wits: def.wits + this.perk('compWits'),
       heals: (def.heals || 0) + this.perk('compHeal'),
       sanity: 50 + lvl,
     };
   },
+  // Bonuses some companions give you just by being at your side (e.g. Peaslee's +2 to sanity saves).
+  companionAura(key) {
+    return this.activeCompanions().reduce((sum, c) => sum + ((COMPANIONS[c.id].aura || {})[key] || 0), 0);
+  },
   hireCompanion(id) {
-    if (this.state.companion) this.log(`${this.companion().name} parts ways with you.`);
-    this.state.companion = { id, hp: 0, sanity: 0, downed: false, rage: 0, timer: 0 };
-    const st = this.companionStats();
-    Object.assign(this.state.companion, { hp: st.hp, sanity: st.sanity });
+    if (this.hasCompanion(id)) return;
+    if (!this.companionRoom()) return this.log(`You can lead only ${this.companionCapacity()} companion${this.companionCapacity() > 1 ? 's' : ''}. Raise your Fellowship to lead more.`, 'warn');
+    const comp = { id, hp: 0, sanity: 0, downed: false, rage: 0, timer: 0 };
+    const st = this.companionStats(comp);
+    Object.assign(comp, { hp: st.hp, sanity: st.sanity });
+    this.state.companions.push(comp);
     this.emit('action');
   },
-  dismissCompanion() {
-    if (!this.state.companion) return;
-    this.log(`${this.companion().name} returns to ${LOCATIONS[this.companion().home].name}.`);
-    this.state.companion = null;
+  dismissCompanion(id) {
+    if (!this.hasCompanion(id)) return;
+    this.log(`${COMPANIONS[id].name} returns to ${LOCATIONS[COMPANIONS[id].home].name}.`);
+    this.state.companions = this.state.companions.filter(c => c.id !== id);
     this.emit('action');
   },
-  companionDamageText() {
-    const d = parseDice(this.companion().dmg);
-    const bonus = d.bonus + this.companionStats().dmgBonus;
+  companionDamageText(comp) {
+    const d = parseDice(COMPANIONS[comp.id].dmg);
+    const bonus = d.bonus + this.companionStats(comp).dmgBonus;
     return `${d.n}d${d.sides}${bonus ? withSign(bonus) : ''}`;
   },
+  // More companions draw more attacks away from you, up to a limit.
   companionTargetChance() {
-    return Math.min(0.6, COMPANION_TARGET_CHANCE + this.perk('compGuard'));
+    const n = this.activeCompanions().length;
+    if (!n) return 0;
+    return Math.min(MAX_COMPANION_TARGET_CHANCE, COMPANION_TARGET_CHANCE + EXTRA_COMPANION_TARGET_CHANCE * (n - 1) + this.perk('compGuard'));
   },
-  companionAttack(c, m) {
-    const def = this.companion();
-    const st = this.companionStats();
+  companionAttack(c, m, comp) {
+    const def = COMPANIONS[comp.id];
+    const st = this.companionStats(comp);
     const roll = d20();
     if (roll === 1 || (roll !== 20 && roll + st.hit < m.ac)) {
       this.combatLog(c, `${def.name} misses.`);
@@ -227,9 +253,10 @@ Object.assign(Game, {
     }
   },
   monsterAttacksCompanion(c, m) {
-    const def = this.companion();
-    const st = this.companionStats();
-    const comp = this.state.companion;
+    const active = this.activeCompanions();
+    const comp = active[randInt(0, active.length - 1)];
+    const def = COMPANIONS[comp.id];
+    const st = this.companionStats(comp);
     const roll = d20();
     if (roll === 1 || (roll !== 20 && roll + this.monsterHit(m) < st.ac)) {
       this.combatLog(c, `The ${m.name} lunges at ${def.name} and misses.`);
@@ -247,49 +274,57 @@ Object.assign(Game, {
     }
     if (m.eldritch && d20() + st.wits < this.eldritchDc(m)) {
       comp.sanity -= m.eldritch.loss;
-      if (comp.sanity <= 0) this.companionBreaks();
+      if (comp.sanity <= 0) this.companionBreaks(comp);
     }
   },
-  companionBreaks() {
-    const def = this.companion();
-    const comp = this.state.companion;
+  companionBreaks(comp) {
+    const def = COMPANIONS[comp.id];
     if (def.mad) {
       comp.rage++;
-      comp.sanity = this.companionStats().sanity;
-      this.log(`${def.name} shrieks with laughter. She hits harder now (+${comp.rage * 2} damage).`, 'veil');
+      comp.sanity = this.companionStats(comp).sanity;
+      this.log(`${def.name} shrieks with laughter. ${def.name} hits harder now (+${comp.rage * 2} damage).`, 'veil');
     } else {
       this.log(`${def.name}'s mind breaks. They flee back to ${LOCATIONS[def.home].name}, and will not travel with you again until you hire them anew.`, 'bad');
-      this.state.companion = null;
+      this.state.companions = this.state.companions.filter(c => c !== comp);
+    }
+  },
+  // Companions who feed on the fallen (Old Gnaw) heal when an enemy dies.
+  companionsFeed() {
+    for (const comp of this.activeCompanions()) {
+      const feeds = COMPANIONS[comp.id].feeds;
+      if (feeds) comp.hp = Math.min(this.companionStats(comp).hp, comp.hp + feeds);
     }
   },
   checkCompanionLoyalty() {
-    const def = this.companion();
-    if (def && def.maxMadness !== undefined && this.state.madness > def.maxMadness) {
-      this.log(`${def.name} looks into your eyes and backs away. "I cannot follow where you are going." He returns to ${LOCATIONS[def.home].name}.`, 'bad');
-      this.state.companion = null;
+    for (const comp of this.state.companions.slice()) {
+      const def = COMPANIONS[comp.id];
+      if (def.maxMadness !== undefined && this.state.madness > def.maxMadness) {
+        this.log(`${def.name} looks into your eyes and backs away. "I cannot follow where you are going." They return to ${LOCATIONS[def.home].name}.`, 'bad');
+        this.state.companions = this.state.companions.filter(c => c !== comp);
+      }
     }
   },
   tickCompanion(dt) {
-    const comp = this.state.companion;
-    if (!comp) return;
-    const def = this.companion();
-    const st = this.companionStats();
-    if (comp.downed) {
-      // At an inn, or after a short rest with the Never Leave a Friend perk.
-      comp.downedFor = (comp.downedFor || 0) + dt;
-      const rallied = this.perk('rally') && comp.downedFor >= RALLY_MS;
-      if (rallied || (this.here().inn && !this.state.travel)) {
-        comp.downed = false;
-        comp.hp = rallied ? Math.ceil(st.hp / 2) : st.hp;
-        this.log(`${def.name} is back on their feet.`, 'good');
+    for (const comp of this.state.companions) {
+      const def = COMPANIONS[comp.id];
+      const st = this.companionStats(comp);
+      if (comp.downed) {
+        // At an inn, or after a short rest with the Never Leave a Friend perk.
+        comp.downedFor = (comp.downedFor || 0) + dt;
+        const rallied = this.perk('rally') && comp.downedFor >= RALLY_MS;
+        if (rallied || (this.here().inn && !this.state.travel)) {
+          comp.downed = false;
+          comp.hp = rallied ? Math.ceil(st.hp / 2) : st.hp;
+          this.log(`${def.name} is back on their feet.`, 'good');
+        }
+        continue;
       }
-      return;
-    }
-    comp.timer = (comp.timer || 0) + dt;
-    while (comp.timer >= HP_REGEN_MS) {
-      comp.timer -= HP_REGEN_MS;
-      comp.hp = Math.min(st.hp, comp.hp + Math.ceil(st.hp * 0.04));
-      comp.sanity = Math.min(st.sanity, comp.sanity + 1);
+      comp.timer = (comp.timer || 0) + dt;
+      while (comp.timer >= HP_REGEN_MS) {
+        comp.timer -= HP_REGEN_MS;
+        comp.hp = Math.min(st.hp, comp.hp + Math.ceil(st.hp * 0.04));
+        comp.sanity = Math.min(st.sanity, comp.sanity + 1);
+      }
     }
   },
 

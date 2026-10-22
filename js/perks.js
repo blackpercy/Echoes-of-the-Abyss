@@ -27,14 +27,14 @@ const PERK_EFFECTS = {
   veil: { text: v => `You see through the Veil ${v} sanity sooner` },
   eldritch: { text: v => `+${Math.round(v * 100)}% damage against eldritch beings` },
   travel: { text: v => `Travel ${Math.round(v * 100)}% faster` },
-  compHit: { text: v => `Your companion has +${v} to hit` },
-  compAc: { text: v => `Your companion has +${v} AC` },
-  compHp: { text: v => `Your companion has +${v} hitpoints` },
-  compDmg: { text: v => `Your companion deals +${v} damage` },
-  compWits: { text: v => `Your companion has +${v} to sanity saves` },
-  compHeal: { text: v => `Your companion heals you ${v} each turn` },
-  compGuard: { text: v => `Your companion draws ${Math.round(v * 100)}% more attacks away from you` },
-  rally: { text: () => 'A downed companion gets back up after 30 seconds, without an inn' },
+  compHit: { text: v => `Your companions have +${v} to hit` },
+  compAc: { text: v => `Your companions have +${v} AC` },
+  compHp: { text: v => `Your companions have +${v} hitpoints` },
+  compDmg: { text: v => `Your companions deal +${v} damage` },
+  compWits: { text: v => `Your companions have +${v} to sanity saves` },
+  compHeal: { text: v => `Each companion heals you ${v} each turn` },
+  compGuard: { text: v => `Your companions draw ${Math.round(v * 100)}% more attacks away from you` },
+  rally: { text: () => 'Downed companions get back up after 30 seconds, without an inn' },
 };
 
 // What the "rare" perks turn up while gathering.

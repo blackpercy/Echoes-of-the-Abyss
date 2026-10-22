@@ -266,6 +266,7 @@ body.night .map-wrap { filter: brightness(.8) saturate(.8); }
 .phantom { opacity: .55; animation: flicker 3s infinite; }
 @keyframes flicker { 0%, 100% { opacity: .55; } 45% { opacity: .2; } 50% { opacity: .7; } 55% { opacity: .15; } }
 .companion { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: .5rem .7rem; margin: .5rem 0; }
+.companion.downed { opacity: .6; }
 .bestiary { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .6rem; }
 .beast { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: .6rem .8rem; }
 .beast.eldritch { border-color: var(--eldritch); }

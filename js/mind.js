@@ -59,7 +59,7 @@ Object.assign(Game, {
     if (cond.starsRight && !this.starsRight()) return false;
     if (cond.race && s.race !== cond.race) return false;
     if (cond.background && s.background !== cond.background) return false;
-    if (cond.noCompanion && s.companion && s.companion.id === cond.noCompanion) return false;
+    if (cond.noCompanion && this.hasCompanion(cond.noCompanion)) return false;
     if (cond.ending && !s.endings[cond.ending]) return false;
     for (const flag of cond.flags || []) if (!s.flags[flag]) return false;
     if (cond.minMadness !== undefined && s.madness < cond.minMadness) return false;
@@ -102,6 +102,9 @@ Object.assign(Game, {
     const inter = npc && (npc.interactions || []).find(i => i.id === interId);
     if (!inter || npc.location !== this.state.location || !this.check(npc.if) || !this.check(inter.if)) return;
     const cost = this.interactionCost(inter);
+    if (inter.gain && inter.gain.companion && !this.companionRoom()) {
+      return this.log(`You already lead as many companions as you can (${this.companionCapacity()}). Raise your Fellowship, or part ways with someone.`, 'warn');
+    }
     if (this.state.gold < cost.gold) return this.log('You cannot afford that.', 'warn');
     if (!this.hasAll(cost.items)) return this.log('You do not have what is needed.', 'warn');
     this.state.gold -= cost.gold;

@@ -107,7 +107,7 @@ const Game = {
       created: false,
       clock: DAY_MS * 0.3,
       known: { [START_LOCATION]: true },
-      companion: null,
+      companions: [],
       cult: null,
       bestiary: {},
       achievements: {},
@@ -362,7 +362,7 @@ const Game = {
   // Bonus to sanity saving throws: occult understanding plus warding gear.
   wits() {
     return Math.floor(this.level('occultism') / 5) + this.playerStats().ward - (this.hasDerangement('night_eyes') ? 2 : 0)
-      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0) + this.perk('ward');
+      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0) + this.perk('ward') + this.companionAura('ward');
   },
   eldritchBonus() {
     return (this.level('occultism') - 1) / 100 + this.perk('eldritch');
@@ -689,6 +689,7 @@ const Game = {
     this.combatLog(c, `The ${m.name} falls. +${Math.round(xp * this.xpMultiplier())} xp, +${gold} gold.`);
     this.recordBestiary(c.monster);
     if (this.companionActive()) this.addXp('fellowship', Math.round(m.xp * FELLOWSHIP_KILL_SHARE));
+    this.companionsFeed();
     const killHeal = this.perk('killHeal');
     if (killHeal) this.heal(killHeal);
     if (m.eldritch && this.state.madness >= 3) {
@@ -709,7 +710,7 @@ const Game = {
     c.respawn = RESPAWN_MS;
     c.playerTimer = 0;
     c.monsterTimer = 0;
-    c.compTimer = 0;
+    c.compTimers = {};
     if (c.expedition) this.advanceExpedition(c);
     this.emit('kill');
   },
@@ -724,12 +725,14 @@ const Game = {
       }
       return;
     }
-    if (this.companionActive()) {
-      const compSpeed = this.companion().speed;
-      c.compTimer = (c.compTimer || 0) + dt;
-      while (c.compTimer >= compSpeed) {
-        c.compTimer -= compSpeed;
-        this.companionAttack(c, m);
+    // Every companion swings on their own timer.
+    c.compTimers = c.compTimers || {};
+    for (const comp of this.activeCompanions()) {
+      const compSpeed = COMPANIONS[comp.id].speed;
+      c.compTimers[comp.id] = (c.compTimers[comp.id] || 0) + dt;
+      while (c.compTimers[comp.id] >= compSpeed) {
+        c.compTimers[comp.id] -= compSpeed;
+        this.companionAttack(c, m, comp);
         if (c.monsterHp <= 0) return this.monsterKilled(c, m);
       }
     }
@@ -872,7 +875,10 @@ const Game = {
     if (saved.created === undefined) state.created = !!saved.seenIntro;
     for (const loc in state.visited) state.known[loc] = true;
     for (const loc in state.known) if (!LOCATIONS[loc]) delete state.known[loc];
-    if (state.companion && !COMPANIONS[state.companion.id]) state.companion = null;
+    // Older saves had a single companion.
+    if (saved.companion) state.companions = [saved.companion];
+    delete state.companion;
+    state.companions = state.companions.filter(c => COMPANIONS[c.id]);
     for (const id in state.quests) if (!QUESTS[id]) delete state.quests[id];
     return state;
   },

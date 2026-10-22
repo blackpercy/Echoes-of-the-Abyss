@@ -70,6 +70,11 @@ const COMPANIONS = {
   tobias: { name: 'Brother Tobias', icon: '🙏', desc: 'A young monk of the Silent Order. He fights poorly but tends your wounds (heals you 4 each turn). He will not follow anyone who is Unmoored or worse.', hp: 45, ac: 12, hit: 3, dmg: '1d6', speed: 3000, wits: 5, heals: 4, maxMadness: 2, home: 'silent_abbey' },
   meg: { name: 'Mad Meg', icon: '🧙‍♀️', desc: 'She laughs at things that are not there. When her mind breaks she does not run; she gets worse (+2 damage each time).', hp: 50, ac: 13, hit: 6, dmg: '2d4+2', speed: 2400, wits: 0, mad: true, home: 'saltmire' },
 };
+Object.assign(COMPANIONS, {
+  ysolde: { name: 'Ysolde the Hunter', icon: '🏹', desc: 'Fast and precise. She shoots before most things know she is there.', hp: 50, ac: 14, hit: 7, dmg: '1d8+1', speed: 2000, wits: 1, home: 'blackwood' },
+  gnaw: { name: 'Old Gnaw', icon: '🧟', desc: 'The ghoul who speaks. Madness cannot touch what is already mad, and he heals 15 by feeding on whatever falls.', hp: 80, ac: 13, hit: 6, dmg: '2d6', speed: 2800, wits: 99, feeds: 15, mad: true, home: 'graveyard' },
+  peaslee: { name: 'Professor Peaslee', icon: '🔭', desc: 'Useless with a sword, invaluable with a theory. While he is with you, you have +2 to sanity saves.', hp: 35, ac: 11, hit: 2, dmg: '1d4', speed: 3000, wits: 6, aura: { ward: 2 }, home: 'crater' },
+});
 const COMPANION_TARGET_CHANCE = 0.3;
 
 // --- Your own cult (the third path) ---
@@ -124,11 +129,15 @@ Object.assign(NPCS, {
       { text: 'A woman in green leathers lowers her bow. "The wolves have grown bold since the star fell. Bigger, too."' },
     ],
     interactions: [
+      { id: 'hire', label: 'Ask Ysolde to travel with you', if: { quests: { wolf_season: 'done' }, noCompanion: 'ysolde' }, cost: { gold: 400 }, gain: { companion: 'ysolde' }, result: '"Someone has to keep you alive out there. Fine."' },
       { id: 'rumours', label: 'Ask about the forest', result: '"North through the trees lies the old graveyard, and past it the abbey on the hill. Beyond that, the crater. Don\'t go to the crater."', gain: { reveal: ['graveyard', 'silent_abbey', 'crater'] } },
     ],
   },
   peaslee: {
-    name: 'Professor Peaslee', icon: '🔭', title: 'of Miskatonic, lately', location: 'crater',
+    name: 'Professor Peaslee', icon: '🔭', title: 'of Miskatonic, lately', location: 'crater', if: { noCompanion: 'peaslee' },
+    interactions: [
+      { id: 'hire', label: 'Invite the Professor along', if: { quests: { star_samples: 'done' } }, cost: { gold: 500 }, gain: { companion: 'peaslee' }, result: '"An expedition! How marvellous. I shall bring my notebooks. All of them."' },
+    ],
     lines: [
       { if: { veil: true }, text: '"You can see them too? The cone-shaped ones? They took me for five years, you know. I wrote a great deal of their history. In my own hand, which is the troubling part."' },
       { text: 'A thin man with a theodolite and a nervous twitch. "Fascinating, fascinating! The ore is not of this world. Not of any world I can name."' },
@@ -411,7 +420,8 @@ const ACHIEVEMENTS = [
   { id: 'master', icon: '🌟', name: 'Master', desc: 'Reach level 50 in any skill.', test: g => Object.keys(SKILLS).some(s => g.level(s) >= 50) },
   { id: 'expedition', icon: '🏛️', name: 'Delver', desc: 'Complete an expedition.', test: g => Object.keys(g.state.expeditionsDone).length >= 1 },
   { id: 'all_expeditions', icon: '🏆', name: 'Into Every Dark', desc: 'Complete every expedition.', test: g => Object.keys(EXPEDITIONS).every(e => g.state.expeditionsDone[e]) },
-  { id: 'companion', icon: '🤝', name: 'Fellow Traveller', desc: 'Hire a companion.', test: g => !!g.state.companion },
+  { id: 'companion', icon: '🤝', name: 'Fellow Traveller', desc: 'Hire a companion.', test: g => g.state.companions.length > 0 },
+  { id: 'company', icon: '🛡️', name: 'A Company of Six', desc: 'Lead every companion in Aldmark at once.', test: g => Object.keys(COMPANIONS).every(id => g.hasCompanion(id)) },
   { id: 'congregation', icon: '🛐', name: 'Congregation', desc: 'Lead a cult of ten followers.', test: g => !!g.state.cult && g.state.cult.followers >= 10 },
   { id: 'bestiary', icon: '📕', name: 'Naturalist', desc: 'Fill every page of the bestiary.', test: g => Object.keys(BESTIARY).every(m => g.state.bestiary[m] !== undefined) },
   { id: 'stars', icon: '🌌', name: 'When the Stars Are Right', desc: 'Be awake on a night when the stars are right.', test: g => g.starsRight() },
