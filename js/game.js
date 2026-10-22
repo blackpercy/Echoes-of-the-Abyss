@@ -597,6 +597,7 @@ const Game = {
       }
       if (t.progress < legTime) break;
       t.progress -= legTime;
+      if (this.companionActive()) this.addXp('fellowship', (legTime / 1000) * FELLOWSHIP_XP_PER_ROAD_SECOND);
       t.leg++;
       t.rolled = false;
       this.arriveAt(t.path[t.leg]);
@@ -655,7 +656,7 @@ const Game = {
     this.combatLog(c, crit ? `${roll === 20 ? 'Natural 20' : `Critical (${roll})`}! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
   },
   monsterAttack(c, m) {
-    if (this.companionActive() && Math.random() < COMPANION_TARGET_CHANCE) return this.monsterAttacksCompanion(c, m);
+    if (this.companionActive() && Math.random() < this.companionTargetChance()) return this.monsterAttacksCompanion(c, m);
     const roll = d20();
     const ac = this.armourClass();
     const hit = this.monsterHit(m);
@@ -687,6 +688,7 @@ const Game = {
     this.addXp('combat', xp);
     this.combatLog(c, `The ${m.name} falls. +${Math.round(xp * this.xpMultiplier())} xp, +${gold} gold.`);
     this.recordBestiary(c.monster);
+    if (this.companionActive()) this.addXp('fellowship', Math.round(m.xp * FELLOWSHIP_KILL_SHARE));
     const killHeal = this.perk('killHeal');
     if (killHeal) this.heal(killHeal);
     if (m.eldritch && this.state.madness >= 3) {

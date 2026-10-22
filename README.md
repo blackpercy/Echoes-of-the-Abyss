@@ -23,10 +23,10 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **9 skills, levels 1–50.**
+- **10 skills, levels 1–50.**
   - Gathering: Woodcutting, Fishing, Mining, Foraging
   - Crafting: Cooking, Smithing, Alchemy, Occultism
-  - Adventuring: Combat
+  - Adventuring: Combat, Fellowship
 - **Dice-based combat.** Each attack is a d20 roll plus your proficiency and gear against the enemy's armour class. Damage comes from weapon dice (`1d8`, `2d6+3`…) and a natural 20 is a critical hit. Pick an aggressive, balanced or defensive stance.
 - **Sanity.** When something eldritch wounds you, you roll a sanity save against its DC. Failing it, or studying the occult, costs sanity. At zero you flee in panic. Warding amulets and Occultism levels improve your saves, potions restore sanity, and inns let you recover.
 - **Madness is not the end.** Below 40 sanity you see through the Veil: hidden places appear on the map (the Lighthouse That Isn't, the Market Under the Hill), along with resources and people no one else can see. When sanity hits zero your mind breaks and you keep playing. You gain a madness level and a random *derangement* with an upside and a downside.
@@ -36,7 +36,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 90 in all.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 100 in all.
   - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
   - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
   - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.
@@ -53,6 +53,10 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 - **Hallucinations.** From *Unmoored* onward, harmless phantoms appear: fake log lines, items that are not in your pack, enemies and places that vanish when touched.
 - **A third path: your own cult.** Recruit followers in Saltmire and assign them tasks. They gather gold and resources while you are away. Leading the cult has its own quest line and ending.
 - **Companions.** Hire Gorim the dwarven sellsword, Brother Tobias the healer or Mad Meg. They fight beside you and have minds of their own to lose.
+- **Fellowship.** A skill trained by fighting and travelling with a companion.
+  - Each level makes your companion tougher: more hitpoints and sanity, and better to-hit and damage.
+  - Its perk tree adds companion bonuses, healing, a bodyguard stance and *Never Leave a Friend* (a downed companion gets back up without an inn).
+  - Some Fellowship perks make travel up to 25% faster.
 - **Expeditions.** The Catacomb Depths, the Sealed Shaft and the Sunken Temple are chains of fights with no rest in between and a treasure at the end.
 - **Endings change the world.** After each ending, Saltmire and the shore change: new descriptions, different enemies, new shops.
 - **More people and quests** in Ironhold, the Silent Abbey, the Blackwood and the Crater.

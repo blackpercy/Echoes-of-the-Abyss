@@ -568,6 +568,12 @@ const UI = {
       const tier = Game.toolTier(skill);
       html += `<p class="muted small">Tool: ${tier < 0 ? `<span class="lack-text">none, so you need a ${ITEMS[TOOLS[skill][0]].name} in your pack</span>` : `<b>${ITEMS[TOOLS[skill][tier]].name}</b>${TOOL_SPEEDUP[tier] ? ` (−${TOOL_SPEEDUP[tier] * 100}% time)` : ''}`}. Better tools are sold in the shops.</p>`;
     }
+    if (skill === 'fellowship') {
+      const lvl = Game.level('fellowship');
+      html += `<p class="small">🤝 Fellowship grows when a companion fights beside you (${Math.round(FELLOWSHIP_KILL_SHARE * 100)}% of each enemy's xp) and when you travel together. Each level gives your companion +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100)}% hitpoints and +1 sanity; every 10 levels +1 to hit, every 8 levels +1 damage.</p>
+        ${Game.state.companion ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, at the Silent Abbey and, for the touched, in Saltmire.</p>'}
+        <p class="small muted">Right now: +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100 * (lvl - 1))}% hitpoints, ${withSign(Math.floor(lvl / 10))} to hit, ${withSign(Math.floor(lvl / 8))} damage.</p>`;
+    }
     if (skill === 'occultism') {
       html += '<p class="warning">👁️ Occult study costs sanity, and your sanity does not recover while you study. Every Occultism level beyond the first grants +1% damage against beings from beyond, and every five levels add +1 to your sanity saves.</p>';
     }
@@ -840,8 +846,9 @@ const UI = {
     const comp = Game.state.companion;
     if (!comp) return '';
     const def = Game.companion();
-    return `<div class="companion"><b>${def.icon} ${esc(def.name)}</b>${comp.downed ? ' <span class="lack-text">(down: rest at an inn)</span>' : ''}
-      <div class="small">❤️ ${comp.hp} / ${def.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / 50 · AC ${def.ac} · ${withSign(def.hit)} to hit, ${Game.companionDamageText()}</div>
+    const st = Game.companionStats();
+    return `<div class="companion"><b>${def.icon} ${esc(def.name)}</b> <span class="small muted">🤝 Fellowship ${Game.level('fellowship')}</span>${comp.downed ? ` <span class="lack-text">(down: ${Game.perk('rally') ? 'catching their breath' : 'rest at an inn'})</span>` : ''}
+      <div class="small">❤️ ${comp.hp} / ${st.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / ${st.sanity} · AC ${st.ac} · ${withSign(st.hit)} to hit, ${Game.companionDamageText()}${st.heals ? ` · heals you ${st.heals}` : ''}</div>
       ${full ? `<div class="small muted">${esc(def.desc)}</div><button class="btn small danger" data-act="dismiss">Part ways</button>` : ''}</div>`;
   },
 

@@ -9,13 +9,14 @@ const SKILLS = {
   smithing: { name: 'Smithing', icon: '⚒️', type: 'production', desc: 'Smelt ore into bars and forge weapons and armour.' },
   alchemy: { name: 'Alchemy', icon: '⚗️', type: 'production', desc: 'Brew draughts that mend wounds and steady a shaken mind.' },
   occultism: { name: 'Occultism', icon: '👁️', type: 'production', desc: 'Study forbidden lore. Every insight costs a piece of your sanity, but grants power over things that should not be.' },
+  fellowship: { name: 'Fellowship', icon: '🤝', type: 'combat', desc: 'The bond with those who travel beside you. Trained by fighting and travelling with a companion; each level makes your companion tougher and deadlier.' },
   combat: { name: 'Combat', icon: '⚔️', type: 'combat', desc: 'Skill at arms. Raises your proficiency, your might and your hitpoints, and lets you wield better gear.' },
 };
 
 const SKILL_GROUPS = [
   { name: 'Gathering', skills: ['woodcutting', 'fishing', 'mining', 'foraging'] },
   { name: 'Crafting', skills: ['cooking', 'smithing', 'alchemy', 'occultism'] },
-  { name: 'Adventuring', skills: ['combat'] },
+  { name: 'Adventuring', skills: ['combat', 'fellowship'] },
 ];
 
 // Places where production happens. A portable item lets you work anywhere.

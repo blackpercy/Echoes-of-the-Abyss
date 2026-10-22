@@ -26,6 +26,15 @@ const PERK_EFFECTS = {
   ward: { text: v => `+${v} to sanity saves` },
   veil: { text: v => `You see through the Veil ${v} sanity sooner` },
   eldritch: { text: v => `+${Math.round(v * 100)}% damage against eldritch beings` },
+  travel: { text: v => `Travel ${Math.round(v * 100)}% faster` },
+  compHit: { text: v => `Your companion has +${v} to hit` },
+  compAc: { text: v => `Your companion has +${v} AC` },
+  compHp: { text: v => `Your companion has +${v} hitpoints` },
+  compDmg: { text: v => `Your companion deals +${v} damage` },
+  compWits: { text: v => `Your companion has +${v} to sanity saves` },
+  compHeal: { text: v => `Your companion heals you ${v} each turn` },
+  compGuard: { text: v => `Your companion draws ${Math.round(v * 100)}% more attacks away from you` },
+  rally: { text: () => 'A downed companion gets back up after 30 seconds, without an inn' },
 };
 
 // What the "rare" perks turn up while gathering.
@@ -69,6 +78,18 @@ const PERK_TEMPLATES = {
     [['speed', 0.08], ['eldritch', 0.08]],
     [['ward', 3], ['sanityCost', -0.25]],
   ],
+  fellowship: [
+    [['compHit', 1], ['compAc', 1]],
+    [['compHp', 15], ['travel', 0.05]],
+    [['compDmg', 1], ['compWits', 2]],
+    [['compGuard', 0.15], ['compHeal', 2]],
+    [['compHit', 1], ['travel', 0.1]],
+    [['rally', 1], ['compHp', 25]],
+    [['compDmg', 2], ['compAc', 2]],
+    [['compWits', 3], ['travel', 0.1]],
+    [['compHeal', 4], ['compGuard', 0.15]],
+    [['compDmg', 3], ['compHp', 50]],
+  ],
   combat: [
     [['hit', 1], ['ac', 1]],
     [['hp', 10], ['dmg', 1]],
@@ -93,6 +114,7 @@ const PERK_NAMES = {
   smithing: ['Hot Iron', 'Careful Measure', "Smith's Lore", 'Extra Billet', 'Hammer Rhythm', 'Thrifty Smelting', "Armourer's Eye", 'Forge Lore', 'Quick Quench', 'Twin Ingots', 'No Waste', 'Weaponsmith', "Master's Pace", 'Masterwork Lore', 'Abundant Forge', 'Recast Scraps', 'Thunder Hammer', 'Balanced Blades', 'Forge-Lord', 'Not a Speck Wasted'],
   alchemy: ['Quick Distill', 'Measured Drops', "Alchemist's Notes", 'Double Batch', 'Steady Flame', 'Reclaimed Residue', 'Potent Brews', "Apothecary's Lore", 'Rapid Reduction', 'Overflowing Flask', 'Perfect Ratios', 'Concentrated Essence', 'Swift Hands', 'Grand Formulae', 'Twin Vials', "Philosopher's Thrift", 'Bubbling Cauldron', 'Elixir of Elixirs', 'The Great Work', 'The Unwasting Retort'],
   occultism: ['Steeled Mind', 'Forbidden Notes', 'Warded Thoughts', 'Thin Eyes', 'Quick Study', 'Doubled Whispers', 'Mind Like Stone', 'Know Thy Enemy', 'Inner Sigil', 'Deeper Reading', 'The Opened Eye', 'Careful Rites', 'Empty Mind', 'Banishing Words', 'Elder Ward', 'Echoing Whispers', 'Swift Incantation', 'Bane of the Deep', 'The Unbroken', 'Communion'],
+  fellowship: ['Drilled Together', 'Shield Wall', 'Shared Rations', 'Road-Wise', 'Sparring Partner', 'Steady Words', 'Bodyguard', 'Field Dressing', 'Practised Tactics', 'Shortcuts', 'Never Leave a Friend', 'Hearty Fellow', 'Brothers in Arms', 'Back to Back', 'Courage Shared', 'Long Road Home', 'Tender Mercies', 'Stand in Front', 'Legendary Duo', 'Unbreakable Bond'],
   combat: ['Weapon Training', 'Shield Drill', 'Toughness', 'Heavy Blows', 'Keen Edge', 'Second Wind', 'Battle Focus', 'Iron Skin', 'Brutal Strikes', 'Unyielding', 'Deadly Precision', 'Steel Nerves', "Veteran's Eye", 'Fortress', 'Executioner', 'Bloodthirst', 'Colossus', 'Monster Hunter', 'Legend of Aldmark', 'The Last Wall'],
 };
 
@@ -108,6 +130,7 @@ const PERK_TREES = (() => {
     alchemy: PERK_TEMPLATES.production([['potency', 0.15], ['potency', 0.15], ['potency', 0.2]]),
     occultism: PERK_TEMPLATES.occultism,
     combat: PERK_TEMPLATES.combat,
+    fellowship: PERK_TEMPLATES.fellowship,
   };
   const trees = {};
   for (const [skill, tiers] of Object.entries(layout)) {

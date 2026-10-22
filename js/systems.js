@@ -4,7 +4,13 @@
 
 const ACHIEVEMENT_CHECK_MS = 3000;
 // Everyone travels this much faster than the base road times in data.js.
-const BASE_TRAVEL_SPEED = 1.5;
+const BASE_TRAVEL_SPEED = 2;
+// Fellowship: each level adds this share to a companion's hitpoints; Rally brings a downed companion back after this long.
+const FELLOWSHIP_HP_PER_LEVEL = 0.03;
+const RALLY_MS = 30000;
+// Fellowship xp: a share of each enemy's xp when your companion fights beside you, and per second travelled together.
+const FELLOWSHIP_KILL_SHARE = 0.6;
+const FELLOWSHIP_XP_PER_ROAD_SECOND = 2;
 const EXPEDITION_ROOM_PAUSE_MS = 2000;
 
 Object.assign(Game, {
@@ -87,7 +93,7 @@ Object.assign(Game, {
     return road.cost;
   },
   travelSpeed() {
-    return BASE_TRAVEL_SPEED * (this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1);
+    return BASE_TRAVEL_SPEED * (1 + this.perk('travel')) * (this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1);
   },
   // Seconds a road takes at your current speed, for display.
   roadSeconds(road) {
@@ -168,10 +174,26 @@ Object.assign(Game, {
   companionActive() {
     return !!this.state.companion && !this.state.companion.downed;
   },
+  // A companion's numbers: their own, improved by your Fellowship level and perks.
+  companionStats() {
+    const def = this.companion();
+    const lvl = this.level('fellowship');
+    const comp = this.state.companion;
+    return {
+      hp: Math.round(def.hp * (1 + FELLOWSHIP_HP_PER_LEVEL * (lvl - 1))) + this.perk('compHp'),
+      ac: def.ac + this.perk('compAc'),
+      hit: def.hit + Math.floor(lvl / 10) + this.perk('compHit'),
+      dmgBonus: Math.floor(lvl / 8) + this.perk('compDmg') + (comp ? comp.rage * 2 : 0),
+      wits: def.wits + this.perk('compWits'),
+      heals: (def.heals || 0) + this.perk('compHeal'),
+      sanity: 50 + lvl,
+    };
+  },
   hireCompanion(id) {
-    const def = COMPANIONS[id];
     if (this.state.companion) this.log(`${this.companion().name} parts ways with you.`);
-    this.state.companion = { id, hp: def.hp, sanity: 50, downed: false, rage: 0, timer: 0 };
+    this.state.companion = { id, hp: 0, sanity: 0, downed: false, rage: 0, timer: 0 };
+    const st = this.companionStats();
+    Object.assign(this.state.companion, { hp: st.hp, sanity: st.sanity });
     this.emit('action');
   },
   dismissCompanion() {
@@ -181,31 +203,35 @@ Object.assign(Game, {
     this.emit('action');
   },
   companionDamageText() {
-    const def = this.companion();
-    const rage = this.state.companion.rage * 2;
-    return def.dmg + (rage ? withSign(rage) : '');
+    const d = parseDice(this.companion().dmg);
+    const bonus = d.bonus + this.companionStats().dmgBonus;
+    return `${d.n}d${d.sides}${bonus ? withSign(bonus) : ''}`;
+  },
+  companionTargetChance() {
+    return Math.min(0.6, COMPANION_TARGET_CHANCE + this.perk('compGuard'));
   },
   companionAttack(c, m) {
     const def = this.companion();
-    const comp = this.state.companion;
+    const st = this.companionStats();
     const roll = d20();
-    if (roll === 1 || (roll !== 20 && roll + def.hit < m.ac)) {
+    if (roll === 1 || (roll !== 20 && roll + st.hit < m.ac)) {
       this.combatLog(c, `${def.name} misses.`);
     } else {
-      const dmg = Math.max(1, rollDice(def.dmg, roll === 20) + comp.rage * 2);
+      const dmg = Math.max(1, rollDice(def.dmg, roll === 20) + st.dmgBonus);
       c.monsterHp -= dmg;
       this.combatLog(c, `${def.name} hits the ${m.name} for ${dmg}.`);
     }
-    if (def.heals && this.state.hp < this.maxHp()) {
-      this.heal(def.heals);
-      this.combatLog(c, `${def.name} tends your wounds (+${def.heals}).`);
+    if (st.heals && this.state.hp < this.maxHp()) {
+      this.heal(st.heals);
+      this.combatLog(c, `${def.name} tends your wounds (+${st.heals}).`);
     }
   },
   monsterAttacksCompanion(c, m) {
     const def = this.companion();
+    const st = this.companionStats();
     const comp = this.state.companion;
     const roll = d20();
-    if (roll === 1 || (roll !== 20 && roll + this.monsterHit(m) < def.ac)) {
+    if (roll === 1 || (roll !== 20 && roll + this.monsterHit(m) < st.ac)) {
       this.combatLog(c, `The ${m.name} lunges at ${def.name} and misses.`);
       return;
     }
@@ -215,10 +241,11 @@ Object.assign(Game, {
     if (comp.hp <= 0) {
       comp.hp = 0;
       comp.downed = true;
-      this.log(`${def.name} is down! They will recover at an inn.`, 'bad');
+      comp.downedFor = 0;
+      this.log(`${def.name} is down! ${this.perk('rally') ? 'They will get back up once you have caught your breath.' : 'They will recover at an inn.'}`, 'bad');
       return;
     }
-    if (m.eldritch && d20() + def.wits < this.eldritchDc(m)) {
+    if (m.eldritch && d20() + st.wits < this.eldritchDc(m)) {
       comp.sanity -= m.eldritch.loss;
       if (comp.sanity <= 0) this.companionBreaks();
     }
@@ -228,7 +255,7 @@ Object.assign(Game, {
     const comp = this.state.companion;
     if (def.mad) {
       comp.rage++;
-      comp.sanity = 50;
+      comp.sanity = this.companionStats().sanity;
       this.log(`${def.name} shrieks with laughter. She hits harder now (+${comp.rage * 2} damage).`, 'veil');
     } else {
       this.log(`${def.name}'s mind breaks. They flee back to ${LOCATIONS[def.home].name}, and will not travel with you again until you hire them anew.`, 'bad');
@@ -246,10 +273,14 @@ Object.assign(Game, {
     const comp = this.state.companion;
     if (!comp) return;
     const def = this.companion();
+    const st = this.companionStats();
     if (comp.downed) {
-      if (this.here().inn && !this.state.travel) {
+      // At an inn, or after a short rest with the Never Leave a Friend perk.
+      comp.downedFor = (comp.downedFor || 0) + dt;
+      const rallied = this.perk('rally') && comp.downedFor >= RALLY_MS;
+      if (rallied || (this.here().inn && !this.state.travel)) {
         comp.downed = false;
-        comp.hp = def.hp;
+        comp.hp = rallied ? Math.ceil(st.hp / 2) : st.hp;
         this.log(`${def.name} is back on their feet.`, 'good');
       }
       return;
@@ -257,8 +288,8 @@ Object.assign(Game, {
     comp.timer = (comp.timer || 0) + dt;
     while (comp.timer >= HP_REGEN_MS) {
       comp.timer -= HP_REGEN_MS;
-      comp.hp = Math.min(def.hp, comp.hp + Math.ceil(def.hp * 0.04));
-      comp.sanity = Math.min(50, comp.sanity + 1);
+      comp.hp = Math.min(st.hp, comp.hp + Math.ceil(st.hp * 0.04));
+      comp.sanity = Math.min(st.sanity, comp.sanity + 1);
     }
   },
 
