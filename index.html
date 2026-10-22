@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ekon från Avgrunden</title>
+  <meta name="description" content="Ett idle-spel om förbjuden kunskap, svarta hav och det som drömmer under dem.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="top">
+    <button class="menu-btn" data-act="toggle-nav" aria-label="Meny">☰</button>
+    <div class="brand">Ekon från Avgrunden</div>
+    <div class="meters">
+      <div class="bar hp"><div class="fill" id="h-hp"></div><span class="bar-label" id="h-hp-label"></span></div>
+      <div class="bar sanity"><div class="fill" id="h-sanity"></div><span class="bar-label" id="h-sanity-label"></span></div>
+    </div>
+    <div class="gold">💰 <span id="h-gold">0</span></div>
+    <div class="activity" id="h-activity"></div>
+  </header>
+  <nav id="nav"></nav>
+  <main id="page"></main>
+  <aside id="log" aria-live="polite"></aside>
+  <div id="modal"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
