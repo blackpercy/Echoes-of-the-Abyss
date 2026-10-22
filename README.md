@@ -36,7 +36,24 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **17 enemies**, from giant crabs on Saltmire Shore to Father Dagon in the Abyss.
+- **Your character.** Choose an ancestry (human, dwarf, elf, halfling, tiefling) and a background (fisher, acolyte, soldier, scholar, smuggler). Each gives bonuses and changes how people talk to you.
+- **A map you discover.** You start knowing only Saltmire. Roads out of places you have visited are visible but unexplored ("???"), and people will tell you about places further away if you ask.
+- **Road events.** Bandits, a hooded pedlar, a drowned procession seen only through the Veil, and more. You make choices, some with skill checks (d20 + skill level ÷ 4 against a DC).
+- **Time and tide.** One day lasts 20 minutes.
+  - At night the Veil is thinner, eldritch saves are harder, and some herbs only bloom then.
+  - At low tide you can wade to Devil's Reef for free.
+  - Every seventh night the stars are right: eldritch xp is doubled and the Abyss stands open.
+- **Gifts of madness.** Each madness level unlocks an ability, such as *Speak with the Dead*, *Walk the Dream Roads* or *Feast on Fear*.
+- **Hallucinations.** From *Unmoored* onward, harmless phantoms appear: fake log lines, items that are not in your pack, enemies and places that vanish when touched.
+- **A third path: your own cult.** Recruit followers in Saltmire and assign them tasks. They gather gold and resources while you are away. Leading the cult has its own quest line and ending.
+- **Companions.** Hire Gorim the dwarven sellsword, Brother Tobias the healer or Mad Meg. They fight beside you and have minds of their own to lose.
+- **Expeditions.** The Catacomb Depths, the Sealed Shaft and the Sunken Temple are chains of fights with no rest in between and a treasure at the end.
+- **Endings change the world.** After each ending, Saltmire and the shore change: new descriptions, different enemies, new shops.
+- **More people and quests** in Ironhold, the Silent Abbey, the Blackwood and the Crater.
+- **Bestiary and achievements.** The bestiary reads differently to a troubled mind. There are 20 achievements.
+- **Ambient sound.** Generated waves, drone and whispers (Web Audio, no files). Turn it on in the header or Settings.
+- **Installable app.** A web manifest and a service worker let you install the game and play offline when it is served over http(s).
+- **20 enemies**, from giant crabs on Saltmire Shore to Father Dagon in the Abyss.
 - **Gear** in five metal tiers (iron → starmetal), rare drops, occult amulets and bags (up to a Bag of Holding).
 - **Offline progress** for up to 24 hours (including travel), autosave, and save export/import.
 
@@ -46,11 +63,15 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 | --- | --- |
 | `js/data.js` | All game data: skills, items, actions, monsters, shops, locations, roads and lore |
 | `js/story.js` | The Veil: madness stages, derangements, hidden places, NPCs, quests and endings |
+| `js/content.js` | The living world: time and tide, road events, races, companions, cult, expeditions, more NPCs and quests, world changes, bestiary, achievements, hallucinations |
 | `js/game.js` | Engine: state, tick loop, travel and route finding, pack and bank, combat, sanity, saving, offline simulation |
 | `js/ui.js` | Page rendering, the SVG world map, meters and click handling |
 | `js/mind.js` | Madness, the Veil, NPC interactions and the quest engine |
+| `js/systems.js` | Logic for time, fog of war, events, companions, the cult, expeditions, world changes and achievements |
+| `js/audio.js` | Generated ambient sound |
 | `js/main.js` | Boot, game loop and autosave |
 | `css/style.css` | Styling, including the mobile layout |
+| `sw.js`, `manifest.webmanifest`, `icon.svg` | Offline support and app installation. Bump `CACHE` in `sw.js` when files change. |
 
 New content goes in `js/data.js`:
 

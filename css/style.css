@@ -259,6 +259,34 @@ body.veil .map-wrap { box-shadow: 0 0 30px rgba(124, 92, 196, .35); }
 .modal-box.break h2 { color: #b79cf0; }
 .modal-box.ending h2 { color: var(--gold); }
 
+/* --- Living world --- */
+.clock { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.icon-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; padding: 0 .35rem; }
+body.night { --bg: #07090c; }
+body.night .map-wrap { filter: brightness(.8) saturate(.8); }
+.node.unexplored circle { stroke: #555; stroke-dasharray: 3 4; fill: #0f1214; }
+.node.unexplored .node-label { fill: var(--muted); }
+.phantom { opacity: .55; animation: flicker 3s infinite; }
+@keyframes flicker { 0%, 100% { opacity: .55; } 45% { opacity: .2; } 50% { opacity: .7; } 55% { opacity: .15; } }
+.companion { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: .5rem .7rem; margin: .5rem 0; }
+.bestiary { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .6rem; }
+.beast { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: .6rem .8rem; }
+.beast.eldritch { border-color: var(--eldritch); }
+.beast.unknown { opacity: .45; }
+.beast.got { border-color: var(--gold); }
+.beast p { margin: .3rem 0; }
+.tabs { margin-bottom: 1rem; }
+.choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .5rem; margin-bottom: 1rem; }
+.choices.single { grid-template-columns: 1fr; }
+.choice { display: flex; flex-direction: column; gap: .2rem; text-align: left; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: .55rem .7rem; color: var(--text); font: inherit; cursor: pointer; }
+.choice:hover:not(:disabled), .choice.selected { border-color: var(--accent); background: #1d2a27; }
+.choice:disabled { opacity: .5; cursor: default; }
+.modal-box h3 { font-family: 'Cinzel', serif; margin: .8rem 0 .4rem; }
+.modal-box.creation { max-width: 860px; }
+.modal-box.event h2 { color: var(--gold); }
+#toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translate(-50%, 150%); background: var(--panel); border: 1px solid var(--gold); color: var(--gold); padding: .6rem 1rem; border-radius: 8px; transition: transform .3s; z-index: 20; pointer-events: none; }
+#toast.show { transform: translate(-50%, 0); }
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 1rem; }

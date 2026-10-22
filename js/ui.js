@@ -24,6 +24,7 @@ function reqLine(req) {
 }
 
 function locLink(id) {
+  if (!Game.state.known[id]) return '<span class="muted">a place you have not found</span>';
   return `<a href="#" class="loc-link" data-act="map-select" data-loc="${id}">${LOCATIONS[id].icon} ${esc(LOCATIONS[id].name)}</a>`;
 }
 
@@ -31,7 +32,18 @@ const KIND_NAMES = { town: 'Settlement', wild: 'Wilderness', dungeon: 'Dungeon',
 
 // Hidden places only appear on the map while you can see through the Veil (or stand in one).
 function isVisible(loc) {
-  return !LOCATIONS[loc].hidden || Game.veilSight() || Game.state.location === loc;
+  if (Game.state.location === loc) return true;
+  if (LOCATIONS[loc].hidden && !Game.veilSight()) return false;
+  return Game.canReach(loc);
+}
+
+// Name of a place as the player knows it.
+function placeName(loc) {
+  return Game.state.known[loc] ? LOCATIONS[loc].name : 'Unexplored road';
+}
+
+function pick(list) {
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 function costText(cost) {
@@ -48,6 +60,10 @@ const UI = {
   selectedBankItem: null,
   mapSelected: null,
   lastVeil: null,
+  journalTab: 'chronicle',
+  creation: { race: 'human', background: 'fisher' },
+  nextHallucination: 0,
+  nextSound: 0,
   dirty: true,
   lastRender: 0,
 
@@ -58,6 +74,9 @@ const UI = {
       if (type === 'reset') this.page = 'chronicle';
       if (type === 'break' && !Game.silent) this.showBreak(payload);
       if (type === 'ending' && !Game.silent) this.showEnding(payload.ending);
+      if (type === 'event' && !Game.silent) this.showEvent();
+      if (type === 'expedition' && !Game.silent) this.showExpedition(payload);
+      if (type === 'achievement' && !Game.silent) this.toast(`${payload.icon} Achievement: ${payload.name}`);
       this.dirty = true;
     });
     this.renderAll();
@@ -121,11 +140,38 @@ const UI = {
       case 'reset':
         if (confirm('Erase everything and start over? This cannot be undone.')) Game.reset();
         break;
-      case 'close-modal': document.getElementById('modal').innerHTML = ''; break;
+      case 'close-modal':
+        document.getElementById('modal').innerHTML = '';
+        if (Game.state.travel && Game.state.travel.event) this.showEvent();
+        break;
       case 'intro-done':
         Game.state.seenIntro = true;
+        this.showCreation();
+        break;
+      case 'create-race': this.creation.race = d.race; this.showCreation(); return;
+      case 'create-bg': this.creation.background = d.bg; this.showCreation(); return;
+      case 'create-done':
+        Game.createCharacter(this.creation.race, this.creation.background);
         document.getElementById('modal').innerHTML = '';
         this.page = 'here';
+        break;
+      case 'event-choice': {
+        const lines = Game.resolveEvent(+d.index);
+        if (lines) this.showEventResult(lines);
+        break;
+      }
+      case 'expedition': Game.startExpedition(d.id); this.page = 'combat'; break;
+      case 'dismiss': if (confirm(`Part ways with ${Game.companion().name}?`)) Game.dismissCompanion(); break;
+      case 'recruit': Game.recruit(); break;
+      case 'collect': Game.collectCult(); break;
+      case 'assign': Game.assignFollower(d.from, d.to); break;
+      case 'journal-tab': this.journalTab = d.tab; break;
+      case 'phantom': Game.log(pick(['There is nothing there.', 'You reach for it and your hand closes on air.', 'It was never there. Was it?']), 'veil'); break;
+      case 'audio':
+        Game.state.settings.audio = !Game.state.settings.audio;
+        if (Game.state.settings.audio) SoundScape.start();
+        else SoundScape.stop();
+        if (this.page === 'settings') this.renderPage();
         break;
     }
     this.dirty = true;
@@ -167,6 +213,19 @@ const UI = {
       }
     }
     this.updateMeters();
+    if (now > this.nextSound) {
+      this.nextSound = now + 250;
+      SoundScape.update();
+    }
+    if (Game.state.madness >= HALLUCINATIONS.minMadness && now > this.nextHallucination) {
+      if (this.nextHallucination) Game.log(pick(HALLUCINATIONS.logLines), 'veil');
+      this.nextHallucination = now + 45000 + Math.random() * 60000;
+    }
+  },
+
+  // Harmless tricks for the deeply mad: they appear sometimes and vanish when touched.
+  hallucinating() {
+    return Game.state.madness >= HALLUCINATIONS.minMadness && Math.random() < 0.35;
   },
 
   renderNav() {
@@ -178,7 +237,7 @@ const UI = {
       return `<button class="nav-btn${active}${busy}${dim ? ' dim' : ''}" data-act="nav" data-page="${page}"><span class="nav-icon">${icon}</span><span class="nav-name">${name}</span><span class="nav-extra">${extra}</span></button>`;
     };
     let html = `<div class="nav-group"><div class="nav-title">You are at</div>${navBtn('here', here.icon, esc(here.name))}${navBtn('map', '🗺️', 'World Map')}${navBtn('combat', '⚔️', 'Combat', '', !s.combat && !(here.monsters || []).length)}</div>`;
-    html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills')}${navBtn('quests', '📖', 'Quests', Object.values(s.quests).filter(q => q.status === 'active').length || '')}</div>`;
+    html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills')}${navBtn('quests', '📖', 'Quests', Object.values(s.quests).filter(q => q.status === 'active').length || '')}${s.cult ? navBtn('cult', '🛐', 'Your Cult', s.cult.followers) : ''}</div>`;
     const services = [];
     if (here.bank) services.push(navBtn('bank', '🏦', 'Bank'));
     if (here.shop) services.push(navBtn('shop', '🛒', esc(SHOPS[here.shop].name)));
@@ -208,6 +267,7 @@ const UI = {
       shop: () => this.pageShop(),
       settings: () => this.pageSettings(),
       quests: () => this.pageQuests(),
+      cult: () => this.pageCult(),
     };
     main.innerHTML = pages[this.page] ? pages[this.page]() : this.pageSkill(this.page);
     main.scrollTop = scroll;
@@ -241,15 +301,19 @@ const UI = {
       const blocked = roadsFrom(target).map(({ road }) => Game.roadBlocker(road)).filter(Boolean);
       return `<p class="lack-text">🔒 No route with what you carry.${blocked.length ? ' ' + esc(blocked[0]) + '.' : ''}</p>`;
     }
-    const via = route.path.slice(1, -1).map(l => LOCATIONS[l].name);
+    const via = route.path.slice(1, -1).map(placeName);
     const travelling = Game.state.travel && Game.state.travel.path[Game.state.travel.path.length - 1] === target;
-    return `<p>🧭 ${route.time}s on the road${route.cost ? ` · 💰 ${route.cost} gold` : ''}${via.length ? `<br><span class="muted small">Via ${via.map(esc).join(' → ')}</span>` : ''}</p>
+    return `<p>🧭 ${Math.round(route.time / Game.travelSpeed())}s on the road${route.cost ? ` · 💰 ${route.cost} gold` : ''}${via.length ? `<br><span class="muted small">Via ${via.map(esc).join(' → ')}</span>` : ''}</p>
       <button class="btn" data-act="travel" data-loc="${target}"${travelling ? ' disabled' : ''}>${travelling ? 'Travelling…' : 'Travel here'}</button>`;
   },
 
   // --- Pages ---
   pageChronicle() {
-    let html = '<div class="lore"><h1>Echoes of the Abyss</h1>';
+    const tabs = { chronicle: '📜 Chronicle', bestiary: '📕 Bestiary', achievements: '🏆 Achievements' };
+    let html = `<div class="btn-row tabs">${Object.entries(tabs).map(([id, name]) => `<button class="btn small${this.journalTab === id ? ' selected' : ''}" data-act="journal-tab" data-tab="${id}">${name}</button>`).join('')}</div>`;
+    if (this.journalTab === 'bestiary') return html + this.pageBestiary();
+    if (this.journalTab === 'achievements') return html + this.pageAchievements();
+    html += '<div class="lore"><h1>Echoes of the Abyss</h1>';
     html += LORE.map(p => `<p>${p}</p>`).join('');
     html += `<h2>How to play</h2><ul>
       <li>Open the <b>World Map</b> and travel between settlements and wild places. What you can do depends on <b>where you are</b>: each place has its own trees, fishing waters, ore veins, herbs, workplaces and enemies.</li>
@@ -260,7 +324,11 @@ const UI = {
       <li><b>Sanity.</b> When something from beyond wounds you, you make a sanity save. Fail it and you lose sanity. Occult study costs sanity too. Sanity recovers slowly at rest and quickly at an inn, and warding amulets help you keep it.</li>
       <li><b>The Veil.</b> Below ${VEIL_THRESHOLD} sanity you start to see what is hidden: secret places on the map, strange resources, and people no one else can see. Some of them have work for you.</li>
       <li><b>Madness is not the end.</b> When your sanity reaches zero your mind breaks. You gain a level of madness and a <b>derangement</b>, a lasting change with a gift and a curse. Madness lowers your maximum sanity, but it opens doors: from <i>${MADNESS_STAGES[PERMANENT_VEIL_MADNESS]}</i> onward the Veil never closes, Saltmire's townsfolk treat you as kin, and the Dreamer's servants will speak with you. The Silent Order wants you sane, and the Abbey can quiet your mind if you change your path.</li>
-      <li>The game saves automatically in your browser every ten seconds.</li>
+      <li><b>The map starts mostly dark.</b> You can always see the roads leading out of places you have visited. People will tell you of places further away, if you ask.</li>
+      <li><b>Something may happen on the road.</b> Make a choice, and sometimes a skill check: a d20 plus a quarter of your skill level, against a difficulty.</li>
+      <li><b>Time passes.</b> A day lasts twenty minutes. At night the Veil is thinner and eldritch beings are harder to resist. At low tide you can wade out to Devil's Reef. Every seventh night the stars are right…</li>
+      <li><b>Expeditions</b> take you through several fights in a row with no rest in between, and end in a treasure. <b>Companions</b> fight beside you, but they have minds of their own to lose.</li>
+      <li>The game saves automatically in your browser every ten seconds. You can install it as an app from your browser's menu.</li>
     </ul></div>`;
     return html;
   },
@@ -301,23 +369,33 @@ const UI = {
     }
     for (const [id, loc] of Object.entries(LOCATIONS)) {
       if (!isVisible(id)) continue;
-      const cls = ['node', loc.kind, id === s.location ? 'current' : '', id === sel ? 'selected' : ''].join(' ');
+      const known = !!s.known[id];
+      const cls = ['node', known ? loc.kind : 'unexplored', id === s.location ? 'current' : '', id === sel ? 'selected' : ''].join(' ');
       svg += `<g class="${cls}" data-act="map-select" data-loc="${id}">
         <circle cx="${loc.x}" cy="${loc.y}" r="24"/>
-        <text class="node-icon" x="${loc.x}" y="${loc.y + 1}">${loc.icon}</text>
-        <text class="node-label" x="${loc.x}" y="${loc.y + 42}">${esc(loc.name)}</text>
+        <text class="node-icon" x="${loc.x}" y="${loc.y + 1}">${known ? loc.icon : '❔'}</text>
+        <text class="node-label" x="${loc.x}" y="${loc.y + 42}">${known ? esc(loc.name) : '???'}</text>
       </g>`;
+    }
+    if (this.hallucinating()) {
+      const ph = pick(HALLUCINATIONS.places);
+      svg += `<g class="node phantom" data-act="phantom"><circle cx="${ph.x}" cy="${ph.y}" r="24"/><text class="node-icon" x="${ph.x}" y="${ph.y + 1}">${ph.icon}</text><text class="node-label" x="${ph.x}" y="${ph.y + 42}">${esc(ph.name)}</text></g>`;
     }
     svg += '<circle id="map-player" r="8" cx="-50" cy="-50"/></svg>';
 
     const loc = LOCATIONS[sel];
+    if (!s.known[sel]) {
+      return `<h1>🗺️ The Kingdom of Aldmark</h1><div class="map-layout"><div class="map-wrap">${svg}</div><div class="map-panel"><h2>❔ Unexplored</h2>
+        <p class="muted">A road leads somewhere you have never been. Travel there to find out what waits at the end of it, or ask around.</p>${this.routeInfo(sel)}</div></div>`;
+    }
     const panel = `<div class="map-panel">
       <h2>${loc.icon} ${esc(loc.name)}</h2>
       <div class="muted small">${KIND_NAMES[loc.kind]}${Game.state.visited[sel] ? '' : ' · not yet visited'}</div>
       <p>${esc(loc.desc)}</p>
       <div class="features small">${this.locationFeatures(sel)}</div>
       ${this.routeInfo(sel)}
-      <div class="small muted roads">${roadsFrom(sel).filter(({ to }) => isVisible(to)).map(({ road, to }) => `${locLink(to)} ${road.time}s${road.cost ? ` · ${road.cost} gold` : ''}${road.req ? ` · needs ${road.req.map(i => ITEMS[i].name).join(', ')}` : ''}`).join('<br>')}</div>
+      <div class="small muted">${Game.timeLabel()}</div>
+      <div class="small muted roads">${roadsFrom(sel).filter(({ to }) => isVisible(to)).map(({ road, to }) => `${locLink(to)} ${road.time}s${Game.roadCost(road) ? ` · ${Game.roadCost(road)} gold` : ''}${road.req ? ` · needs ${road.req.map(i => ITEMS[i].name).join(', ')}` : ''}`).join('<br>')}</div>
     </div>`;
     return `<h1>🗺️ The Kingdom of Aldmark</h1><div class="map-layout"><div class="map-wrap">${svg}</div>${panel}</div>`;
   },
@@ -345,9 +423,11 @@ const UI = {
       html += '</div>';
     }
     for (const st of Object.keys(STATIONS).filter(st => Game.hasStation(st))) {
-      const portable = !(loc.stations || []).includes(st);
+      const portable = STATIONS[st].portable;
+      // Where this workplace comes from when the location itself does not have one.
+      const source = (loc.stations || []).includes(st) ? null : portable && Game.carries(portable) ? `your ${ITEMS[portable].name}` : 'the voices in your head';
       const skills = Object.keys(ACTIONS).filter(sk => ACTIONS[sk].some(a => a.station === st));
-      html += `<h2>${STATIONS[st].icon} ${STATIONS[st].name}${portable ? ` <span class="muted small">(your ${ITEMS[STATIONS[st].portable].name})</span>` : ''}</h2>`;
+      html += `<h2>${STATIONS[st].icon} ${STATIONS[st].name}${source ? ` <span class="muted small">(${source})</span>` : ''}</h2>`;
       for (const sk of skills) {
         const known = ACTIONS[sk].filter(a => a.station === st && Game.level(sk) >= a.level);
         html += `<p class="small muted">${SKILLS[sk].icon} ${SKILLS[sk].name} ${Game.level(sk)} · <a href="#" class="loc-link" data-act="nav" data-page="${sk}">all ${SKILLS[sk].name.toLowerCase()} recipes</a></p>`;
@@ -362,11 +442,17 @@ const UI = {
     if ((loc.monsters || []).length) {
       html += `<h2>Enemies</h2><div class="cards">${loc.monsters.map(m => this.monsterCard(m)).join('')}</div>`;
     }
+    const expeditions = Object.keys(EXPEDITIONS).filter(e => EXPEDITIONS[e].location === id);
+    if (expeditions.length) html += `<h2>Expeditions</h2><div class="cards">${expeditions.map(e => this.expeditionCard(e)).join('')}</div>`;
+    if (s.cult && id === CULT_SHRINE) {
+      html += `<h2>🛐 Your Hidden Shrine</h2><p class="small">${s.cult.followers} followers. Their offerings: ${s.cult.gold} gold${Object.entries(s.cult.stash).map(([it, q]) => `, ${q} × ${ITEMS[it].name}`).join('')}.</p>
+        <div class="btn-row"><button class="btn" data-act="collect">Collect offerings</button><button class="btn" data-act="nav" data-page="cult">Tend your flock</button></div>`;
+    }
     html += '<h2>Roads</h2><div class="cards">';
     for (const { road, to } of roadsFrom(id).filter(({ to }) => isVisible(to))) {
       const blocked = Game.roadBlocker(road);
-      html += `<div class="card"><div class="card-name">${LOCATIONS[to].icon} ${esc(LOCATIONS[to].name)}</div>
-        <div class="small">🧭 ${road.time}s${road.cost ? ` · 💰 ${road.cost} gold` : ''}</div>
+      html += `<div class="card"><div class="card-name">${s.known[to] ? `${LOCATIONS[to].icon} ${esc(LOCATIONS[to].name)}` : '❔ Unexplored road'}</div>
+        <div class="small">🧭 ${road.time}s${Game.roadCost(road) ? ` · 💰 ${Game.roadCost(road)} gold` : road.cost ? ' · <span class="good-text">free passage</span>' : ''}</div>
         ${blocked ? `<div class="small lack-text">🔒 ${esc(blocked)}</div>` : ''}
         <button class="btn" data-act="travel" data-loc="${to}"${blocked ? ' disabled' : ''}>Travel</button></div>`;
     }
@@ -385,6 +471,18 @@ const UI = {
       <div class="skill-level">Level <b>${lvl}</b> / ${MAX_LEVEL}</div>
       ${bar('xp-' + skill, 'xp', pct, label)}
     </div>`;
+  },
+
+  expeditionCard(id) {
+    const ex = EXPEDITIONS[id];
+    const blocker = Game.expeditionBlocker(id);
+    const done = Game.state.expeditionsDone[id] || 0;
+    return `<div class="card eldritch"><div class="card-icon">🏛️</div><div class="card-name">${esc(ex.name)}</div>
+      <div class="small muted">Recommended combat level ${ex.level}${done ? ` · completed ${done}×` : ''}</div>
+      <p class="small">${esc(ex.desc)}</p>
+      <div class="small">${ex.rooms.map(m => MONSTERS[m].icon).join(' → ')} → 💰</div>
+      ${blocker ? `<div class="small lack-text">${esc(blocker)}</div>` : ''}
+      <button class="btn" data-act="expedition" data-id="${id}"${blocker ? ' disabled' : ''}>Descend</button></div>`;
   },
 
   npcCard(id) {
@@ -434,6 +532,7 @@ const UI = {
       <div class="card-icon">${outItem.icon}</div>
       <div class="card-name">${esc(a.name)}</div>
       ${a.desc ? `<div class="muted small">${esc(a.desc)}</div>` : ''}
+      ${a.when ? `<div class="small sanity-text">${a.when === 'night' ? '🌙 Only at night' : '🌊 Only at low tide'}</div>` : ''}
       <div class="small">${secs(Game.actionTime(skill, a))} · ${a.xp} xp${a.sanityCost ? ` · <span class="sanity-text">−${a.sanityCost} sanity</span>` : ''}${a.station ? ` · ${STATIONS[a.station].icon} ${STATIONS[a.station].name}` : ''}</div>
       ${a.input ? `<div class="small">Uses: ${Object.entries(a.input).map(([id, q]) => `<span class="chip ${Game.count(id) >= q ? '' : 'lack'}">${ITEMS[id].icon} ${q} ${esc(ITEMS[id].name)} <span class="muted">(${fmt(Game.count(id))})</span></span>`).join(' ')}</div>` : ''}
       <div class="small">Makes: ${Object.entries(a.output).map(([id, q]) => itemChip(id, q)).join(' ')} <span class="muted">(carrying ${fmt(Game.count(outItem.id))})</span></div>
@@ -483,6 +582,8 @@ const UI = {
       const food = s.food && ITEMS[s.food];
       const foods = Object.keys(s.pack).filter(id => Game.isFood(id));
       const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion');
+      const ex = s.combat.expedition && EXPEDITIONS[s.combat.expedition.id];
+      if (ex) html += `<p class="warning">🏛️ ${esc(ex.name)}: chamber ${s.combat.expedition.room + 1} of ${ex.rooms.length}. No rest until you are out. Fleeing abandons the expedition.</p>`;
       html += `<div class="combat">
         <div class="fighter">
           <h2>You</h2>
@@ -499,6 +600,7 @@ const UI = {
             <button class="btn small" data-act="eat">Eat${food && Game.isFood(s.food) ? ` (+${Game.foodHeal(s.food)})` : ''}</button>
           </div>
           ${potions.length ? `<div class="style-row">Potions: ${potions.map(id => `<button class="btn small" data-act="use" data-item="${id}" title="${esc(ITEMS[id].desc)}">${ITEMS[id].icon} ${esc(ITEMS[id].name)} (${fmt(s.pack[id])})</button>`).join('')}</div>` : ''}
+          ${this.companionBlock()}
           <button class="btn danger" data-act="stop">Flee</button>
         </div>
         <div class="fighter monster${m.eldritch ? ' eldritch' : ''}">
@@ -513,7 +615,8 @@ const UI = {
       </div>`;
     }
     if ((here.monsters || []).length) {
-      html += `<h2>${here.icon} Enemies at ${esc(here.name)}</h2><div class="cards">${here.monsters.map(m => this.monsterCard(m)).join('')}</div>`;
+      const phantom = this.hallucinating() ? pick(HALLUCINATIONS.monsters) : null;
+      html += `<h2>${here.icon} Enemies at ${esc(here.name)}</h2><div class="cards">${here.monsters.map(m => this.monsterCard(m)).join('')}${phantom ? `<div class="card eldritch phantom"><div class="card-icon">${phantom.icon}</div><div class="card-name">${esc(phantom.name)}</div><div class="small muted">❤️ ?? · 🛡️ AC ?? · ⚔️ ??</div><button class="btn" data-act="phantom">Fight</button></div>` : ''}</div>`;
     } else {
       const grounds = Object.keys(LOCATIONS).filter(id => (LOCATIONS[id].monsters || []).length);
       html += `<p class="muted">Nothing here wants to fight you. Hunting grounds:</p><ul>${grounds.map(id => `<li>${locLink(id)}: ${LOCATIONS[id].monsters.map(m => MONSTERS[m].name).join(', ')}</li>`).join('')}</ul>`;
@@ -523,7 +626,11 @@ const UI = {
 
   pageCharacter() {
     const s = Game.state;
-    let html = '<h1>🧝 Character & Skills</h1><div class="two-col"><div><h2>Equipment</h2><div class="slots">';
+    const race = RACES[s.race];
+    const bg = s.background && BACKGROUNDS[s.background];
+    let html = `<h1>🧝 Character & Skills</h1><p>${race.icon} <b>${race.name}</b>${bg ? ` · ${bg.icon} <b>${bg.name}</b>` : ''}</p>
+      <p class="small muted">${esc(race.desc)}${bg ? ' ' + esc(bg.desc) : ''}</p>
+      <div class="two-col"><div><h2>Equipment</h2><div class="slots">`;
     for (const [slot, name] of Object.entries(SLOTS)) {
       const item = s.equipment[slot];
       html += `<div class="slot"><div class="muted small">${name}</div>${item
@@ -545,6 +652,8 @@ const UI = {
       <tr><td>State</td><td>${Game.mindState().name}${Game.veilSight() ? ' · <span class="sanity-text">sees through the Veil</span>' : ''}</td></tr>
       <tr><td>Madness</td><td>${MADNESS_STAGES[s.madness]} (${s.madness} / ${MADNESS_STAGES.length - 1})</td></tr>
     </table>
+    ${s.madness ? `<h2>Gifts of madness</h2>${MADNESS_ABILITIES.slice(1, s.madness + 1).map(a => `<div class="derangement"><b>✦ ${a.name}</b><div class="small muted">${a.desc}</div></div>`).join('')}` : ''}
+    ${s.companion ? `<h2>Companion</h2>${this.companionBlock(true)}` : ''}
     ${s.derangements.length ? `<div class="derangements">${s.derangements.map(d => `<div class="derangement"><b>${DERANGEMENTS[d].icon} ${DERANGEMENTS[d].name}</b><div class="small muted">${DERANGEMENTS[d].desc}</div></div>`).join('')}</div>` : '<p class="small muted">No derangements. Yet.</p>'}
     </div><div><h2>Skills</h2><table class="stats">`;
     for (const g of SKILL_GROUPS) {
@@ -595,7 +704,12 @@ const UI = {
           <button class="btn danger" data-act="drop" data-item="${sel}">Drop</button>
         </div></div></div>`;
     }
-    return html + this.itemGrid(s.pack, 'select', sel);
+    let grid = this.itemGrid(s.pack, 'select', sel);
+    if (this.hallucinating()) {
+      const ph = pick(HALLUCINATIONS.items);
+      grid = grid.replace(/<\/div>$/, `<button class="bank-item phantom" data-act="phantom"><span class="bank-icon">${ph.icon}</span><span class="bank-qty">1</span><span class="bank-name">${esc(ph.name)}</span></button></div>`);
+    }
+    return html + grid;
   },
 
   pageBank() {
@@ -669,10 +783,66 @@ const UI = {
     return html;
   },
 
+  companionBlock(full) {
+    const comp = Game.state.companion;
+    if (!comp) return '';
+    const def = Game.companion();
+    return `<div class="companion"><b>${def.icon} ${esc(def.name)}</b>${comp.downed ? ' <span class="lack-text">(down: rest at an inn)</span>' : ''}
+      <div class="small">❤️ ${comp.hp} / ${def.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / 50 · AC ${def.ac} · ${withSign(def.hit)} to hit, ${Game.companionDamageText()}</div>
+      ${full ? `<div class="small muted">${esc(def.desc)}</div><button class="btn small danger" data-act="dismiss">Part ways</button>` : ''}</div>`;
+  },
+
+  pageCult() {
+    const s = Game.state;
+    const cult = s.cult;
+    if (!cult) return '<h1>🛐 Your Cult</h1><p class="muted">You have no followers. Yet.</p>';
+    const atShrine = s.location === CULT_SHRINE;
+    let html = `<h1>🛐 Your Cult</h1><p class="muted">${cult.followers} of at most ${Game.cultCapacity()} followers (more Occultism lets you lead more). They work while you wander, and leave their offerings at your shrine in ${esc(LOCATIONS[CULT_SHRINE].name)}.</p>`;
+    html += `<p class="small">Waiting at the shrine: ${cult.gold} gold${Object.entries(cult.stash).map(([it, q]) => `, ${q} × ${ITEMS[it].name}`).join('')}.</p>`;
+    html += `<div class="btn-row"><button class="btn" data-act="collect"${atShrine ? '' : ' disabled'}>Collect offerings</button>
+      <button class="btn veil-btn" data-act="recruit"${atShrine && cult.followers < Game.cultCapacity() && s.gold >= Game.recruitCost() ? '' : ' disabled'}>Recruit a follower (${Game.recruitCost()} gold, ${CULT_RECRUIT_SANITY} sanity)</button></div>`;
+    if (!atShrine) html += `<p class="small muted">Recruiting and collecting can only be done at your shrine in ${locLink(CULT_SHRINE)}.</p>`;
+    html += '<h2>Tasks</h2><table class="stats">';
+    const ids = Object.keys(CULT_TASKS);
+    for (const id of ids) {
+      const t = CULT_TASKS[id];
+      const n = cult.tasks[id] || 0;
+      const yields = [t.gold ? `${t.gold} gold` : '', ...Object.entries(t.items || {}).map(([it, q]) => `${q} ${ITEMS[it].name}`)].filter(Boolean).join(', ');
+      const other = ids.find(o => o !== id && (cult.tasks[o] || 0) > 0);
+      html += `<tr><td>${t.icon} ${t.name}<div class="small muted">${yields} every ${Math.round(t.every / 60000 * 10) / 10} min per follower</div></td><td><b>${n}</b></td>
+        <td>${other ? `<button class="btn small" data-act="assign" data-from="${other}" data-to="${id}">+</button>` : ''} ${n > 0 ? `<button class="btn small" data-act="assign" data-from="${id}" data-to="${ids.find(o => o !== id)}">−</button>` : ''}</td></tr>`;
+    }
+    return html + '</table>';
+  },
+
+  pageBestiary() {
+    const s = Game.state;
+    let html = `<h1>📕 Bestiary</h1><p class="muted small">${Object.keys(s.bestiary).length} of ${Object.keys(BESTIARY).length} pages. Slay a creature to learn about it. The pages read differently to a troubled mind.</p><div class="bestiary">`;
+    for (const [id, lore] of Object.entries(BESTIARY)) {
+      const m = MONSTERS[id];
+      if (s.bestiary[id] === undefined) {
+        html += '<div class="beast unknown"><b>❔ ???</b><div class="small muted">An empty page.</div></div>';
+        continue;
+      }
+      const mad = s.madness >= 2 || s.bestiary[id] >= 2;
+      html += `<div class="beast${m.eldritch ? ' eldritch' : ''}"><b>${m.icon} ${m.name}</b> <span class="small muted">slain ${fmt(s.kills[id] || 0)}</span>
+        <p class="small">${esc(lore.sane)}</p>${mad ? `<p class="small sanity-text"><i>${esc(lore.mad)}</i></p>` : ''}</div>`;
+    }
+    return html + '</div>';
+  },
+
+  pageAchievements() {
+    const s = Game.state;
+    const got = ACHIEVEMENTS.filter(a => s.achievements[a.id]).length;
+    return `<h1>🏆 Achievements</h1><p class="muted small">${got} of ${ACHIEVEMENTS.length}</p><div class="bestiary">${ACHIEVEMENTS.map(a => `<div class="beast${s.achievements[a.id] ? ' got' : ' unknown'}"><b>${s.achievements[a.id] ? a.icon : '🔒'} ${a.name}</b><div class="small muted">${a.desc}</div></div>`).join('')}</div>`;
+  },
+
   pageSettings() {
     return `<h1>⚙️ Settings</h1>
       <div class="btn-row"><button class="btn" data-act="save">Save now</button><button class="btn" data-act="export">Export save</button><button class="btn" data-act="import">Import save</button></div>
       <textarea id="save-text" rows="6" placeholder="Paste a save here to import it."></textarea>
+      <h2>Sound</h2><button class="btn" data-act="audio">${Game.state.settings.audio ? '🔊 Ambient sound is on' : '🔇 Ambient sound is off'}</button>
+      <p class="small muted">Waves, a low drone in dark places, and whispers that grow louder as your sanity fades. Best with headphones.</p>
       <h2>Danger zone</h2><button class="btn danger" data-act="reset">Erase everything and start over</button>`;
   },
 
@@ -695,11 +865,16 @@ const UI = {
     document.getElementById('h-gold').textContent = fmt(s.gold);
     document.body.classList.toggle('low-sanity', s.sanity < 30);
 
+    const clock = document.getElementById('h-clock');
+    const clockText = Game.timeLabel();
+    if (clock.textContent !== clockText) clock.textContent = clockText;
+    document.body.classList.toggle('night', Game.isNight());
+    document.getElementById('h-audio').textContent = s.settings.audio ? '🔊' : '🔇';
     let activity = `📍 ${Game.here().name}`;
     const player = document.getElementById('map-player');
     const travel = Game.travelProgress();
     if (travel) {
-      activity = `🧭 Travelling to ${LOCATIONS[travel.target].name} (${Math.ceil(travel.remaining / 1000)}s)`;
+      activity = s.travel.event ? '⏸ Something on the road…' : `🧭 Travelling to ${placeName(travel.target)} (${Math.ceil(travel.remaining / 1000 / Game.travelSpeed())}s)`;
       if (player) {
         const a = LOCATIONS[travel.from];
         const b = LOCATIONS[travel.to];
@@ -770,7 +945,47 @@ const UI = {
       <button class="btn" data-act="close-modal">Continue</button></div>`;
   },
 
+  showCreation() {
+    const c = this.creation;
+    const option = (kind, id, def, selected) => `<button class="choice${selected ? ' selected' : ''}" data-act="create-${kind}" data-${kind}="${id}"><b>${def.icon} ${def.name}</b><span class="small">${esc(def.desc)}</span></button>`;
+    document.getElementById('modal').innerHTML = `<div class="modal-box creation"><h2>Who are you?</h2>
+      <h3>Ancestry</h3><div class="choices">${Object.entries(RACES).map(([id, r]) => option('race', id, r, c.race === id)).join('')}</div>
+      <h3>Background</h3><div class="choices">${Object.entries(BACKGROUNDS).map(([id, b]) => option('bg', id, b, c.background === id)).join('')}</div>
+      <button class="btn" data-act="create-done">Step ashore in Saltmire</button></div>`;
+  },
+
+  showEvent() {
+    const t = Game.state.travel;
+    if (!t || !t.event) return;
+    const ev = ROAD_EVENTS[t.event];
+    const choices = ev.choices.map((ch, i) => {
+      const blocker = Game.choiceBlocker(ch);
+      const check = ch.check ? ` <span class="muted">(${SKILLS[ch.check.skill].name} check, DC ${ch.check.dc}: ${Math.round(chanceToHit(Game.checkBonus(ch.check.skill), ch.check.dc) * 100)}%)</span>` : '';
+      return `<button class="choice" data-act="event-choice" data-index="${i}"${blocker ? ' disabled' : ''}><b>${esc(ch.label)}</b>${check}${blocker ? ` <span class="lack-text small">${esc(blocker)}</span>` : ''}</button>`;
+    }).join('');
+    document.getElementById('modal').innerHTML = `<div class="modal-box event"><h2>${ev.icon} ${esc(ev.title)}</h2><p class="small muted">On the road from ${esc(placeName(t.path[t.leg]))} to ${esc(placeName(t.path[t.leg + 1]))}</p>
+      <p>${esc(ev.text)}</p><div class="choices single">${choices}</div></div>`;
+  },
+
+  showEventResult(lines) {
+    document.getElementById('modal').innerHTML = `<div class="modal-box event">${lines.map(l => `<p>${esc(l)}</p>`).join('')}<button class="btn" data-act="close-modal">${Game.state.travel ? 'Continue on your way' : 'Continue'}</button></div>`;
+  },
+
+  showExpedition({ id, gold, items }) {
+    const ex = EXPEDITIONS[id];
+    document.getElementById('modal').innerHTML = `<div class="modal-box ending"><h2>🏛️ ${esc(ex.name)}: complete</h2><p>At the bottom of the dark you find what the dead left behind.</p>
+      <p>💰 ${fmt(gold)} gold ${Object.entries(items).map(([it, q]) => itemChip(it, q)).join(' ')}</p><button class="btn" data-act="close-modal">Climb back to the light</button></div>`;
+  },
+
+  toast(text) {
+    const el = document.getElementById('toast');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+  },
+
   showIntro() {
-    document.getElementById('modal').innerHTML = `<div class="modal-box intro"><h2>Echoes of the Abyss</h2>${LORE.map(p => `<p>${p}</p>`).join('')}<button class="btn" data-act="intro-done">Step ashore in Saltmire</button></div>`;
+    document.getElementById('modal').innerHTML = `<div class="modal-box intro"><h2>Echoes of the Abyss</h2>${LORE.map(p => `<p>${p}</p>`).join('')}<button class="btn" data-act="intro-done">Begin</button></div>`;
   },
 };

@@ -10,7 +10,7 @@ Object.assign(Game, {
   },
   veilSight() {
     const s = this.state;
-    if (s.sanity < VEIL_THRESHOLD || s.madness >= PERMANENT_VEIL_MADNESS) return true;
+    if (s.sanity < this.veilThreshold() || s.madness >= PERMANENT_VEIL_MADNESS) return true;
     return Object.keys(ITEMS).some(id => ITEMS[id].veilSight && this.carries(id));
   },
   mindState() {
@@ -35,6 +35,7 @@ Object.assign(Game, {
     this.log(`Your mind breaks. You are now ${MADNESS_STAGES[s.madness]}.`, 'bad');
     if (gained) this.log(`New derangement: ${DERANGEMENTS[gained].name}. ${DERANGEMENTS[gained].desc}`, 'rare');
     this.questEvent('madness');
+    this.checkCompanionLoyalty();
     this.emit('break', { madness: s.madness, derangement: gained });
     this.emit('action');
   },
@@ -51,7 +52,16 @@ Object.assign(Game, {
   check(cond) {
     if (!cond) return true;
     const s = this.state;
-    if (cond.veil && !this.veilSight()) return false;
+    if (cond.veil === true && !this.veilSight()) return false;
+    if (cond.veil === false && this.veilSight()) return false;
+    if (cond.night !== undefined && this.isNight() !== cond.night) return false;
+    if (cond.lowTide !== undefined && this.isLowTide() !== cond.lowTide) return false;
+    if (cond.starsRight && !this.starsRight()) return false;
+    if (cond.race && s.race !== cond.race) return false;
+    if (cond.background && s.background !== cond.background) return false;
+    if (cond.noCompanion && s.companion && s.companion.id === cond.noCompanion) return false;
+    if (cond.ending && !s.endings[cond.ending]) return false;
+    for (const flag of cond.flags || []) if (!s.flags[flag]) return false;
     if (cond.minMadness !== undefined && s.madness < cond.minMadness) return false;
     if (cond.maxMadness !== undefined && s.madness > cond.maxMadness) return false;
     for (const [id, want] of Object.entries(cond.quests || {})) {
@@ -119,6 +129,10 @@ Object.assign(Game, {
     for (const flag of gain.flags || []) s.flags[flag] = true;
     if (gain.madness && gain.madness < 0) for (let i = 0; i < -gain.madness; i++) this.quietMind();
     if (gain.sanity) this.restoreSanity(gain.sanity);
+    if (gain.reveal) this.reveal(gain.reveal);
+    if (gain.revealRandom) this.revealRandom();
+    if (gain.companion) this.hireCompanion(gain.companion);
+    if (gain.cult) this.foundCult();
   },
 
   // --- Quests ---
@@ -137,6 +151,7 @@ Object.assign(Game, {
     this.log(`New quest: ${q.name}.`, 'story');
     // Objectives that may already be met are checked straight away.
     this.questEvent('madness');
+    this.questEvent('followers');
     this.questEvent('visit', this.state.location);
     this.emit('action');
   },
@@ -146,6 +161,8 @@ Object.assign(Game, {
     if (o.type === 'kill') return `Slay ${MONSTERS[o.monster].name}: ${p} / ${o.count}`;
     if (o.type === 'deliver') return 'Bring ' + Object.entries(o.items).map(([it, n]) => `${n} × ${ITEMS[it].name} (${Math.min(n, this.count(it))}/${n})`).join(', ') + ` to ${NPCS[QUESTS[id].giver].name}`;
     if (o.type === 'visit') return `Travel to ${LOCATIONS[o.location].name}${o.minMadness ? ` while at least ${MADNESS_STAGES[o.minMadness]}` : ''}`;
+    if (o.type === 'expedition') return `Complete the expedition: ${EXPEDITIONS[o.expedition].name}`;
+    if (o.type === 'followers') return `Gather ${o.count} followers (now ${this.state.cult ? this.state.cult.followers : 0})`;
     if (o.type === 'madness') return `Let your mind break until you are ${MADNESS_STAGES[o.count]} (now ${MADNESS_STAGES[this.state.madness]})`;
     return '';
   },
@@ -160,6 +177,10 @@ Object.assign(Game, {
       } else if (type === 'visit' && o.location === arg && (o.minMadness === undefined || this.state.madness >= o.minMadness)) {
         this.completeQuest(id);
       } else if (type === 'madness' && this.state.madness >= o.count) {
+        this.completeQuest(id);
+      } else if (type === 'expedition' && o.expedition === arg) {
+        this.completeQuest(id);
+      } else if (type === 'followers' && this.state.cult && this.state.cult.followers >= o.count) {
         this.completeQuest(id);
       }
     }
@@ -180,6 +201,7 @@ Object.assign(Game, {
     this.grant(q.reward);
     if (q.reward.ending) {
       this.state.endings[q.reward.ending] = true;
+      this.applyWorld();
       this.emit('ending', { ending: q.reward.ending });
     }
     this.emit('action');
@@ -191,6 +213,11 @@ Object.assign(Game, {
     let p = entry.price;
     if (this.hasDerangement('paranoia')) p *= 1.25;
     if (shop.kinDiscountAtMadness !== undefined && this.state.madness >= shop.kinDiscountAtMadness) p *= 0.8;
+    const id = this.here().shop;
+    if (id === 'smithy' && this.state.race === 'dwarf') p *= 0.8;
+    if (id === 'apothecary' && this.state.background === 'acolyte') p *= 0.8;
+    if (id === 'general_store' && this.state.background === 'acolyte') p *= 1.1;
+    if (this.here().kin) p *= 0.7;
     return Math.max(1, Math.round(p));
   },
   currency() {

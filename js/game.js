@@ -102,6 +102,18 @@ const Game = {
       quests: {},
       flags: {},
       endings: {},
+      race: 'human',
+      background: null,
+      created: false,
+      clock: DAY_MS * 0.3,
+      known: { [START_LOCATION]: true },
+      companion: null,
+      cult: null,
+      bestiary: {},
+      achievements: {},
+      expeditionsDone: {},
+      settings: { audio: false },
+      achTimer: 0,
       log: [],
       regen: { hp: 0, sanity: 0 },
       seenIntro: false,
@@ -127,7 +139,7 @@ const Game = {
   addXp(skill, amount) {
     const s = this.state.skills[skill];
     const before = levelFromXp(s.xp);
-    s.xp += amount;
+    s.xp += amount * this.xpMultiplier();
     const after = levelFromXp(s.xp);
     if (after > before) {
       this.log(`${SKILLS[skill].icon} ${SKILLS[skill].name} reached level ${after}!`, 'level');
@@ -155,7 +167,7 @@ const Game = {
   },
   capacity(equipment = this.state.equipment) {
     const bag = equipment.back;
-    return BASE_PACK_SLOTS + (bag ? ITEMS[bag].stats.slots : 0);
+    return BASE_PACK_SLOTS + (bag ? ITEMS[bag].stats.slots : 0) + (this.state.race === 'halfling' ? 3 : 0);
   },
   usedSlots() {
     return Object.keys(this.state.pack).length;
@@ -332,7 +344,7 @@ const Game = {
     return this.proficiency() + this.playerStats().hit + this.stance().hit - (this.hasDerangement('star_touched') ? 1 : 0);
   },
   attackBonusVs(m) {
-    return this.attackBonus() + (m.eldritch && this.hasDerangement('night_eyes') ? 2 : 0);
+    return this.attackBonus() + (m.eldritch && this.hasDerangement('night_eyes') ? 2 : 0) + (m.eldritch && this.state.race === 'tiefling' ? 1 : 0);
   },
   damageBonus() {
     return this.might() + this.playerStats().dmg + this.stance().dmg;
@@ -342,11 +354,12 @@ const Game = {
     return this.playerStats().dice + (bonus ? withSign(bonus) : '');
   },
   armourClass() {
-    return 10 + this.playerStats().ac + this.stance().ac + (this.hasDerangement('paranoia') ? 2 : 0);
+    return 10 + this.playerStats().ac + this.stance().ac + (this.hasDerangement('paranoia') ? 2 : 0) + (this.state.race === 'dwarf' ? 1 : 0);
   },
   // Bonus to sanity saving throws: occult understanding plus warding gear.
   wits() {
-    return Math.floor(this.level('occultism') / 5) + this.playerStats().ward - (this.hasDerangement('night_eyes') ? 2 : 0);
+    return Math.floor(this.level('occultism') / 5) + this.playerStats().ward - (this.hasDerangement('night_eyes') ? 2 : 0)
+      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0);
   },
   eldritchBonus() {
     return (this.level('occultism') - 1) / 100;
@@ -387,7 +400,7 @@ const Game = {
   actionTime(skill, action) {
     const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;
     const stars = TOOLS[skill] && this.hasDerangement('star_touched') ? 0.85 : 1;
-    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars);
+    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars * this.raceSpeed(skill));
   },
   availableHere(skill, action) {
     if (action.veil && !this.veilSight()) return false;
@@ -400,6 +413,8 @@ const Game = {
     if (this.level(skill) < action.level) return `Requires level ${action.level}`;
     if (!this.availableHere(skill, action)) return action.station ? `Needs a ${STATIONS[action.station].name}` : 'Not found here';
     if (TOOLS[skill] && this.toolTier(skill) < 0) return `Needs a ${ITEMS[TOOLS[skill][0]].name}`;
+    const when = this.whenBlocker(action);
+    if (when) return when;
     if (!this.hasAll(action.input)) return 'Missing materials';
     if (action.sanityCost && this.state.sanity < action.sanityCost) return 'Not enough sanity';
     if (!Object.keys(action.output).every(item => this.canAdd(item))) return 'Your pack is full';
@@ -410,6 +425,7 @@ const Game = {
     return Object.keys(LOCATIONS).filter(id => {
       const loc = LOCATIONS[id];
       if (loc.hidden && !this.veilSight()) return false;
+      if (!this.state.known[id]) return false;
       if (action.station) return (loc.stations || []).includes(action.station);
       return ((loc.gather || {})[skill] || []).includes(action.id);
     });
@@ -426,7 +442,9 @@ const Game = {
     this.emit('action');
   },
   stop(quiet) {
-    if (this.state.combat && !quiet) this.log('You withdraw from the fight.');
+    const c = this.state.combat;
+    if (c && c.expedition) this.log(`You flee the depths. The expedition is abandoned.`, 'warn');
+    else if (c && !quiet) this.log('You withdraw from the fight.');
     this.state.action = null;
     this.state.combat = null;
     this.emit('action');
@@ -462,7 +480,8 @@ const Game = {
     const leavingHidden = LOCATIONS[this.state.location].hidden && (road.a === this.state.location || road.b === this.state.location);
     if (road.veil && !this.veilSight() && !leavingHidden) return 'Only visible through the Veil';
     if (road.flag && !this.state.flags[road.flag]) return road.note || 'The way is closed to you';
-    const missing = (road.req || []).filter(item => !this.carries(item) && !(item === 'diving_helm' && this.hasDerangement('drowned_lungs')));
+    const waived = item => item === 'diving_helm' && (this.hasDerangement('drowned_lungs') || this.starsRight());
+    const missing = (road.req || []).filter(item => !this.carries(item) && !waived(item));
     if (missing.length) return 'Requires ' + missing.map(i => ITEMS[i].name).join(', ');
     return null;
   },
@@ -478,7 +497,7 @@ const Game = {
       open.delete(cur);
       if (cur === target) break;
       for (const { road, to } of roadsFrom(cur)) {
-        if (this.roadBlocker(road)) continue;
+        if (this.roadBlocker(road) || !this.canReach(to)) continue;
         const d = dist[cur] + road.time;
         if (dist[to] === undefined || d < dist[to]) {
           dist[to] = d;
@@ -491,7 +510,7 @@ const Game = {
     const path = [target];
     while (path[0] !== start) path.unshift(prev[path[0]]);
     let cost = 0;
-    for (let i = 0; i < path.length - 1; i++) cost += findRoad(path[i], path[i + 1]).cost || 0;
+    for (let i = 0; i < path.length - 1; i++) cost += this.roadCost(findRoad(path[i], path[i + 1]));
     return { path, time: dist[target], cost };
   },
   travelTo(target) {
@@ -508,14 +527,17 @@ const Game = {
   startLeg() {
     const t = this.state.travel;
     const road = findRoad(t.path[t.leg], t.path[t.leg + 1]);
-    if (road.cost) {
-      if (this.state.gold < road.cost) {
+    const cost = this.roadCost(road);
+    if (cost) {
+      if (this.state.gold < cost) {
         this.log('You cannot pay the ferryman. Your journey ends here.', 'warn');
         this.state.travel = null;
         return;
       }
-      this.state.gold -= road.cost;
-      this.log(`You pay ${road.cost} gold for passage.`);
+      this.state.gold -= cost;
+      this.log(`You pay ${cost} gold for passage.`);
+    } else if (road.cost) {
+      this.log(this.isLowTide() && road.tideFree ? 'The tide is out. You wade across the exposed reef.' : 'The ferryman waves you aboard for free.');
     }
   },
   travelProgress() {
@@ -532,17 +554,32 @@ const Game = {
     const s = this.state;
     s.location = loc;
     s.visited[loc] = true;
+    s.known[loc] = true;
     if (LOCATIONS[loc].inn) s.home = loc;
     this.questEvent('visit', loc);
   },
   tickTravel(dt) {
     const t = this.state.travel;
-    t.progress += dt;
+    if (t.event) return;
+    t.progress += dt * this.travelSpeed();
     while (this.state.travel) {
       const legTime = findRoad(t.path[t.leg], t.path[t.leg + 1]).time * 1000;
+      // Halfway along each road, something may happen (never while you are away).
+      if (!t.rolled && t.progress >= legTime / 2) {
+        t.rolled = true;
+        if (!this.silent && Math.random() < EVENT_CHANCE) {
+          t.event = this.rollEvent(t.path[t.leg], t.path[t.leg + 1]);
+          if (t.event) {
+            t.progress = legTime / 2;
+            this.emit('event');
+            return;
+          }
+        }
+      }
       if (t.progress < legTime) break;
       t.progress -= legTime;
       t.leg++;
+      t.rolled = false;
       this.arriveAt(t.path[t.leg]);
       if (t.leg >= t.path.length - 1) {
         this.state.travel = null;
@@ -580,7 +617,11 @@ const Game = {
     if (c.log.length > COMBAT_LOG_LINES) c.log.length = COMBAT_LOG_LINES;
   },
   playerAttack(c, m) {
-    const roll = d20();
+    let roll = d20();
+    if (roll === 1 && this.state.race === 'halfling') {
+      roll = d20();
+      this.combatLog(c, `Halfling luck! You reroll the 1 and get ${roll}.`);
+    }
     const bonus = this.attackBonusVs(m);
     const total = roll + bonus;
     if (roll === 1 || (roll !== 20 && total < m.ac)) {
@@ -594,10 +635,12 @@ const Game = {
     this.combatLog(c, crit ? `Natural 20! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
   },
   monsterAttack(c, m) {
+    if (this.companionActive() && Math.random() < COMPANION_TARGET_CHANCE) return this.monsterAttacksCompanion(c, m);
     const roll = d20();
     const ac = this.armourClass();
-    if (roll === 1 || (roll !== 20 && roll + m.hit < ac)) {
-      this.combatLog(c, `The ${m.name} rolls ${roll + m.hit} vs your AC ${ac}: miss.`);
+    const hit = this.monsterHit(m);
+    if (roll === 1 || (roll !== 20 && roll + hit < ac)) {
+      this.combatLog(c, `The ${m.name} rolls ${roll + hit} vs your AC ${ac}: miss.`);
       return;
     }
     const crit = roll === 20;
@@ -606,11 +649,12 @@ const Game = {
     this.combatLog(c, `${crit ? 'Critical! ' : ''}The ${m.name} hits you for ${dmg}.`);
     if (m.eldritch) {
       const save = d20() + this.wits();
-      if (save >= m.eldritch.dc) {
-        this.combatLog(c, `Sanity save ${save} vs DC ${m.eldritch.dc}: your mind holds.`);
+      const dc = this.eldritchDc(m);
+      if (save >= dc) {
+        this.combatLog(c, `Sanity save ${save} vs DC ${dc}: your mind holds.`);
       } else {
         this.state.sanity = Math.max(0, this.state.sanity - m.eldritch.loss);
-        this.combatLog(c, `Sanity save ${save} vs DC ${m.eldritch.dc}: you lose ${m.eldritch.loss} sanity.`);
+        this.combatLog(c, `Sanity save ${save} vs DC ${dc}: you lose ${m.eldritch.loss} sanity.`);
       }
     }
   },
@@ -618,8 +662,14 @@ const Game = {
     this.state.kills[c.monster] = (this.state.kills[c.monster] || 0) + 1;
     const gold = randInt(m.gold[0], m.gold[1]);
     this.state.gold += gold;
-    this.addXp('combat', m.xp);
-    this.combatLog(c, `The ${m.name} falls. +${m.xp} xp, +${gold} gold.`);
+    const xp = m.eldritch && this.starsRight() ? m.xp * 2 : m.xp;
+    this.addXp('combat', xp);
+    this.combatLog(c, `The ${m.name} falls. +${Math.round(xp * this.xpMultiplier())} xp, +${gold} gold.`);
+    this.recordBestiary(c.monster);
+    if (m.eldritch && this.state.madness >= 3) {
+      this.restoreSanity(m.eldritch.loss);
+      this.combatLog(c, `You feast on its fear (+${m.eldritch.loss} sanity).`);
+    }
     this.questEvent('kill', c.monster);
     if (!this.state.combat) return;
     for (const d of m.drops) {
@@ -634,6 +684,8 @@ const Game = {
     c.respawn = RESPAWN_MS;
     c.playerTimer = 0;
     c.monsterTimer = 0;
+    c.compTimer = 0;
+    if (c.expedition) this.advanceExpedition(c);
     this.emit('kill');
   },
   tickCombat(dt) {
@@ -646,6 +698,15 @@ const Game = {
         c.monsterHp = m.hp;
       }
       return;
+    }
+    if (this.companionActive()) {
+      const compSpeed = this.companion().speed;
+      c.compTimer = (c.compTimer || 0) + dt;
+      while (c.compTimer >= compSpeed) {
+        c.compTimer -= compSpeed;
+        this.companionAttack(c, m);
+        if (c.monsterHp <= 0) return this.monsterKilled(c, m);
+      }
     }
     const speed = this.playerStats().speed;
     c.playerTimer += dt;
@@ -682,12 +743,20 @@ const Game = {
   // --- Tick ---
   tick(dt) {
     const s = this.state;
+    s.clock += dt;
+    this.tickCult(dt);
+    s.achTimer += dt;
+    if (s.achTimer >= ACHIEVEMENT_CHECK_MS) {
+      s.achTimer = 0;
+      if (!this.silent) this.checkAchievements();
+    }
     if (s.travel) {
       this.tickTravel(dt);
     } else if (s.combat) {
       this.tickCombat(dt);
     }
     if (!s.combat) {
+      this.tickCompanion(dt);
       const rate = this.here().inn && !s.travel ? INN_REGEN_MULTIPLIER : 1;
       s.regen.hp += dt * rate;
       while (s.regen.hp >= HP_REGEN_MS) {
@@ -726,6 +795,7 @@ const Game = {
       left -= dt;
     }
     this.silent = false;
+    this.checkAchievements();
     const diff = { ms, items: {}, gold: s.gold - before.gold, xp: {}, moved: s.location !== before.location ? s.location : null };
     const ids = new Set([...Object.keys(before.pack), ...Object.keys(s.pack)]);
     for (const id of ids) {
@@ -756,6 +826,7 @@ const Game = {
       console.warn('Could not read save', e);
     }
     this.state = raw ? this.migrate(JSON.parse(raw)) : this.newState();
+    this.applyWorld();
     if (!raw) return null;
     const away = Date.now() - this.state.lastSave;
     return away > 10000 ? this.simulateOffline(away) : null;
@@ -772,6 +843,11 @@ const Game = {
     if (state.combat && !MONSTERS[state.combat.monster]) state.combat = null;
     if (state.travel && !state.travel.path.every(l => LOCATIONS[l])) state.travel = null;
     state.derangements = state.derangements.filter(id => DERANGEMENTS[id]);
+    // Saves from before character creation and fog of war keep their progress.
+    if (saved.created === undefined) state.created = !!saved.seenIntro;
+    for (const loc in state.visited) state.known[loc] = true;
+    for (const loc in state.known) if (!LOCATIONS[loc]) delete state.known[loc];
+    if (state.companion && !COMPANIONS[state.companion.id]) state.companion = null;
     for (const id in state.quests) if (!QUESTS[id]) delete state.quests[id];
     return state;
   },
@@ -782,11 +858,13 @@ const Game = {
   importSave(text) {
     const parsed = JSON.parse(decodeURIComponent(escape(atob(text.trim()))));
     this.state = this.migrate(parsed);
+    this.applyWorld();
     this.save();
     this.emit('reset');
   },
   reset() {
     this.state = this.newState();
+    this.applyWorld();
     this.save();
     this.emit('reset');
   },
