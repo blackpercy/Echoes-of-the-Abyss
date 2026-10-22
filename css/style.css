@@ -177,7 +177,11 @@ textarea { width: 100%; margin-top: .6rem; font-family: monospace; font-size: .8
 .fighter h2 { margin-top: 0; }
 .fighter.eldritch { border-color: var(--eldritch); background: linear-gradient(180deg, #1c1427, var(--panel)); }
 .style-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .5rem 0; }
-.area { margin-bottom: 1.5rem; }
+.combat-log { margin-top: .6rem; border-top: 1px solid var(--border); padding-top: .4rem; font-size: .85rem; min-height: 9.5em; }
+.combat-log div { padding: .1rem 0; color: var(--muted); }
+.combat-log div:first-child { color: var(--text); }
+.skill-mini { width: 40%; }
+.skill-mini .bar { margin: 0; }
 
 /* --- Character, pack and bank --- */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }

@@ -1,6 +1,6 @@
 # Echoes of the Abyss
 
-A browser idle game inspired by *Melvor Idle*, set in a world that mixes classic D&D-style fantasy with H.P. Lovecraft's cosmic horror.
+An idle exploration game for the browser, set in a world that mixes classic D&D-style fantasy with H.P. Lovecraft's cosmic horror. You wander a map of towns, wilds and dungeons, and what you can do depends on where you stand and what you carry.
 
 > The Kingdom of Aldmark was once a land of knights and wizards, and of gods who answered when you prayed. Then the star fell.
 
@@ -23,11 +23,12 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **12 skills.**
+- **9 skills, levels 1–50.**
   - Gathering: Woodcutting, Fishing, Mining, Foraging
   - Crafting: Cooking, Smithing, Alchemy, Occultism
-  - Combat: Attack, Strength, Defence, Hitpoints
-- **Sanity.** A second health bar that eldritch enemies and occult study wear down. If it reaches zero you flee in panic. Amulets ward it, potions restore it, and inns let you recover.
+  - Adventuring: Combat
+- **Dice-based combat.** Each attack is a d20 roll plus your proficiency and gear against the enemy's armour class. Damage comes from weapon dice (`1d8`, `2d6+3`…) and a natural 20 is a critical hit. Pick an aggressive, balanced or defensive stance.
+- **Sanity.** When something eldritch wounds you, you roll a sanity save against its DC. Failing it, or studying the occult, costs sanity. At zero you flee in panic. Warding amulets and Occultism levels improve your saves, potions restore sanity, and inns let you recover.
 - **16 enemies**, from giant crabs on Saltmire Shore to Father Dagon in the Abyss.
 - **Gear** in five metal tiers (iron → starmetal), rare drops, occult amulets and bags (up to a Bag of Holding).
 - **Offline progress** for up to 24 hours (including travel), autosave, and save export/import.

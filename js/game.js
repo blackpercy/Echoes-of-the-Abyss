@@ -1,7 +1,6 @@
 // Game engine: state, tick loop, travel, pack and bank, combat, saving and offline progress.
 
-const SAVE_KEY = 'echoes-of-the-abyss-save-v2';
-const MAX_LEVEL = 99;
+const SAVE_KEY = 'echoes-of-the-abyss-save-v3';
 const MAX_OFFLINE_MS = 24 * 60 * 60 * 1000;
 const RESPAWN_MS = 1500;
 const AUTO_EAT_THRESHOLD = 0.4;
@@ -9,13 +8,12 @@ const SANITY_REGEN_MS = 2000;
 const HP_REGEN_MS = 5000;
 const INN_REGEN_MULTIPLIER = 4;
 
+const COMBAT_LOG_LINES = 8;
+
+// Total xp needed to reach each level: a smooth power curve up to MAX_LEVEL.
 const XP_TABLE = (() => {
-  const table = [0, 0];
-  let points = 0;
-  for (let lvl = 1; lvl <= MAX_LEVEL; lvl++) {
-    points += Math.floor(lvl + 300 * Math.pow(2, lvl / 7));
-    table[lvl + 1] = Math.floor(points / 4);
-  }
+  const table = [0];
+  for (let lvl = 1; lvl <= MAX_LEVEL + 1; lvl++) table[lvl] = Math.floor(60 * Math.pow(lvl - 1, 2.2));
   return table;
 })();
 
@@ -28,6 +26,38 @@ function levelFromXp(xp) {
 function randInt(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
+
+// Dice notation such as '2d6+3'.
+function parseDice(str) {
+  const m = /^(\d+)d(\d+)([+-]\d+)?$/.exec(str);
+  return { n: +m[1], sides: +m[2], bonus: m[3] ? +m[3] : 0 };
+}
+
+function rollDice(str, crit = false) {
+  const d = parseDice(str);
+  let total = d.bonus;
+  for (let i = 0; i < d.n * (crit ? 2 : 1); i++) total += randInt(1, d.sides);
+  return total;
+}
+
+function d20() {
+  return randInt(1, 20);
+}
+
+// Chance that d20 + bonus meets the target; a natural 1 always misses and a natural 20 always hits.
+function chanceToHit(bonus, target) {
+  return Math.min(0.95, Math.max(0.05, (21 - (target - bonus)) / 20));
+}
+
+function withSign(n) {
+  return (n >= 0 ? '+' : '') + n;
+}
+
+const STANCES = {
+  aggressive: { name: 'Aggressive', icon: '🔥', hit: 0, dmg: 2, ac: -2, desc: '+2 damage, −2 AC' },
+  balanced: { name: 'Balanced', icon: '⚖️', hit: 0, dmg: 0, ac: 0, desc: 'No modifiers' },
+  defensive: { name: 'Defensive', icon: '🛡️', hit: -2, dmg: 0, ac: 2, desc: '+2 AC, −2 to hit' },
+};
 
 function findAction(skill, id) {
   return (ACTIONS[skill] || []).find(a => a.id === id);
@@ -49,16 +79,15 @@ const Game = {
   newState() {
     const skills = {};
     for (const id in SKILLS) skills[id] = { xp: 0 };
-    skills.hitpoints.xp = XP_TABLE[10];
     return {
-      version: 2,
+      version: 3,
       gold: 50,
       skills,
       pack: { bread: 10, hatchet: 1, fishing_rod: 1 },
       bank: {},
       equipment: { weapon: 'rusty_dagger', head: null, body: null, amulet: null, back: null },
       food: 'bread',
-      hp: 100,
+      hp: 28,
       sanity: 100,
       location: START_LOCATION,
       home: START_LOCATION,
@@ -66,7 +95,7 @@ const Game = {
       travel: null,
       action: null,
       combat: null,
-      combatStyle: 'attack',
+      stance: 'balanced',
       kills: {},
       log: [],
       regen: { hp: 0, sanity: 0 },
@@ -97,7 +126,7 @@ const Game = {
     const after = levelFromXp(s.xp);
     if (after > before) {
       this.log(`${SKILLS[skill].icon} ${SKILLS[skill].name} reached level ${after}!`, 'level');
-      if (skill === 'hitpoints') this.state.hp = Math.min(this.maxHp(), this.state.hp + (after - before) * 10);
+      if (skill === 'combat') this.state.hp = Math.min(this.maxHp(), this.state.hp + (after - before) * 8);
       this.emit('level');
     }
   },
@@ -254,41 +283,51 @@ const Game = {
     this.emit('pack');
   },
   playerStats() {
-    const total = { attack: 0, strength: 0, defence: 0, sanityResist: 0 };
+    const total = { hit: 0, dmg: 0, ac: 0, ward: 0 };
     for (const slot in this.state.equipment) {
       const item = this.state.equipment[slot];
       if (!item) continue;
       for (const [k, v] of Object.entries(ITEMS[item].stats || {})) if (k in total) total[k] += v;
     }
-    total.sanityResist = Math.min(0.75, total.sanityResist);
     const weapon = this.state.equipment.weapon;
-    total.speed = weapon ? ITEMS[weapon].speed : 2400;
+    total.speed = weapon ? ITEMS[weapon].speed : 2000;
+    total.dice = weapon ? ITEMS[weapon].dice : '1d2';
     return total;
   },
+  stance() {
+    return STANCES[this.state.stance] || STANCES.balanced;
+  },
   maxHp() {
-    return this.level('hitpoints') * 10;
+    return 20 + 8 * this.level('combat');
   },
   maxSanity() {
     return 100;
   },
-  maxHit() {
-    const eff = this.level('strength') + 8 + (this.state.combatStyle === 'strength' ? 3 : 0);
-    const str = this.playerStats().strength;
-    return Math.floor(10 * (1.3 + eff / 10 + str / 80 + (eff * str) / 640));
+  proficiency() {
+    return 2 + Math.floor((this.level('combat') - 1) / 6);
   },
-  accuracy() {
-    const eff = this.level('attack') + 8 + (this.state.combatStyle === 'attack' ? 3 : 0);
-    return eff * (64 + this.playerStats().attack);
+  might() {
+    return Math.floor(this.level('combat') / 3);
   },
-  evasion() {
-    const eff = this.level('defence') + 8 + (this.state.combatStyle === 'defence' ? 3 : 0);
-    return eff * (64 + this.playerStats().defence);
+  attackBonus() {
+    return this.proficiency() + this.playerStats().hit + this.stance().hit;
+  },
+  damageBonus() {
+    return this.might() + this.playerStats().dmg + this.stance().dmg;
+  },
+  damageText() {
+    const bonus = this.damageBonus();
+    return this.playerStats().dice + (bonus ? withSign(bonus) : '');
+  },
+  armourClass() {
+    return 10 + this.playerStats().ac + this.stance().ac;
+  },
+  // Bonus to sanity saving throws: occult understanding plus warding gear.
+  wits() {
+    return Math.floor(this.level('occultism') / 5) + this.playerStats().ward;
   },
   eldritchBonus() {
-    return this.level('occultism') / 100;
-  },
-  hitChance(acc, eva) {
-    return acc < eva ? 0.5 * acc / eva : 1 - 0.5 * eva / acc;
+    return (this.level('occultism') - 1) / 100;
   },
 
   // --- Consumables ---
@@ -488,36 +527,60 @@ const Game = {
       playerTimer: 0,
       monsterTimer: 0,
       respawn: 0,
+      log: [],
     };
     this.log(`You engage the ${MONSTERS[monsterId].name}.`);
     this.emit('action');
   },
-  setStyle(style) {
-    this.state.combatStyle = style;
+  setStance(stance) {
+    if (!STANCES[stance]) return;
+    this.state.stance = stance;
     this.emit('action');
   },
-  playerAttack(c, m) {
-    const eva = (m.defence + 9) * 64;
-    if (Math.random() >= this.hitChance(this.accuracy(), eva)) return;
-    let dmg = randInt(1, this.maxHit());
-    if (m.eldritch) dmg = Math.floor(dmg * (1 + this.eldritchBonus()));
-    dmg = Math.min(dmg, c.monsterHp);
-    c.monsterHp -= dmg;
-    this.addXp(this.state.combatStyle, dmg * 0.4);
-    this.addXp('hitpoints', dmg * 0.133);
+  combatLog(c, msg) {
+    c.log.unshift(msg);
+    if (c.log.length > COMBAT_LOG_LINES) c.log.length = COMBAT_LOG_LINES;
   },
-  monsterAttack(m) {
-    const acc = (m.attack + 9) * 64;
-    if (Math.random() >= this.hitChance(acc, this.evasion())) return;
-    this.state.hp -= randInt(1, m.maxHit);
-    if (m.sanityDmg) {
-      const loss = m.sanityDmg * (1 - this.playerStats().sanityResist);
-      this.state.sanity = Math.max(0, this.state.sanity - loss);
+  playerAttack(c, m) {
+    const roll = d20();
+    const total = roll + this.attackBonus();
+    if (roll === 1 || (roll !== 20 && total < m.ac)) {
+      this.combatLog(c, `You roll ${roll}${withSign(this.attackBonus())} = ${total} vs AC ${m.ac}: miss.`);
+      return;
+    }
+    const crit = roll === 20;
+    let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus());
+    if (m.eldritch) dmg = Math.floor(dmg * (1 + this.eldritchBonus()));
+    c.monsterHp -= dmg;
+    this.combatLog(c, crit ? `Natural 20! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(this.attackBonus())} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
+  },
+  monsterAttack(c, m) {
+    const roll = d20();
+    const ac = this.armourClass();
+    if (roll === 1 || (roll !== 20 && roll + m.hit < ac)) {
+      this.combatLog(c, `The ${m.name} rolls ${roll + m.hit} vs your AC ${ac}: miss.`);
+      return;
+    }
+    const crit = roll === 20;
+    const dmg = Math.max(1, rollDice(m.dmg, crit));
+    this.state.hp -= dmg;
+    this.combatLog(c, `${crit ? 'Critical! ' : ''}The ${m.name} hits you for ${dmg}.`);
+    if (m.eldritch) {
+      const save = d20() + this.wits();
+      if (save >= m.eldritch.dc) {
+        this.combatLog(c, `Sanity save ${save} vs DC ${m.eldritch.dc}: your mind holds.`);
+      } else {
+        this.state.sanity = Math.max(0, this.state.sanity - m.eldritch.loss);
+        this.combatLog(c, `Sanity save ${save} vs DC ${m.eldritch.dc}: you lose ${m.eldritch.loss} sanity.`);
+      }
     }
   },
   monsterKilled(c, m) {
     this.state.kills[c.monster] = (this.state.kills[c.monster] || 0) + 1;
-    this.state.gold += randInt(m.gold[0], m.gold[1]);
+    const gold = randInt(m.gold[0], m.gold[1]);
+    this.state.gold += gold;
+    this.addXp('combat', m.xp);
+    this.combatLog(c, `The ${m.name} falls. +${m.xp} xp, +${gold} gold.`);
     for (const d of m.drops) {
       if (Math.random() >= d.chance) continue;
       const qty = randInt(d.qty[0], d.qty[1]);
@@ -554,7 +617,7 @@ const Game = {
       }
       if (c.monsterTimer >= m.speed) {
         c.monsterTimer -= m.speed;
-        this.monsterAttack(m);
+        this.monsterAttack(c, m);
         if (this.state.hp < this.maxHp() * AUTO_EAT_THRESHOLD) this.eat();
         if (this.state.hp <= 0) return this.playerDied();
         if (this.state.sanity <= 0) return this.playerMaddened();

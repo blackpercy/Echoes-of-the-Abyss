@@ -12,11 +12,11 @@ function bar(id, cls, pct, label = '') {
   return `<div class="bar ${cls}"><div class="fill" id="${id}" style="width:${pct}%"></div><span class="bar-label" id="${id}-label">${label}</span></div>`;
 }
 
-function statLine(stats) {
-  const names = { attack: 'attack', strength: 'strength', defence: 'defence', slots: 'pack slots' };
-  return Object.entries(stats || {})
-    .map(([k, v]) => (k === 'sanityResist' ? `${Math.round(v * 100)}% sanity ward` : `+${v} ${names[k]}`))
-    .join(', ');
+function statLine(item) {
+  const names = { hit: 'to hit', dmg: 'damage', ac: 'AC', ward: 'to sanity saves', slots: 'pack slots' };
+  const parts = item.dice ? [`${item.dice} damage`] : [];
+  for (const [k, v] of Object.entries(item.stats || {})) parts.push(`${withSign(v)} ${names[k]}`);
+  return parts.join(', ');
 }
 
 function reqLine(req) {
@@ -64,7 +64,7 @@ const UI = {
       case 'action': Game.startAction(d.skill, d.id); break;
       case 'stop': Game.stop(); break;
       case 'fight': Game.startCombat(d.monster); break;
-      case 'style': Game.setStyle(d.style); break;
+      case 'stance': Game.setStance(d.stance); break;
       case 'eat': if (!Game.eat()) Game.log('You cannot eat right now.', 'warn'); break;
       case 'use': Game.use(d.item); break;
       case 'select': this.selectedItem = d.item; break;
@@ -147,18 +147,17 @@ const UI = {
     const s = Game.state;
     const here = Game.here();
     const navBtn = (page, icon, name, extra = '', dim = false) => {
-      const active = this.page === page ? ' active' : '';
-      const busy = (s.action && s.action.skill === page) || (page === 'combat' && s.combat) || (page === 'map' && s.travel) ? ' busy' : '';
+      const active = this.page === page || (page === 'character' && SKILLS[this.page]) ? ' active' : '';
+      const busy = (page === 'here' && s.action) || (page === 'combat' && s.combat) || (page === 'map' && s.travel) ? ' busy' : '';
       return `<button class="nav-btn${active}${busy}${dim ? ' dim' : ''}" data-act="nav" data-page="${page}"><span class="nav-icon">${icon}</span><span class="nav-name">${name}</span><span class="nav-extra">${extra}</span></button>`;
     };
-    let html = `<div class="nav-group">${navBtn('chronicle', '📜', 'Chronicle')}${navBtn('map', '🗺️', 'World Map')}${navBtn('here', here.icon, esc(here.name))}</div>`;
-    html += `<div class="nav-group"><div class="nav-title">Adventure</div>${navBtn('combat', '⚔️', 'Combat', '', !(here.monsters || []).length)}${navBtn('character', '🧝', 'Character')}${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}</div>`;
-    for (const g of SKILL_GROUPS) {
-      html += `<div class="nav-group"><div class="nav-title">${g.name}</div>`;
-      for (const id of g.skills) html += navBtn(id, SKILLS[id].icon, SKILLS[id].name, `${Game.level(id)} / ${MAX_LEVEL}`);
-      html += '</div>';
-    }
-    html += `<div class="nav-group"><div class="nav-title">Services</div>${navBtn('bank', '🏦', 'Bank', '', !here.bank)}${navBtn('shop', '🛒', 'Shop', '', !here.shop)}${navBtn('settings', '⚙️', 'Settings')}</div>`;
+    let html = `<div class="nav-group"><div class="nav-title">You are at</div>${navBtn('here', here.icon, esc(here.name))}${navBtn('map', '🗺️', 'World Map')}${navBtn('combat', '⚔️', 'Combat', '', !s.combat && !(here.monsters || []).length)}</div>`;
+    html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills')}</div>`;
+    const services = [];
+    if (here.bank) services.push(navBtn('bank', '🏦', 'Bank'));
+    if (here.shop) services.push(navBtn('shop', '🛒', esc(SHOPS[here.shop].name)));
+    if (services.length) html += `<div class="nav-group"><div class="nav-title">In ${esc(here.name)}</div>${services.join('')}</div>`;
+    html += `<div class="nav-group"><div class="nav-title">Other</div>${navBtn('chronicle', '📜', 'Journal')}${navBtn('settings', '⚙️', 'Settings')}</div>`;
     document.getElementById('nav').innerHTML = html;
   },
 
@@ -228,9 +227,9 @@ const UI = {
       <li>Open the <b>World Map</b> and travel between settlements and wild places. What you can do depends on <b>where you are</b>: each place has its own trees, fishing waters, ore veins, herbs, workplaces and enemies.</li>
       <li>It also depends on <b>what you carry</b>. Gathering needs the right tool in your pack. Some roads need special gear. Your pack has a limited number of slots, so leave what you do not need in a bank.</li>
       <li>Cooking needs a fire and alchemy needs a lab, unless you carry a tinderbox or alchemy kit. Smithing is only possible at a forge.</li>
-      <li>Click <b>Start</b> on an activity and it keeps going until you stop it, your pack is full or you run out of materials. It also continues while the tab is closed, for up to 24 hours.</li>
-      <li>In combat you eat your chosen food automatically when your health drops below 40%.</li>
-      <li><b>Sanity</b> drops when things from beyond hit you and when you study the occult. If it reaches zero you flee in panic. It recovers slowly while resting and quickly at an inn. Amulets ward it.</li>
+      <li>Once you begin a task you keep at it until you stop, your pack is full or your materials run out, even while you are away from the game (up to 24 hours).</li>
+      <li>Fights are settled with dice. You roll a d20 plus your bonus against the enemy's armour class, and damage comes from your weapon's dice. A natural 20 is a critical hit. You eat your chosen food when your health drops below 40%.</li>
+      <li><b>Sanity.</b> When something from beyond wounds you, you make a sanity save. Fail it and you lose sanity. Occult study costs sanity too. At zero you flee in panic. Sanity recovers slowly at rest and quickly at an inn. Warding amulets help you keep it.</li>
       <li>The game saves automatically in your browser every ten seconds.</li>
     </ul></div>`;
     return html;
@@ -306,15 +305,15 @@ const UI = {
       for (const [skill, ids] of gather) for (const aid of ids) html += this.actionCard(skill, findAction(skill, aid));
       html += '</div>';
     }
-    const stations = Object.keys(STATIONS).filter(st => Game.hasStation(st));
-    if (stations.length) {
-      html += '<h2>Work</h2><div class="btn-row">';
-      for (const st of stations) {
-        const skills = Object.keys(ACTIONS).filter(sk => ACTIONS[sk].some(a => a.station === st));
-        const portable = !(loc.stations || []).includes(st);
-        for (const sk of skills) html += `<button class="btn" data-act="nav" data-page="${sk}">${STATIONS[st].icon} ${SKILLS[sk].name} at the ${STATIONS[st].name}${portable ? ` <span class="muted">(${ITEMS[STATIONS[st].portable].name})</span>` : ''}</button>`;
+    for (const st of Object.keys(STATIONS).filter(st => Game.hasStation(st))) {
+      const portable = !(loc.stations || []).includes(st);
+      const skills = Object.keys(ACTIONS).filter(sk => ACTIONS[sk].some(a => a.station === st));
+      html += `<h2>${STATIONS[st].icon} ${STATIONS[st].name}${portable ? ` <span class="muted small">(your ${ITEMS[STATIONS[st].portable].name})</span>` : ''}</h2>`;
+      for (const sk of skills) {
+        const known = ACTIONS[sk].filter(a => a.station === st && Game.level(sk) >= a.level);
+        html += `<p class="small muted">${SKILLS[sk].icon} ${SKILLS[sk].name} ${Game.level(sk)} · <a href="#" class="loc-link" data-act="nav" data-page="${sk}">all ${SKILLS[sk].name.toLowerCase()} recipes</a></p>`;
+        html += known.length ? `<div class="cards">${known.map(a => this.actionCard(sk, a)).join('')}</div>` : '<p class="muted small">You know no recipes for this yet.</p>';
       }
-      html += '</div>';
     }
     const services = [];
     if (loc.bank) services.push('<button class="btn" data-act="nav" data-page="bank">🏦 Visit the bank</button>');
@@ -384,7 +383,7 @@ const UI = {
       html += `<p class="muted small">Tool: ${tier < 0 ? `<span class="lack-text">none, so you need a ${ITEMS[TOOLS[skill][0]].name} in your pack</span>` : `<b>${ITEMS[TOOLS[skill][tier]].name}</b>${TOOL_SPEEDUP[tier] ? ` (−${TOOL_SPEEDUP[tier] * 100}% time)` : ''}`}. Better tools are sold in the shops.</p>`;
     }
     if (skill === 'occultism') {
-      html += '<p class="warning">👁️ Occult study costs sanity, and your sanity does not recover while you study. Every Occultism level grants +1% damage against beings from beyond.</p>';
+      html += '<p class="warning">👁️ Occult study costs sanity, and your sanity does not recover while you study. Every Occultism level beyond the first grants +1% damage against beings from beyond, and every five levels add +1 to your sanity saves.</p>';
     }
     html += `<div class="cards">${ACTIONS[skill].map(a => this.actionCard(skill, a)).join('')}</div>`;
     return html;
@@ -397,8 +396,9 @@ const UI = {
     return `<div class="card${fighting ? ' active' : ''}${m.eldritch ? ' eldritch' : ''}">
       <div class="card-icon">${m.icon}</div>
       <div class="card-name">${m.name}${m.boss ? ' <span class="boss">BOSS</span>' : ''}</div>
-      <div class="small">❤️ ${m.hp} · ⚔️ ${m.attack} · 🛡️ ${m.defence} · max hit ${m.maxHit}</div>
-      ${m.sanityDmg ? `<div class="small sanity-text">👁️ −${m.sanityDmg} sanity per hit</div>` : ''}
+      <div class="small">❤️ ${m.hp} HP · 🛡️ AC ${m.ac} · ⚔️ ${withSign(m.hit)} to hit, ${m.dmg}</div>
+      ${m.eldritch ? `<div class="small sanity-text">👁️ Sanity save DC ${m.eldritch.dc}, −${m.eldritch.loss} on a failure</div>` : ''}
+      <div class="small muted">${m.xp} xp</div>
       <div class="small muted">Loot: ${m.drops.map(d => ITEMS[d.item].icon).join(' ')} · ${m.gold[0]}–${m.gold[1]} gold</div>
       <button class="btn" data-act="fight" data-monster="${id}"${fighting || s.travel ? ' disabled' : ''}>${fighting ? 'Fighting…' : 'Fight'}</button>
     </div>`;
@@ -410,8 +410,8 @@ const UI = {
     let html = '<h1>⚔️ Combat</h1>';
     if (s.combat) {
       const m = MONSTERS[s.combat.monster];
-      const chance = Game.hitChance(Game.accuracy(), (m.defence + 9) * 64);
-      const theirs = Game.hitChance((m.attack + 9) * 64, Game.evasion());
+      const chance = chanceToHit(Game.attackBonus(), m.ac);
+      const theirs = chanceToHit(m.hit, Game.armourClass());
       const food = s.food && ITEMS[s.food];
       const foods = Object.keys(s.pack).filter(id => ITEMS[id].type === 'food');
       const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion');
@@ -421,9 +421,10 @@ const UI = {
           ${bar('c-hp', 'hp', 0)}
           ${bar('c-sanity', 'sanity', 0)}
           ${bar('c-patk', 'progress', 0)}
-          <div class="small">Max hit <b>${Game.maxHit()}</b>${m.eldritch ? ` <span class="sanity-text">(+${Math.round(Game.eldritchBonus() * 100)}% vs eldritch)</span>` : ''} · Hit chance <b>${Math.round(chance * 100)}%</b> · Speed ${secs(Game.playerStats().speed)}</div>
-          <div class="style-row">Style:
-            ${['attack', 'strength', 'defence'].map(st => `<button class="btn small${s.combatStyle === st ? ' selected' : ''}" data-act="style" data-style="${st}">${SKILLS[st].icon} ${SKILLS[st].name}</button>`).join('')}
+          <div class="small">⚔️ ${withSign(Game.attackBonus())} to hit (<b>${Math.round(chance * 100)}%</b> vs AC ${m.ac}) · ${Game.damageText()} damage${m.eldritch && Game.eldritchBonus() ? ` <span class="sanity-text">+${Math.round(Game.eldritchBonus() * 100)}% vs eldritch</span>` : ''} · every ${secs(Game.playerStats().speed)}</div>
+          <div class="small">🛡️ AC ${Game.armourClass()}${m.eldritch ? ` · 👁️ ${withSign(Game.wits())} to sanity saves` : ''}</div>
+          <div class="style-row">Stance:
+            ${Object.entries(STANCES).map(([id, st]) => `<button class="btn small${s.stance === id ? ' selected' : ''}" data-act="stance" data-stance="${id}" title="${st.desc}">${st.icon} ${st.name}</button>`).join('')}
           </div>
           <div class="style-row">Food:
             <select id="food-select">${foods.length ? '' : '<option>No food</option>'}${foods.map(id => `<option value="${id}"${id === s.food ? ' selected' : ''}>${ITEMS[id].name} (${fmt(s.pack[id])})</option>`).join('')}</select>
@@ -436,9 +437,10 @@ const UI = {
           <h2>${m.icon} ${m.name}${m.boss ? ' <span class="boss">BOSS</span>' : ''}</h2>
           ${bar('c-mhp', 'hp', 0)}
           ${bar('c-matk', 'progress enemy', 0)}
-          <div class="small">Max hit <b>${m.maxHit}</b> · Hits you <b>${Math.round(theirs * 100)}%</b> · ${secs(m.speed)}</div>
-          ${m.sanityDmg ? `<div class="small sanity-text">Each hit costs ${(m.sanityDmg * (1 - Game.playerStats().sanityResist)).toFixed(1)} sanity</div>` : ''}
+          <div class="small">🛡️ AC ${m.ac} · ⚔️ ${withSign(m.hit)} to hit (<b>${Math.round(theirs * 100)}%</b> vs you) · ${m.dmg} damage · every ${secs(m.speed)}</div>
+          ${m.eldritch ? `<div class="small sanity-text">Each wound forces a sanity save (DC ${m.eldritch.dc}); failure costs ${m.eldritch.loss} sanity</div>` : ''}
           <div class="small muted">Slain: ${fmt(s.kills[s.combat.monster] || 0)}</div>
+          <div class="combat-log" id="combat-log">${s.combat.log.map(l => `<div>${esc(l)}</div>`).join('')}</div>
         </div>
       </div>`;
     }
@@ -453,31 +455,33 @@ const UI = {
 
   pageCharacter() {
     const s = Game.state;
-    const st = Game.playerStats();
-    let html = '<h1>🧝 Character</h1><div class="two-col"><div><h2>Equipment</h2><div class="slots">';
+    let html = '<h1>🧝 Character & Skills</h1><div class="two-col"><div><h2>Equipment</h2><div class="slots">';
     for (const [slot, name] of Object.entries(SLOTS)) {
       const item = s.equipment[slot];
       html += `<div class="slot"><div class="muted small">${name}</div>${item
-        ? `<div>${ITEMS[item].icon} <b>${esc(ITEMS[item].name)}</b></div><div class="small">${statLine(ITEMS[item].stats)}</div><button class="btn small" data-act="unequip" data-slot="${slot}">Unequip</button>`
+        ? `<div>${ITEMS[item].icon} <b>${esc(ITEMS[item].name)}</b></div><div class="small">${statLine(ITEMS[item])}</div><button class="btn small" data-act="unequip" data-slot="${slot}">Unequip</button>`
         : '<div class="muted">Empty</div>'}</div>`;
     }
-    html += `</div><h2>Combat stats</h2><table class="stats">
+    html += `</div><h2>In a fight</h2><table class="stats">
       <tr><td>Hitpoints</td><td>${fmt(s.hp)} / ${Game.maxHp()}</td></tr>
       <tr><td>Sanity</td><td>${fmt(s.sanity)} / ${Game.maxSanity()}</td></tr>
-      <tr><td>Attack bonus</td><td>+${st.attack}</td></tr>
-      <tr><td>Strength bonus</td><td>+${st.strength}</td></tr>
-      <tr><td>Defence bonus</td><td>+${st.defence}</td></tr>
-      <tr><td>Sanity ward</td><td>${Math.round(st.sanityResist * 100)}%</td></tr>
-      <tr><td>Max hit</td><td>${Game.maxHit()}</td></tr>
+      <tr><td>Proficiency</td><td>${withSign(Game.proficiency())}</td></tr>
+      <tr><td>Attack roll</td><td>d20 ${withSign(Game.attackBonus())}</td></tr>
+      <tr><td>Damage</td><td>${Game.damageText()}</td></tr>
+      <tr><td>Armour class</td><td>${Game.armourClass()}</td></tr>
+      <tr><td>Sanity save</td><td>d20 ${withSign(Game.wits())}</td></tr>
       <tr><td>Damage vs eldritch</td><td>+${Math.round(Game.eldritchBonus() * 100)}%</td></tr>
       <tr><td>Respawn point</td><td>${esc(LOCATIONS[s.home].name)}</td></tr>
     </table></div><div><h2>Skills</h2><table class="stats">`;
-    let total = 0;
-    for (const id in SKILLS) {
-      total += Game.level(id);
-      html += `<tr><td>${SKILLS[id].icon} ${SKILLS[id].name}</td><td>${Game.level(id)}</td><td class="muted">${fmt(s.skills[id].xp)} xp</td></tr>`;
+    for (const g of SKILL_GROUPS) {
+      html += `<tr><td colspan="3" class="muted small">${g.name}</td></tr>`;
+      for (const id of g.skills) {
+        const lvl = Game.level(id);
+        const pct = lvl >= MAX_LEVEL ? 100 : ((s.skills[id].xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl])) * 100;
+        html += `<tr><td>${id === 'combat' ? `${SKILLS[id].icon} ${SKILLS[id].name}` : `<a href="#" class="loc-link" data-act="nav" data-page="${id}">${SKILLS[id].icon} ${SKILLS[id].name}</a>`}</td><td>${lvl}</td><td class="skill-mini"><div class="bar progress"><div class="fill" style="width:${pct}%"></div></div></td></tr>`;
+      }
     }
-    html += `<tr><td><b>Total</b></td><td><b>${total}</b></td><td></td></tr></table>`;
+    html += '</table>';
     const kills = Object.entries(s.kills);
     if (kills.length) {
       html += '<h2>Slain</h2><table class="stats">';
@@ -506,7 +510,7 @@ const UI = {
       html += `<div class="item-detail"><div class="big-icon">${it.icon}</div><div>
         <h2>${esc(it.name)} <span class="muted">× ${fmt(s.pack[sel])}</span></h2>
         <p class="muted">${esc(it.desc)}</p>
-        ${it.stats ? `<p class="small">${statLine(it.stats)}${it.speed ? ` · ${secs(it.speed)} attack speed` : ''}</p>` : ''}
+        ${it.type === 'equipment' ? `<p class="small">${statLine(it)}${it.speed ? ` · attacks every ${secs(it.speed)}` : ''}</p>` : ''}
         ${it.req ? `<p class="small ${Game.meetsReq(sel) ? '' : 'lack-text'}">Requires: ${reqLine(it.req)}</p>` : ''}
         <div class="btn-row">
           ${it.type === 'equipment' ? `<button class="btn" data-act="equip" data-item="${sel}">Equip</button>` : ''}
@@ -551,7 +555,7 @@ const UI = {
       const it = ITEMS[item];
       const stackable = it.type === 'food' || it.type === 'potion';
       html += `<div class="card"><div class="card-icon">${it.icon}</div><div class="card-name">${esc(it.name)}</div>
-        <div class="muted small">${esc(it.desc || statLine(it.stats))}</div>${it.req ? `<div class="small">Requires ${reqLine(it.req)}</div>` : ''}
+        <div class="muted small">${esc(it.desc || statLine(it))}</div>${it.req ? `<div class="small">Requires ${reqLine(it.req)}</div>` : ''}
         <div class="small">💰 ${fmt(price)} gold${Game.carries(item) ? ' · <span class="good-text">carried</span>' : ''}</div>
         <div class="btn-row"><button class="btn small" data-act="buy" data-item="${item}" data-qty="1"${s.gold < price ? ' disabled' : ''}>Buy 1</button>${stackable ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="10"${s.gold < price * 10 ? ' disabled' : ''}>Buy 10</button>` : ''}</div></div>`;
     }
@@ -619,6 +623,9 @@ const UI = {
         this.setBar('c-hp', (s.hp / maxHp) * 100, `❤️ ${fmt(Math.max(0, s.hp))} / ${maxHp}`);
         this.setBar('c-sanity', (s.sanity / Game.maxSanity()) * 100, `👁️ ${fmt(s.sanity)} / ${Game.maxSanity()}`);
         this.setBar('c-patk', (s.combat.playerTimer / Game.playerStats().speed) * 100);
+        const log = document.getElementById('combat-log');
+        const html = s.combat.log.map(l => `<div>${esc(l)}</div>`).join('');
+        if (log && log.innerHTML !== html) log.innerHTML = html;
         if (s.combat.respawn > 0) {
           this.setBar('c-mhp', 0, 'Another approaches…');
           this.setBar('c-matk', 0);
