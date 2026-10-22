@@ -113,6 +113,7 @@ const Game = {
       achievements: {},
       expeditionsDone: {},
       perks: {},
+      relics: {},
       settings: { audio: false },
       achTimer: 0,
       log: [],
@@ -398,6 +399,17 @@ const Game = {
       if (def.heal) this.heal(Math.round(def.heal * potency));
       if (def.sanity) this.restoreSanity(def.sanity > 0 ? Math.round(def.sanity * potency) : def.sanity);
       this.log(`You drink the ${def.name}.`, 'good');
+    } else if (def.type === 'map') {
+      this.removeItem(item, 1);
+      if (def.reveal) {
+        this.log(`You study the ${def.name}.`, 'good');
+        for (let i = 0; i < def.reveal; i++) this.revealRandom();
+      }
+      if (def.treasure) {
+        const gold = randInt(def.treasure[0], def.treasure[1]);
+        this.state.gold += gold;
+        this.log(`You follow the map and dig up a hoard of ${gold} gold.`, 'rare');
+      }
     }
   },
 
@@ -405,11 +417,12 @@ const Game = {
   actionTime(skill, action) {
     const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;
     const stars = TOOLS[skill] && this.hasDerangement('star_touched') ? 0.85 : 1;
-    const practised = 1 - Math.min(MAX_PERK_SPEED, this.perk('speed', skill));
+    const practised = 1 - Math.min(MAX_PERK_SPEED, this.perk('speed', skill) + (skill === 'archaeology' ? this.companionAura('dig') : 0));
     return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars * this.raceSpeed(skill) * practised);
   },
   availableHere(skill, action) {
     if (action.veil && !this.veilSight()) return false;
+    if (action.anywhere) return true;
     if (action.station) return this.hasStation(action.station);
     return ((this.here().gather || {})[skill] || []).includes(action.id);
   },
@@ -418,9 +431,13 @@ const Game = {
     if (this.state.travel) return 'You are travelling';
     if (this.level(skill) < action.level) return `Requires level ${action.level}`;
     if (!this.availableHere(skill, action)) return action.station ? `Needs a ${STATIONS[action.station].name}` : 'Not found here';
-    if (TOOLS[skill] && this.toolTier(skill) < 0) return `Needs a ${ITEMS[TOOLS[skill][0]].name}`;
+    if (TOOLS[skill] && this.toolTier(skill) < 0) {
+      const tool = ITEMS[TOOLS[skill][0]].name;
+      return `Needs ${tool.endsWith('s') ? '' : 'a '}${tool}`;
+    }
     const when = this.whenBlocker(action);
     if (when) return when;
+    if (action.minMadness && this.state.madness < action.minMadness) return 'Only a broken mind can find the way';
     if (!this.hasAll(action.input)) return 'Missing materials';
     if (action.sanityCost && this.state.sanity < this.sanityCostOf(skill, action)) return 'Not enough sanity';
     if (!Object.keys(action.output).every(item => this.canAdd(item))) return 'Your pack is full';
@@ -475,8 +492,21 @@ const Game = {
         return false;
       }
     }
+    // Thieves can be caught: the attempt fails, you pay a fine and the theft stops.
+    if (action.risk && Math.random() < action.risk * (1 - Math.min(0.9, this.perk('safe', skill)))) {
+      const fine = Math.min(this.state.gold, Math.floor(this.state.gold * CAUGHT_FINE) + 5);
+      this.state.gold -= fine;
+      this.state.hp = Math.max(1, this.state.hp - Math.ceil(this.maxHp() * 0.1));
+      this.addXp(skill, Math.round(action.xp / 2));
+      this.log(`Caught! You are roughed up and pay a fine of ${fine} gold.`, 'bad');
+      this.state.action = null;
+      this.emit('action');
+      return false;
+    }
     const mult = Math.random() < this.perk('double', skill) ? 2 : 1;
     for (const [item, qty] of Object.entries(action.output)) this.addItem(item, qty * mult);
+    if (action.gold) this.state.gold += randInt(action.gold[0], action.gold[1]) * mult;
+    if (action.sanityGain) this.restoreSanity(action.sanityGain + this.perk('dreamRest', skill));
     if (RARE_FINDS[skill] && Math.random() < this.perk('rare', skill) && this.addItem(RARE_FINDS[skill], 1)) {
       this.log(`A lucky find: ${ITEMS[RARE_FINDS[skill]].name}!`, 'rare');
     }
@@ -572,6 +602,10 @@ const Game = {
   arriveAt(loc) {
     const s = this.state;
     s.location = loc;
+    if (!s.visited[loc]) {
+      this.addXp('cartography', CARTOGRAPHY_XP_PER_DISCOVERY);
+      this.log(`You chart ${LOCATIONS[loc].name} for the first time.`, 'good');
+    }
     s.visited[loc] = true;
     s.known[loc] = true;
     if (LOCATIONS[loc].inn) s.home = loc;
@@ -598,6 +632,7 @@ const Game = {
       if (t.progress < legTime) break;
       t.progress -= legTime;
       if (this.companionActive()) this.addXp('fellowship', (legTime / 1000) * FELLOWSHIP_XP_PER_ROAD_SECOND);
+      this.addXp('cartography', (legTime / 1000) * CARTOGRAPHY_XP_PER_ROAD_SECOND);
       t.leg++;
       t.rolled = false;
       this.arriveAt(t.path[t.leg]);
@@ -647,10 +682,19 @@ const Game = {
     const critFrom = 20 - this.perk('crit');
     if (roll === 1 || (roll < critFrom && total < m.ac)) {
       this.combatLog(c, `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: miss.`);
+      c.sneakUsed = true;
       return;
     }
     const crit = roll >= critFrom;
     let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus());
+    // Sneak attack: the first blow against each enemy, if it lands, adds d6s from Stealth.
+    const sneakDice = c.sneakUsed ? 0 : this.sneakDice();
+    c.sneakUsed = true;
+    if (sneakDice) {
+      const extra = rollDice(`${sneakDice}d6`);
+      dmg += extra;
+      this.combatLog(c, `Sneak attack! +${extra} damage.`);
+    }
     if (m.eldritch) dmg = Math.floor(dmg * (1 + this.eldritchBonus()));
     c.monsterHp -= dmg;
     this.combatLog(c, crit ? `${roll === 20 ? 'Natural 20' : `Critical (${roll})`}! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
@@ -722,6 +766,7 @@ const Game = {
       if (c.respawn <= 0) {
         c.respawn = 0;
         c.monsterHp = m.hp;
+        c.sneakUsed = false;
       }
       return;
     }

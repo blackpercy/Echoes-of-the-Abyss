@@ -93,12 +93,13 @@ Object.assign(Game, {
 
   // --- Roads ---
   roadCost(road) {
-    if (!road.cost || this.state.background === 'smuggler') return 0;
+    if (!road.cost || this.state.background === 'smuggler' || this.carries('rowboat')) return 0;
     if (road.tideFree && this.isLowTide()) return 0;
     return road.cost;
   },
   travelSpeed() {
-    return BASE_TRAVEL_SPEED * (1 + this.perk('travel')) * (this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1);
+    const charted = 1 + CARTOGRAPHY_TRAVEL_PER_LEVEL * (this.level('cartography') - 1);
+    return BASE_TRAVEL_SPEED * charted * (1 + this.perk('travel')) * (this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1);
   },
   // Seconds a road takes at your current speed, for display.
   roadSeconds(road) {
@@ -113,8 +114,9 @@ Object.assign(Game, {
     });
     return options.length ? options[randInt(0, options.length - 1)] : null;
   },
+  // Road-event checks: a quarter of the skill, plus what a seasoned map-maker knows about roads.
   checkBonus(skill) {
-    return Math.floor(this.level(skill) / 4);
+    return Math.floor(this.level(skill) / 4) + Math.floor(this.level('cartography') / 10) + this.perk('scout');
   },
   choiceBlocker(choice) {
     const need = choice.need || {};
@@ -343,7 +345,14 @@ Object.assign(Game, {
     this.log('Your first follower kneels before you in a Saltmire cellar. The cult has begun.', 'veil');
   },
   cultCapacity() {
-    return 3 + Math.floor(this.level('occultism') / 5);
+    return 3 + Math.floor(this.level('occultism') / 5) + FOLLOWERS_PER_IDOL * (this.state.cult.idols || 0);
+  },
+  raiseIdol() {
+    const cult = this.state.cult;
+    if (!cult || this.state.location !== CULT_SHRINE || (cult.idols || 0) >= MAX_IDOLS || !this.removeItem('shrine_idol', 1)) return;
+    cult.idols = (cult.idols || 0) + 1;
+    this.log(`You raise an idol in the shrine. Room for ${FOLLOWERS_PER_IDOL} more of the faithful.`, 'veil');
+    this.emit('action');
   },
   recruitCost() {
     return CULT_RECRUIT_GOLD * this.state.cult.followers;
@@ -429,9 +438,17 @@ Object.assign(Game, {
     const items = {};
     for (const d of ex.loot.items) if (Math.random() < d.chance) items[d.item] = randInt(d.qty[0], d.qty[1]);
     this.log(`Expedition complete: ${ex.name}! You find a hoard at the bottom.`, 'rare');
-    this.grant({ gold, items });
+    // A sharp-eyed thief finds the hidden vault behind the hoard: double the treasure.
+    const vaultRoll = d20() + Math.floor(this.level('stealth') / 4);
+    const vault = vaultRoll >= VAULT_DC;
+    if (vault) {
+      this.state.flags.vault = true;
+      for (const item in items) items[item] *= 2;
+      this.log(`Stealth ${vaultRoll} vs DC ${VAULT_DC}: you find a hidden vault behind the hoard. Double the treasure!`, 'rare');
+    }
+    this.grant({ gold: vault ? gold * 2 : gold, items });
     this.questEvent('expedition', id);
-    this.emit('expedition', { id, gold, items });
+    this.emit('expedition', { id, gold: vault ? gold * 2 : gold, items, vault });
     this.emit('action');
   },
 
@@ -448,6 +465,32 @@ Object.assign(Game, {
       if (!this.state.endings[ending]) continue;
       for (const [loc, change] of Object.entries(WORLD_CHANGES[ending])) Object.assign(LOCATIONS[loc], JSON.parse(JSON.stringify(change)));
     }
+  },
+
+  // --- Stealth ---
+  sneakDice() {
+    return Math.floor(this.level('stealth') / SNEAK_LEVELS_PER_DIE) + this.perk('sneak');
+  },
+
+  // --- Relic collections ---
+  placeRelic(item) {
+    const set = Object.keys(RELIC_SETS).find(s => item in RELIC_SETS[s].relics);
+    if (!set || this.state.relics[item] || !this.removeItem(item, 1)) return;
+    this.state.relics[item] = true;
+    this.log(`You place the ${ITEMS[item].name} in your collection.`, 'good');
+    if (this.relicSetDone(set)) {
+      const [effect, value] = RELIC_SETS[set].bonus;
+      this.log(`Collection complete: ${RELIC_SETS[set].name}! ${PERK_EFFECTS[effect].text(value)}.`, 'rare');
+    }
+    this.emit('action');
+  },
+  relicSetDone(set) {
+    return Object.keys(RELIC_SETS[set].relics).every(r => this.state.relics[r]);
+  },
+  relicBonus(effect) {
+    let total = 0;
+    for (const [id, set] of Object.entries(RELIC_SETS)) if (set.bonus[0] === effect && this.relicSetDone(id)) total += set.bonus[1];
+    return total;
   },
 
   // --- Bestiary and achievements ---

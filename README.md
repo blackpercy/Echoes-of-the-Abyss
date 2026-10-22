@@ -23,10 +23,20 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **10 skills, levels 1–50.**
-  - Gathering: Woodcutting, Fishing, Mining, Foraging
-  - Crafting: Cooking, Smithing, Alchemy, Occultism
-  - Adventuring: Combat, Fellowship
+- **16 skills, levels 1–50.**
+  - Gathering: Woodcutting, Fishing, Mining, Foraging, Hunting, Archaeology, Dreaming
+  - Crafting: Cooking, Smithing, Alchemy, Occultism, Carpentry
+  - Adventuring: Combat, Fellowship, Stealth, Cartography
+- **Dreaming.** Sleep at an inn or on a bedroll and descend into the Dreamlands: Ulthar, the Enchanted Wood, Celephaïs, Dylath-Leen. Gentle dreams restore sanity. Leng and Kadath can only be reached by a broken mind.
+- **Hunting.** Hunt game in the wild and tan the hides into light armour. Light armour gives less AC than metal but +1–2 to hit. Venison is cooked into food.
+- **Archaeology.** Dig at five sites for relics. Complete a collection to earn a permanent bonus: +1 AC, +2 pack slots, +1 to sanity saves, +15 hitpoints or +5% damage against eldritch beings. Professor Peaslee digs 15% faster.
+- **Carpentry.** Work wood into:
+  - Bows (fast, accurate weapons) and spears.
+  - An oak frame pack.
+  - Shrine idols that give your cult room for more followers.
+  - A **rowboat**: no ferry fee, and the only way to the new **Drowned Isle**.
+- **Stealth.** Pick pockets and burgle for gold, at the risk of being caught and fined. Your first blow on each enemy is a sneak attack (+1d6 per 10 levels). After an expedition you may find a hidden vault that doubles the treasure. Some road events now have stealthy choices.
+- **Cartography.** You learn it by travelling and discovering places. It makes travel faster and improves road-event checks. Draw maps that reveal unexplored places, and treasure maps that lead to buried gold.
 - **Dice-based combat.** Each attack is a d20 roll plus your proficiency and gear against the enemy's armour class. Damage comes from weapon dice (`1d8`, `2d6+3`…) and a natural 20 is a critical hit. Pick an aggressive, balanced or defensive stance.
 - **Sanity.** When something eldritch wounds you, you roll a sanity save against its DC. Failing it, or studying the occult, costs sanity. At zero you flee in panic. Warding amulets and Occultism levels improve your saves, potions restore sanity, and inns let you recover.
 - **Madness is not the end.** Below 40 sanity you see through the Veil: hidden places appear on the map (the Lighthouse That Isn't, the Market Under the Hill), along with resources and people no one else can see. When sanity hits zero your mind breaks and you keep playing. You gain a madness level and a random *derangement* with an upside and a downside.
@@ -36,7 +46,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 100 in all.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 160 in all.
   - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
   - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
   - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.
@@ -82,6 +92,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 | `js/data.js` | All game data: skills, items, actions, monsters, shops, locations, roads and lore |
 | `js/story.js` | The Veil: madness stages, derangements, hidden places, NPCs, quests and endings |
 | `js/content.js` | The living world: time and tide, road events, races, companions, cult, expeditions, more NPCs and quests, world changes, bestiary, achievements, hallucinations |
+| `js/expansion.js` | Dreaming, Hunting, Archaeology, Carpentry, Stealth and Cartography: their items, activities, workplaces, relic sets, the Drowned Isle and new road-event choices |
 | `js/game.js` | Engine: state, tick loop, travel and route finding, pack and bank, combat, sanity, saving, offline simulation |
 | `js/ui.js` | Page rendering, the SVG world map, meters and click handling |
 | `js/mind.js` | Madness, the Veil, NPC interactions and the quest engine |

@@ -364,6 +364,10 @@ body.night .map-wrap { filter: brightness(.8) saturate(.8); }
   .tier-or { display: none; }
 }
 
+.relics { margin-top: .3rem; font-size: .9rem; }
+.relic { color: var(--muted); padding: .1rem 0; }
+.relic.placed { color: var(--gold); }
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 1rem; }

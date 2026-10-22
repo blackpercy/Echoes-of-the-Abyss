@@ -164,6 +164,8 @@ const UI = {
         break;
       }
       case 'perk': Game.choosePerk(d.skill, +d.tier, +d.index); break;
+      case 'place-relic': Game.placeRelic(d.item); break;
+      case 'raise-idol': Game.raiseIdol(); break;
       case 'respec': if (confirm(`Unlearn every ${SKILLS[d.skill].name} perk for ${Game.respecCost(d.skill)} gold?`)) Game.respecPerks(d.skill); break;
       case 'expedition': Game.startExpedition(d.id); this.page = 'combat'; break;
       case 'dismiss': if (confirm(`Part ways with ${COMPANIONS[d.id].name}?`)) Game.dismissCompanion(d.id); break;
@@ -287,7 +289,7 @@ const UI = {
     for (const [skill, actions] of Object.entries(loc.gather || {})) {
       const visible = actions.map(a => findAction(skill, a)).filter(act => !act.veil || Game.veilSight());
       if (!visible.length) continue;
-      rows.push(`<div><b>${SKILLS[skill].icon} ${SKILLS[skill].name}:</b> ${visible.map(act => `${ITEMS[Object.keys(act.output)[0]].icon} ${esc(act.name)} <span class="muted">(${act.level})</span>`).join(', ')}</div>`);
+      rows.push(`<div><b>${SKILLS[skill].icon} ${SKILLS[skill].name}:</b> ${visible.map(act => `${(ITEMS[Object.keys(act.output)[0]] || { icon: act.icon }).icon} ${esc(act.name)} <span class="muted">(${act.level})</span>`).join(', ')}</div>`);
     }
     if ((loc.stations || []).length) rows.push(`<div><b>Workplaces:</b> ${loc.stations.map(st => `${STATIONS[st].icon} ${STATIONS[st].name}`).join(', ')}</div>`);
     const services = [];
@@ -382,7 +384,7 @@ const UI = {
       svg += `<g class="${cls}" data-act="map-select" data-loc="${id}">
         <circle cx="${loc.x}" cy="${loc.y}" r="24"/>
         <text class="node-icon" x="${loc.x}" y="${loc.y + 1}">${known ? loc.icon : '❔'}</text>
-        <text class="node-label" x="${loc.x}" y="${loc.y + 42}">${known ? esc(loc.name) : '???'}</text>
+        <text class="node-label" x="${loc.x + (loc.labelDx || 0)}" y="${loc.y + 42}">${known ? esc(loc.name) : '???'}</text>
       </g>`;
     }
     if (this.hallucinating()) {
@@ -540,12 +542,19 @@ const UI = {
     }
     const active = s.action && s.action.skill === skill && s.action.id === a.id;
     const blocker = active ? null : Game.actionBlocker(skill, a);
-    const outItem = ITEMS[Object.keys(a.output)[0]];
+    const outItem = ITEMS[Object.keys(a.output)[0]] || { icon: a.icon || '❔', id: null };
+    const makes = [...Object.entries(a.output).map(([id, q]) => itemChip(id, q)), a.gold ? `<span class="chip">💰 ${a.gold[0]}–${a.gold[1]} gold</span>` : ''].filter(Boolean).join(' ');
+    const extras = [
+      a.sanityGain ? `<span class="good-text">+${a.sanityGain + Game.perk('dreamRest', skill)} sanity</span>` : '',
+      a.risk ? `<span class="lack-text">${Math.round(a.risk * (1 - Math.min(0.9, Game.perk('safe', skill))) * 100)}% risk of being caught</span>` : '',
+      a.minMadness ? `<span class="sanity-text">needs madness: ${MADNESS_STAGES[a.minMadness]}</span>` : '',
+      a.anywhere ? '<span class="muted">anywhere</span>' : '',
+    ].filter(Boolean).join(' · ');
     let where = '';
     if (!active && !Game.availableHere(skill, a)) {
       const places = Game.whereAvailable(skill, a);
       const portable = a.station && STATIONS[a.station].portable;
-      where = `<div class="small muted">Found at: ${places.map(locLink).join(', ')}${portable ? ` or anywhere with a ${ITEMS[portable].name}` : ''}</div>`;
+      where = `<div class="small muted">Found at: ${places.length ? places.map(locLink).join(', ') : 'somewhere you have not yet explored'}${portable ? ` or anywhere with a ${ITEMS[portable].name}` : ''}</div>`;
     }
     return `<div class="card${active ? ' active' : ''}${blocker ? ' blocked' : ''}">
       <div class="card-icon">${outItem.icon}</div>
@@ -554,7 +563,8 @@ const UI = {
       ${a.when ? `<div class="small sanity-text">${a.when === 'night' ? '🌙 Only at night' : '🌊 Only at low tide'}</div>` : ''}
       <div class="small">${secs(Game.actionTime(skill, a))} · ${a.xp} xp${a.sanityCost ? ` · <span class="sanity-text">−${Game.sanityCostOf(skill, a)} sanity</span>` : ''}${a.station ? ` · ${STATIONS[a.station].icon} ${STATIONS[a.station].name}` : ''}</div>
       ${a.input ? `<div class="small">Uses: ${Object.entries(a.input).map(([id, q]) => `<span class="chip ${Game.count(id) >= q ? '' : 'lack'}">${ITEMS[id].icon} ${q} ${esc(ITEMS[id].name)} <span class="muted">(${fmt(Game.count(id))})</span></span>`).join(' ')}</div>` : ''}
-      <div class="small">Makes: ${Object.entries(a.output).map(([id, q]) => itemChip(id, q)).join(' ')} <span class="muted">(carrying ${fmt(Game.count(outItem.id))})</span></div>
+      <div class="small">Makes: ${makes}${outItem.id ? ` <span class="muted">(carrying ${fmt(Game.count(outItem.id))})</span>` : ''}</div>
+      ${extras ? `<div class="small">${extras}</div>` : ''}
       ${where}
       ${blocker ? `<div class="small lack-text">${esc(blocker)}</div>` : ''}
       ${bar(`prog-${skill}-${a.id}`, 'progress', 0)}
@@ -567,6 +577,16 @@ const UI = {
     if (TOOLS[skill]) {
       const tier = Game.toolTier(skill);
       html += `<p class="muted small">Tool: ${tier < 0 ? `<span class="lack-text">none, so you need a ${ITEMS[TOOLS[skill][0]].name} in your pack</span>` : `<b>${ITEMS[TOOLS[skill][tier]].name}</b>${TOOL_SPEEDUP[tier] ? ` (−${TOOL_SPEEDUP[tier] * 100}% time)` : ''}`}. Better tools are sold in the shops.</p>`;
+    }
+    if (skill === 'archaeology') html += this.relicCollection();
+    if (skill === 'stealth') {
+      html += `<p class="small">🗡️ Your first blow against each enemy, if it lands, is a <b>sneak attack</b> for +${Game.sneakDice()}d6 (one die per ${SNEAK_LEVELS_PER_DIE} Stealth levels, plus perks). After an expedition you search for a hidden vault: d20 ${withSign(Math.floor(Game.level('stealth') / 4))} against DC ${VAULT_DC} doubles the treasure.</p>`;
+    }
+    if (skill === 'cartography') {
+      html += `<p class="small">🧭 You learn Cartography on the road: ${CARTOGRAPHY_XP_PER_ROAD_SECOND} xp per second travelled and ${CARTOGRAPHY_XP_PER_DISCOVERY} xp for every new place. You now travel ${Math.round(CARTOGRAPHY_TRAVEL_PER_LEVEL * 100 * (Game.level('cartography') - 1))}% faster and have ${withSign(Math.floor(Game.level('cartography') / 10) + Game.perk('scout'))} to road-event checks. Read the maps you draw from your pack.</p>`;
+    }
+    if (skill === 'dreaming') {
+      html += '<p class="small">🌙 You dream wherever there is a bed: at an inn, or with a bedroll in your pack. Gentle dreams restore sanity; the deepest dreams cost it, and only a broken mind can find the way to Leng and Kadath.</p>';
     }
     if (skill === 'fellowship') {
       const lvl = Game.level('fellowship');
@@ -759,6 +779,9 @@ const UI = {
           ${it.type === 'equipment' ? `<button class="btn" data-act="equip" data-item="${sel}">Equip</button>` : ''}
           ${Game.isFood(sel) ? `<button class="btn" data-act="food" data-item="${sel}">${s.food === sel ? 'Chosen food ✓' : 'Choose as food'}</button><button class="btn" data-act="use" data-item="${sel}">Eat (+${Game.foodHeal(sel)})</button>` : ''}
           ${it.type === 'potion' ? `<button class="btn" data-act="use" data-item="${sel}">Drink</button>` : ''}
+          ${it.type === 'map' ? `<button class="btn" data-act="use" data-item="${sel}">Read the map</button>` : ''}
+          ${it.type === 'relic' ? (Game.state.relics[sel] ? '<span class="small muted">Already in your collection</span>' : `<button class="btn" data-act="place-relic" data-item="${sel}">Place in collection</button>`) : ''}
+          ${sel === 'shrine_idol' && Game.state.cult ? `<button class="btn" data-act="raise-idol"${Game.state.location === CULT_SHRINE ? '' : ' disabled'}>Raise it in your shrine</button>` : ''}
           ${here.bank ? `<button class="btn" data-act="deposit" data-item="${sel}">Deposit all</button>` : ''}
           ${here.shop && !SHOPS[here.shop].buysNothing ? `<button class="btn" data-act="sell" data-item="${sel}" data-qty="1">Sell 1 (${it.sell}g)</button><button class="btn" data-act="sell" data-item="${sel}" data-qty="all">Sell all (${fmt(it.sell * s.pack[sel])}g)</button>` : ''}
           <button class="btn danger" data-act="drop" data-item="${sel}">Drop</button>
@@ -843,6 +866,21 @@ const UI = {
     return html;
   },
 
+  relicCollection() {
+    let html = '<h2>🏺 Your collection</h2><div class="bestiary">';
+    for (const [id, set] of Object.entries(RELIC_SETS)) {
+      const done = Game.relicSetDone(id);
+      const [effect, value] = set.bonus;
+      html += `<div class="beast${done ? ' got' : ''}"><b>${set.icon} ${esc(set.name)}</b> <span class="small ${done ? 'good-text' : 'muted'}">${done ? '✓ ' : ''}${esc(PERK_EFFECTS[effect].text(value))}</span>
+        <div class="relics">${Object.entries(set.relics).map(([r, name]) => {
+          const placed = Game.state.relics[r];
+          const carried = !placed && Game.count(r) > 0;
+          return `<div class="relic${placed ? ' placed' : ''}">${placed ? '✦' : carried ? '◇' : '·'} ${esc(name)}${carried ? ` <button class="btn small" data-act="place-relic" data-item="${r}">Place</button>` : ''}</div>`;
+        }).join('')}</div></div>`;
+    }
+    return html + '</div>';
+  },
+
   companionBlock(full) {
     return Game.companions().map(comp => {
       const def = COMPANIONS[comp.id];
@@ -861,7 +899,8 @@ const UI = {
     let html = `<h1>🛐 Your Cult</h1><p class="muted">${cult.followers} of at most ${Game.cultCapacity()} followers (more Occultism lets you lead more). They work while you wander, and leave their offerings at your shrine in ${esc(LOCATIONS[CULT_SHRINE].name)}.</p>`;
     html += `<p class="small">Waiting at the shrine: ${cult.gold} gold${Object.entries(cult.stash).map(([it, q]) => `, ${q} × ${ITEMS[it].name}`).join('')}.</p>`;
     html += `<div class="btn-row"><button class="btn" data-act="collect"${atShrine ? '' : ' disabled'}>Collect offerings</button>
-      <button class="btn veil-btn" data-act="recruit"${atShrine && cult.followers < Game.cultCapacity() && s.gold >= Game.recruitCost() ? '' : ' disabled'}>Recruit a follower (${Game.recruitCost()} gold, ${CULT_RECRUIT_SANITY} sanity)</button></div>`;
+      <button class="btn veil-btn" data-act="recruit"${atShrine && cult.followers < Game.cultCapacity() && s.gold >= Game.recruitCost() ? '' : ' disabled'}>Recruit a follower (${Game.recruitCost()} gold, ${CULT_RECRUIT_SANITY} sanity)</button>
+      <button class="btn" data-act="raise-idol"${atShrine && Game.count('shrine_idol') && (cult.idols || 0) < MAX_IDOLS ? '' : ' disabled'}>🗿 Raise a Shrine Idol (${cult.idols || 0} / ${MAX_IDOLS}, +${FOLLOWERS_PER_IDOL} followers each)</button></div>`;
     if (!atShrine) html += `<p class="small muted">Recruiting and collecting can only be done at your shrine in ${locLink(CULT_SHRINE)}.</p>`;
     html += '<h2>Tasks</h2><table class="stats">';
     const ids = Object.keys(CULT_TASKS);
@@ -1094,9 +1133,9 @@ const UI = {
     document.getElementById('modal').innerHTML = `<div class="modal-box event">${lines.map(l => `<p>${esc(l)}</p>`).join('')}<button class="btn" data-act="close-modal">${Game.state.travel ? 'Continue on your way' : 'Continue'}</button></div>`;
   },
 
-  showExpedition({ id, gold, items }) {
+  showExpedition({ id, gold, items, vault }) {
     const ex = EXPEDITIONS[id];
-    document.getElementById('modal').innerHTML = `<div class="modal-box ending"><h2>🏛️ ${esc(ex.name)}: complete</h2><p>At the bottom of the dark you find what the dead left behind.</p>
+    document.getElementById('modal').innerHTML = `<div class="modal-box ending"><h2>🏛️ ${esc(ex.name)}: complete</h2><p>At the bottom of the dark you find what the dead left behind.${vault ? ' <b>Behind it, a hidden vault: double the treasure.</b>' : ''}</p>
       <p>💰 ${fmt(gold)} gold ${Object.entries(items).map(([it, q]) => itemChip(it, q)).join(' ')}</p><button class="btn" data-act="close-modal">Climb back to the light</button></div>`;
   },
 

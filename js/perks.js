@@ -27,6 +27,10 @@ const PERK_EFFECTS = {
   veil: { text: v => `You see through the Veil ${v} sanity sooner` },
   eldritch: { text: v => `+${Math.round(v * 100)}% damage against eldritch beings` },
   travel: { text: v => `Travel ${Math.round(v * 100)}% faster` },
+  dreamRest: { scope: 'skill', text: v => `Gentle dreams restore +${v} more sanity` },
+  safe: { scope: 'skill', text: v => `${Math.round(v * 100)}% less likely to be caught` },
+  sneak: { text: v => `Sneak attacks deal +${v}d6` },
+  scout: { text: v => `+${v} to road-event checks` },
   compHit: { text: v => `Your companions have +${v} to hit` },
   compAc: { text: v => `Your companions have +${v} AC` },
   compHp: { text: v => `Your companions have +${v} hitpoints` },
@@ -38,7 +42,7 @@ const PERK_EFFECTS = {
 };
 
 // What the "rare" perks turn up while gathering.
-const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose' };
+const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx' };
 
 // Ten tiers (levels 5, 10 … 50), two options each: [effect, value].
 const PERK_TEMPLATES = {
@@ -78,6 +82,42 @@ const PERK_TEMPLATES = {
     [['speed', 0.08], ['eldritch', 0.08]],
     [['ward', 3], ['sanityCost', -0.25]],
   ],
+  dreaming: [
+    [['speed', 0.05], ['dreamRest', 1]],
+    [['xp', 0.1], ['double', 0.05]],
+    [['sanityCost', -0.15], ['rare', 0.01]],
+    [['dreamRest', 1], ['speed', 0.05]],
+    [['double', 0.07], ['xp', 0.15]],
+    [['sanityCost', -0.2], ['ward', 1]],
+    [['speed', 0.07], ['rare', 0.02]],
+    [['dreamRest', 2], ['double', 0.08]],
+    [['sanityCost', -0.25], ['veil', 5]],
+    [['double', 0.12], ['dreamRest', 3]],
+  ],
+  cartography: [
+    [['travel', 0.03], ['xp', 0.1]],
+    [['scout', 1], ['speed', 0.05]],
+    [['travel', 0.04], ['double', 0.05]],
+    [['scout', 1], ['carry', 1]],
+    [['travel', 0.05], ['xp', 0.15]],
+    [['scout', 1], ['double', 0.07]],
+    [['travel', 0.05], ['speed', 0.07]],
+    [['scout', 2], ['carry', 2]],
+    [['travel', 0.06], ['double', 0.08]],
+    [['travel', 0.1], ['scout', 3]],
+  ],
+  stealth: [
+    [['speed', 0.05], ['safe', 0.25]],
+    [['sneak', 1], ['xp', 0.1]],
+    [['double', 0.05], ['safe', 0.25]],
+    [['sneak', 1], ['scout', 1]],
+    [['speed', 0.07], ['double', 0.07]],
+    [['safe', 0.25], ['sneak', 1]],
+    [['xp', 0.15], ['crit', 1]],
+    [['double', 0.08], ['sneak', 1]],
+    [['speed', 0.08], ['scout', 2]],
+    [['sneak', 2], ['double', 0.12]],
+  ],
   fellowship: [
     [['compHit', 1], ['compAc', 1]],
     [['compHp', 15], ['travel', 0.05]],
@@ -114,6 +154,12 @@ const PERK_NAMES = {
   smithing: ['Hot Iron', 'Careful Measure', "Smith's Lore", 'Extra Billet', 'Hammer Rhythm', 'Thrifty Smelting', "Armourer's Eye", 'Forge Lore', 'Quick Quench', 'Twin Ingots', 'No Waste', 'Weaponsmith', "Master's Pace", 'Masterwork Lore', 'Abundant Forge', 'Recast Scraps', 'Thunder Hammer', 'Balanced Blades', 'Forge-Lord', 'Not a Speck Wasted'],
   alchemy: ['Quick Distill', 'Measured Drops', "Alchemist's Notes", 'Double Batch', 'Steady Flame', 'Reclaimed Residue', 'Potent Brews', "Apothecary's Lore", 'Rapid Reduction', 'Overflowing Flask', 'Perfect Ratios', 'Concentrated Essence', 'Swift Hands', 'Grand Formulae', 'Twin Vials', "Philosopher's Thrift", 'Bubbling Cauldron', 'Elixir of Elixirs', 'The Great Work', 'The Unwasting Retort'],
   occultism: ['Steeled Mind', 'Forbidden Notes', 'Warded Thoughts', 'Thin Eyes', 'Quick Study', 'Doubled Whispers', 'Mind Like Stone', 'Know Thy Enemy', 'Inner Sigil', 'Deeper Reading', 'The Opened Eye', 'Careful Rites', 'Empty Mind', 'Banishing Words', 'Elder Ward', 'Echoing Whispers', 'Swift Incantation', 'Bane of the Deep', 'The Unbroken', 'Communion'],
+  hunting: ['Quiet Feet', 'Clean Kill', 'Tracker\'s Lore', 'Game Bag', 'Wind in Your Face', 'Glimmer in the Grass', 'Twin Quarry', 'Old Hunter\'s Tales', 'Swift Stalk', 'Skinner\'s Satchel', 'Bountiful Hunt', 'Starlit Trail', 'Arrow on the String', 'Way of the Wild', 'Brace of Game', 'Hunter\'s Frame', 'Ghost Stalker', 'The Elk That Shines', 'Lord of the Hunt', 'The Swift Kill'],
+  archaeology: ['Careful Brush', 'Rich Strata', 'Antiquarian\'s Notes', 'Finds Tray', 'Practised Digging', 'Lost Pages', 'Twin Finds', 'Field Journal', 'Quick Trowel', 'Specimen Crates', 'Hoard Layer', 'Things Better Left Buried', 'Swift Excavation', 'Scholar of Ruins', 'Double Cache', 'Expedition Mules', 'Shovel Lightning', 'The Forbidden Shelf', 'Unearther of Empires', 'The Patient Dig'],
+  dreaming: ['Deep Breath', 'Gentle Slumber', 'Dream Journal', 'Twice-Dreamed', 'Calm Descent', 'Onyx Glint', 'Restful Sleep', 'Swift Dreamer', 'Rich Dreams', 'Lore of Ulthar', 'Steady Dreamer', 'Dream-Warded', 'Running Dreams', 'Leng\'s Treasures', 'Sleep of the Just', 'Dream Twice Over', 'Untroubled Dreamer', 'The Veil Is Thin', 'Bounty of Dreams', 'Sleep Like the Dead'],
+  carpentry: ['Sharp Saw', 'Measure Twice', 'Joiner\'s Lore', 'Two from One', 'Steady Plane', 'Offcut Saver', 'Strapping', 'Woodwright\'s Lore', 'Quick Joints', 'Paired Pieces', 'Careful Cuts', 'Fletcher\'s Eye', 'Master\'s Pace', 'Grand Designs', 'Twice the Work', 'Waste Nothing', 'Lightning Lathe', 'Panniers', 'Master Carpenter', 'Not a Shaving Wasted'],
+  stealth: ['Soft Steps', 'Innocent Face', 'Backstab', 'Thieves\' Cant', 'Deep Pockets', 'Unseen', 'Knife in the Dark', 'Eyes on the Road', 'Quick Hands', 'Two Purses', 'Vanish', 'Assassin\'s Mark', 'Master Thief', 'Killing Blow', 'Second Purse', 'Shadow Blade', 'Fleet Footed', 'Watcher on the Road', 'Death from Nowhere', 'Prince of Thieves'],
+  cartography: ['Shortcut', 'Field Notes', 'Read the Road', 'Quick Survey', 'Known Paths', 'Twin Copies', 'Pathfinder', 'Map Case', 'Swift Feet', 'Master Draughtsman', 'Wayfinder', 'Spare Copies', 'Fast Roads', 'Quick Hand', 'Guide of Aldmark', 'Atlas Satchel', 'Running Road', 'Second Edition', 'Map of Everything', 'Eyes of the World'],
   fellowship: ['Drilled Together', 'Shield Wall', 'Shared Rations', 'Road-Wise', 'Sparring Partner', 'Steady Words', 'Bodyguard', 'Field Dressing', 'Practised Tactics', 'Shortcuts', 'Never Leave a Friend', 'Hearty Fellow', 'Brothers in Arms', 'Back to Back', 'Courage Shared', 'Long Road Home', 'Tender Mercies', 'Stand in Front', 'Legendary Duo', 'Unbreakable Bond'],
   combat: ['Weapon Training', 'Shield Drill', 'Toughness', 'Heavy Blows', 'Keen Edge', 'Second Wind', 'Battle Focus', 'Iron Skin', 'Brutal Strikes', 'Unyielding', 'Deadly Precision', 'Steel Nerves', "Veteran's Eye", 'Fortress', 'Executioner', 'Bloodthirst', 'Colossus', 'Monster Hunter', 'Legend of Aldmark', 'The Last Wall'],
 };
@@ -131,6 +177,12 @@ const PERK_TREES = (() => {
     occultism: PERK_TEMPLATES.occultism,
     combat: PERK_TEMPLATES.combat,
     fellowship: PERK_TEMPLATES.fellowship,
+    hunting: PERK_TEMPLATES.gathering,
+    archaeology: PERK_TEMPLATES.gathering,
+    dreaming: PERK_TEMPLATES.dreaming,
+    carpentry: PERK_TEMPLATES.production([['carry', 1], ['hit', 1], ['carry', 2]]),
+    stealth: PERK_TEMPLATES.stealth,
+    cartography: PERK_TEMPLATES.cartography,
   };
   const trees = {};
   for (const [skill, tiers] of Object.entries(layout)) {
@@ -167,6 +219,8 @@ Object.assign(Game, {
         if (p.effect === effect) total += p.value;
       }
     }
+    // Completed relic collections grant the same kinds of bonus as perks.
+    if (PERK_EFFECTS[effect].scope !== 'skill') total += this.relicBonus(effect);
     return total;
   },
   pendingPerks(skill) {
