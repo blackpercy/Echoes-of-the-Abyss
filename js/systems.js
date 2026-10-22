@@ -493,6 +493,13 @@ Object.assign(Game, {
     return total;
   },
 
+  // --- Debug ---
+  debugGold(amount) {
+    if (!(amount > 0)) return;
+    this.state.gold += amount;
+    this.log(`Debug: +${amount.toLocaleString('en-GB')} gold.`, 'warn');
+  },
+
   // --- Bestiary and achievements ---
   totalKills() {
     return Object.values(this.state.kills).reduce((a, b) => a + b, 0);

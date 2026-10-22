@@ -126,6 +126,7 @@ const UI = {
       case 'turnin': Game.turnIn(d.quest); break;
       case 'interact': Game.interact(d.npc, d.inter); break;
       case 'save': Game.save(); Game.log('Game saved.', 'good'); break;
+      case 'debug-gold': Game.debugGold(+d.amount); break;
       case 'export': {
         const box = document.getElementById('save-text');
         box.value = Game.exportSave();
@@ -210,7 +211,8 @@ const UI = {
       this.dirty = true;
     }
     if (this.dirty && !selectOpen) {
-      if (this.page === 'settings') {
+      // Settings is drawn once when you open it, then left alone so the save text box is not wiped.
+      if (this.page === 'settings' && this.renderedPage === 'settings') {
         this.renderNav();
         this.renderLog();
         this.dirty = false;
@@ -261,6 +263,7 @@ const UI = {
   },
 
   renderPage() {
+    this.renderedPage = this.page;
     const main = document.getElementById('page');
     const scroll = main.scrollTop;
     const pages = {
@@ -943,6 +946,8 @@ const UI = {
       <textarea id="save-text" rows="6" placeholder="Paste a save here to import it."></textarea>
       <h2>Sound</h2><button class="btn" data-act="audio">${Game.state.settings.audio ? '🔊 Ambient sound is on' : '🔇 Ambient sound is off'}</button>
       <p class="small muted">Waves, a low drone in dark places, and whispers that grow louder as your sanity fades. Best with headphones.</p>
+      <h2>🛠️ Debug</h2><p class="small muted">For testing. Changes your save.</p>
+      <div class="btn-row"><button class="btn" data-act="debug-gold" data-amount="1000">+1,000 gold</button><button class="btn" data-act="debug-gold" data-amount="10000">+10,000 gold</button></div>
       <h2>Danger zone</h2><button class="btn danger" data-act="reset">Erase everything and start over</button>`;
   },
 
