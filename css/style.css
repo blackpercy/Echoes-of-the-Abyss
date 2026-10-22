@@ -287,6 +287,39 @@ body.night .map-wrap { filter: brightness(.8) saturate(.8); }
 #toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translate(-50%, 150%); background: var(--panel); border: 1px solid var(--gold); color: var(--gold); padding: .6rem 1rem; border-radius: 8px; transition: transform .3s; z-index: 20; pointer-events: none; }
 #toast.show { transform: translate(-50%, 0); }
 
+/* --- Journey strip (shown while travelling) --- */
+.journey { flex-basis: 100%; display: flex; align-items: center; gap: .7rem; font-size: .85rem; padding: .2rem 0 .1rem; }
+.journey[hidden] { display: none; }
+.j-end { white-space: nowrap; color: var(--muted); }
+.j-eta { white-space: nowrap; color: var(--accent); min-width: 4.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.j-track { position: relative; flex: 1; height: 26px; }
+/* The road: dashes that scroll past, so you can see you are moving even on long legs. */
+.j-road { position: absolute; left: 0; right: 0; top: 50%; height: 4px; transform: translateY(-50%); border-radius: 2px;
+  background: repeating-linear-gradient(90deg, #6f6550 0 10px, transparent 10px 18px); background-size: 18px 4px;
+  animation: road-scroll .6s linear infinite; opacity: .7; }
+.j-fill { position: absolute; left: 0; top: 50%; height: 4px; width: 0; transform: translateY(-50%); border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent)); box-shadow: 0 0 8px var(--accent); transition: width .2s linear; }
+.j-track.veiled .j-fill { background: linear-gradient(90deg, var(--eldritch), var(--sanity)); box-shadow: 0 0 8px var(--sanity); }
+.j-stop { position: absolute; top: 50%; width: 10px; height: 10px; margin-left: -5px; transform: translateY(-50%); border-radius: 50%; background: var(--panel); border: 2px solid var(--gold); }
+.j-walker { position: absolute; top: 50%; font-size: 1.45rem; line-height: 1; transform: translate(-50%, -60%) scaleX(-1); transition: left .2s linear;
+  animation: walk-bob .5s ease-in-out infinite alternate; filter: drop-shadow(0 0 4px rgba(0, 0, 0, .8)); }
+.journey.paused .j-road, .journey.paused .j-walker { animation-play-state: paused; }
+.journey.paused .j-eta { color: var(--gold); }
+.journey.night .j-walker { filter: drop-shadow(0 0 6px #ffd27a); }
+@keyframes road-scroll { from { background-position: 0 0; } to { background-position: -18px 0; } }
+@keyframes walk-bob { from { transform: translate(-50%, -60%) scaleX(-1) rotate(-4deg); } to { transform: translate(-50%, -78%) scaleX(-1) rotate(4deg); } }
+
+/* Map: the road being travelled flows towards the destination, and the marker pulses. */
+.road.route.active { stroke-dasharray: 10 8; animation: route-flow 1s linear infinite; }
+@keyframes route-flow { to { stroke-dashoffset: -18; } }
+#map-trail { stroke: var(--accent); stroke-width: 6; stroke-linecap: round; opacity: .45; filter: drop-shadow(0 0 6px var(--accent)); pointer-events: none; }
+#map-player-ring { fill: none; stroke: var(--accent); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: ping 1.4s ease-out infinite; pointer-events: none; }
+@keyframes ping { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .j-road, .j-walker, .road.route.active, #map-player-ring { animation: none; }
+}
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 1rem; }

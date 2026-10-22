@@ -546,9 +546,15 @@ const Game = {
     const from = t.path[t.leg];
     const to = t.path[t.leg + 1];
     const legTime = findRoad(from, to).time * 1000;
-    let remaining = legTime - t.progress;
-    for (let i = t.leg + 1; i < t.path.length - 1; i++) remaining += findRoad(t.path[i], t.path[i + 1]).time * 1000;
-    return { from, to, frac: t.progress / legTime, remaining, target: t.path[t.path.length - 1] };
+    // Whole-journey progress, plus where each stop along the way falls (0–1).
+    const legs = [];
+    for (let i = 0; i < t.path.length - 1; i++) legs.push(findRoad(t.path[i], t.path[i + 1]).time * 1000);
+    const total = legs.reduce((a, b) => a + b, 0);
+    const done = legs.slice(0, t.leg).reduce((a, b) => a + b, 0) + t.progress;
+    const stops = [];
+    let acc = 0;
+    for (let i = 0; i < legs.length - 1; i++) stops.push((acc += legs[i]) / total);
+    return { from, to, frac: t.progress / legTime, remaining: total - done, overall: done / total, stops, start: t.path[0], target: t.path[t.path.length - 1], paused: !!t.event };
   },
   arriveAt(loc) {
     const s = this.state;

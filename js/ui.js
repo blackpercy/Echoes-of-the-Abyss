@@ -336,7 +336,8 @@ const UI = {
   pageMap() {
     const s = Game.state;
     const sel = this.mapSelected && isVisible(this.mapSelected) ? this.mapSelected : s.location;
-    const route = sel !== s.location ? Game.findRoute(sel) : null;
+    // While travelling, the road you are on is drawn as a moving trail instead of the planned route.
+    const route = s.travel ? { path: s.travel.path } : sel !== s.location ? Game.findRoute(sel) : null;
     const routeEdges = new Set();
     if (route) for (let i = 0; i < route.path.length - 1; i++) routeEdges.add(findRoad(route.path[i], route.path[i + 1]));
 
@@ -359,7 +360,7 @@ const UI = {
       const a = LOCATIONS[r.a];
       const b = LOCATIONS[r.b];
       const blocked = Game.roadBlocker(r);
-      const cls = (routeEdges.has(r) ? 'road route' : blocked ? 'road blocked' : 'road') + (r.veil ? ' veiled' : '');
+      const cls = (routeEdges.has(r) ? `road route${s.travel ? ' active' : ''}` : blocked ? 'road blocked' : 'road') + (r.veil ? ' veiled' : '');
       svg += `<line class="${cls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
       const mx = (a.x + b.x) / 2;
       const my = (a.y + b.y) / 2;
@@ -381,7 +382,9 @@ const UI = {
       const ph = pick(HALLUCINATIONS.places);
       svg += `<g class="node phantom" data-act="phantom"><circle cx="${ph.x}" cy="${ph.y}" r="24"/><text class="node-icon" x="${ph.x}" y="${ph.y + 1}">${ph.icon}</text><text class="node-label" x="${ph.x}" y="${ph.y + 42}">${esc(ph.name)}</text></g>`;
     }
-    svg += '<circle id="map-player" r="8" cx="-50" cy="-50"/></svg>';
+    svg += `<line id="map-trail" x1="-50" y1="-50" x2="-50" y2="-50"/>
+      <circle id="map-player-ring" r="8" cx="-50" cy="-50"${s.travel ? '' : ' hidden'}/>
+      <circle id="map-player" r="8" cx="-50" cy="-50"/></svg>`;
 
     const loc = LOCATIONS[sel];
     if (!s.known[sel]) {
@@ -407,7 +410,7 @@ const UI = {
     let html = `<div class="skill-title"><span class="big-icon">${loc.icon}</span><div><h1>${esc(loc.name)}</h1><p class="muted">${KIND_NAMES[loc.kind]}</p></div></div><p>${esc(loc.desc)}</p>`;
     if (s.travel) {
       const t = Game.travelProgress();
-      return html + `<p class="warning">🧭 You are on the road to ${esc(LOCATIONS[t.target].name)}.</p>`;
+      return html + `<p class="warning">🧭 You are on the road to ${esc(placeName(t.target))}. ${t.paused ? 'Something has stopped you.' : `${Math.round(t.overall * 100)}% of the way there.`}</p>`;
     }
     const people = Game.npcsHere();
     if (people.length) html += `<h2>People</h2><div class="people">${people.map(n => this.npcCard(n)).join('')}</div>`;
@@ -873,13 +876,24 @@ const UI = {
     let activity = `📍 ${Game.here().name}`;
     const player = document.getElementById('map-player');
     const travel = Game.travelProgress();
+    this.updateJourney(travel);
     if (travel) {
       activity = s.travel.event ? '⏸ Something on the road…' : `🧭 Travelling to ${placeName(travel.target)} (${Math.ceil(travel.remaining / 1000 / Game.travelSpeed())}s)`;
       if (player) {
         const a = LOCATIONS[travel.from];
         const b = LOCATIONS[travel.to];
-        player.setAttribute('cx', a.x + (b.x - a.x) * travel.frac);
-        player.setAttribute('cy', a.y + (b.y - a.y) * travel.frac);
+        const x = a.x + (b.x - a.x) * travel.frac;
+        const y = a.y + (b.y - a.y) * travel.frac;
+        player.setAttribute('cx', x);
+        player.setAttribute('cy', y);
+        const ring = document.getElementById('map-player-ring');
+        ring.setAttribute('cx', x);
+        ring.setAttribute('cy', y);
+        const trail = document.getElementById('map-trail');
+        trail.setAttribute('x1', a.x);
+        trail.setAttribute('y1', a.y);
+        trail.setAttribute('x2', x);
+        trail.setAttribute('y2', y);
       }
     } else {
       if (player) {
@@ -911,6 +925,50 @@ const UI = {
     }
     const act = document.getElementById('h-activity');
     if (act.textContent !== activity) act.textContent = activity;
+  },
+
+  // The journey strip under the header: start, destination, a road that scrolls under a walking figure.
+  journeyKey: null,
+  traveller(from, to) {
+    const road = findRoad(from, to);
+    if (to === 'the_abyss' || from === 'the_abyss') return '🫧';
+    if (road.cost) return '⛵';
+    if (road.veil) return '👣';
+    return '🚶';
+  },
+  updateJourney(travel) {
+    const el = document.getElementById('journey');
+    if (!travel) {
+      if (!el.hidden) {
+        el.hidden = true;
+        this.journeyKey = null;
+      }
+      return;
+    }
+    const t = Game.state.travel;
+    const key = `${t.path.join('>')}|${t.leg}`;
+    if (key !== this.journeyKey) {
+      this.journeyKey = key;
+      const start = travel.start;
+      const veil = findRoad(travel.from, travel.to).veil;
+      el.innerHTML = `<span class="j-end">${Game.state.known[start] ? LOCATIONS[start].icon : '❔'} ${esc(placeName(start))}</span>
+        <div class="j-track${veil ? ' veiled' : ''}">
+          <div class="j-road"></div><div class="j-fill" id="j-fill"></div>
+          ${travel.stops.map((f, i) => `<span class="j-stop" style="left:${f * 100}%" title="${esc(placeName(t.path[i + 1]))}"></span>`).join('')}
+          <span class="j-walker" id="j-walker">${this.traveller(travel.from, travel.to)}</span>
+        </div>
+        <span class="j-end">${Game.state.known[travel.target] ? LOCATIONS[travel.target].icon : '❔'} ${esc(placeName(travel.target))}</span>
+        <span class="j-eta" id="j-eta"></span>`;
+      el.hidden = false;
+    }
+    const pct = Math.min(100, travel.overall * 100);
+    document.getElementById('j-fill').style.width = pct + '%';
+    document.getElementById('j-walker').style.left = pct + '%';
+    el.classList.toggle('paused', travel.paused);
+    el.classList.toggle('night', Game.isNight());
+    const eta = travel.paused ? '⏸ halted' : `${Math.ceil(travel.remaining / 1000 / Game.travelSpeed())}s`;
+    const etaEl = document.getElementById('j-eta');
+    if (etaEl.textContent !== eta) etaEl.textContent = eta;
   },
 
   showOffline(diff) {
