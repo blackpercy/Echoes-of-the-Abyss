@@ -666,6 +666,7 @@ const Game = {
   },
   monsterKilled(c, m) {
     this.state.kills[c.monster] = (this.state.kills[c.monster] || 0) + 1;
+    c.slain = (c.slain || 0) + 1;
     const gold = randInt(m.gold[0], m.gold[1]);
     this.state.gold += gold;
     const xp = m.eldritch && this.starsRight() ? m.xp * 2 : m.xp;

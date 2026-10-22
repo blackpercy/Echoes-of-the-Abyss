@@ -478,6 +478,15 @@ const UI = {
 
   expeditionCard(id) {
     const ex = EXPEDITIONS[id];
+    const c = Game.state.combat;
+    // The expedition you are in shows the fight itself, with progress through the chambers.
+    if (c && c.expedition && c.expedition.id === id) {
+      const room = c.expedition.room;
+      return `<div class="card eldritch active fighting"><div class="fight-head"><span class="card-icon">🏛️</span><div><div class="card-name">${esc(ex.name)}</div>
+        <div class="small muted">Chamber ${room + 1} of ${ex.rooms.length}. No rest until you are out.</div></div></div>
+        <div class="chambers">${ex.rooms.map((m, i) => `<span class="chamber${i < room ? ' cleared' : i === room ? ' current' : ''}" title="${esc(MONSTERS[m].name)}">${MONSTERS[m].icon}</span>`).join('<span class="chamber-link"></span>')}<span class="chamber-link"></span><span class="chamber">💰</span></div>
+        ${this.fightPanel('Flee the depths')}</div>`;
+    }
     const blocker = Game.expeditionBlocker(id);
     const done = Game.state.expeditionsDone[id] || 0;
     return `<div class="card eldritch"><div class="card-icon">🏛️</div><div class="card-name">${esc(ex.name)}</div>
@@ -562,15 +571,60 @@ const UI = {
   monsterCard(id) {
     const s = Game.state;
     const m = MONSTERS[id];
-    const fighting = s.combat && s.combat.monster === id;
-    return `<div class="card${fighting ? ' active' : ''}${m.eldritch ? ' eldritch' : ''}">
+    const fighting = s.combat && s.combat.monster === id && !s.combat.expedition;
+    if (fighting) {
+      return `<div class="card active fighting${m.eldritch ? ' eldritch' : ''}">
+        <div class="fight-head"><span class="card-icon">${m.icon}</span><div><div class="card-name">${m.name}${m.boss ? ' <span class="boss">BOSS</span>' : ''}</div>
+        <div class="small muted">Slain this fight: <b id="c-slain">${s.combat.slain || 0}</b> · in total: ${fmt(s.kills[id] || 0)}</div></div></div>
+        ${this.fightPanel('Stop fighting')}</div>`;
+    }
+    return `<div class="card${m.eldritch ? ' eldritch' : ''}">
       <div class="card-icon">${m.icon}</div>
       <div class="card-name">${m.name}${m.boss ? ' <span class="boss">BOSS</span>' : ''}</div>
       <div class="small">❤️ ${m.hp} HP · 🛡️ AC ${m.ac} · ⚔️ ${withSign(m.hit)} to hit, ${m.dmg}</div>
       ${m.eldritch ? `<div class="small sanity-text">👁️ Sanity save DC ${m.eldritch.dc}, −${m.eldritch.loss} on a failure</div>` : ''}
       <div class="small muted">${m.xp} xp</div>
       <div class="small muted">Loot: ${m.drops.map(d => ITEMS[d.item].icon).join(' ')} · ${m.gold[0]}–${m.gold[1]} gold</div>
-      <button class="btn" data-act="fight" data-monster="${id}"${fighting || s.travel ? ' disabled' : ''}>${fighting ? 'Fighting…' : 'Fight'}</button>
+      ${s.combat && s.combat.expedition
+        ? '<button class="btn" disabled>You are deep in an expedition</button>'
+        : `<button class="btn" data-act="fight" data-monster="${id}"${s.travel ? ' disabled' : ''}>${s.combat ? 'Fight this instead' : 'Fight'}</button>`}
+    </div>`;
+  },
+
+  // The live fight, shown inside the card of the enemy (or expedition) you are fighting.
+  // Bars and the log are updated every frame by updateMeters.
+  fightPanel(stopLabel) {
+    const s = Game.state;
+    const m = MONSTERS[s.combat.monster];
+    const chance = chanceToHit(Game.attackBonusVs(m), m.ac);
+    const theirs = chanceToHit(Game.monsterHit(m), Game.armourClass());
+    const foods = Object.keys(s.pack).filter(id => Game.isFood(id));
+    const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion');
+    return `<div class="fight">
+      <div class="fight-side enemy">
+        <div class="small"><b>${m.icon} ${m.name}</b></div>
+        ${bar('c-mhp', 'hp', 0)}
+        ${bar('c-matk', 'progress enemy', 0)}
+        <div class="small muted">AC ${m.ac} · ${withSign(Game.monsterHit(m))} to hit (${Math.round(theirs * 100)}% vs you) · ${m.dmg}${m.eldritch ? ` · <span class="sanity-text">sanity save DC ${Game.eldritchDc(m)}</span>` : ''}</div>
+      </div>
+      <div class="fight-side you">
+        <div class="small"><b>You</b></div>
+        ${bar('c-hp', 'hp', 0)}
+        ${bar('c-sanity', 'sanity', 0)}
+        ${bar('c-patk', 'progress', 0)}
+        <div class="small muted">${withSign(Game.attackBonusVs(m))} to hit (${Math.round(chance * 100)}% vs AC ${m.ac}) · ${Game.damageText()} · AC ${Game.armourClass()}${m.eldritch ? ` · ${withSign(Game.wits())} sanity saves` : ''}</div>
+        ${this.companionBlock()}
+      </div>
+      <div class="combat-log" id="combat-log">${s.combat.log.map(l => `<div>${esc(l)}</div>`).join('')}</div>
+      <div class="fight-controls">
+        <div class="style-row">${Object.entries(STANCES).map(([id, st]) => `<button class="btn small${s.stance === id ? ' selected' : ''}" data-act="stance" data-stance="${id}" title="${st.desc}">${st.icon} ${st.name}</button>`).join('')}</div>
+        <div class="style-row">
+          <select id="food-select">${foods.length ? '' : '<option>No food</option>'}${foods.map(id => `<option value="${id}"${id === s.food ? ' selected' : ''}>${ITEMS[id].name} (${fmt(s.pack[id])})</option>`).join('')}</select>
+          <button class="btn small" data-act="eat">Eat${s.food && Game.isFood(s.food) ? ` (+${Game.foodHeal(s.food)})` : ''}</button>
+          ${potions.map(id => `<button class="btn small" data-act="use" data-item="${id}" title="${esc(ITEMS[id].desc)}">${ITEMS[id].icon} ${fmt(s.pack[id])}</button>`).join('')}
+        </div>
+        <button class="btn danger stop-fight" data-act="stop">⏹ ${stopLabel}</button>
+      </div>
     </div>`;
   },
 
@@ -578,51 +632,15 @@ const UI = {
     const s = Game.state;
     const here = Game.here();
     let html = '<h1>⚔️ Combat</h1>';
-    if (s.combat) {
-      const m = MONSTERS[s.combat.monster];
-      const chance = chanceToHit(Game.attackBonusVs(m), m.ac);
-      const theirs = chanceToHit(m.hit, Game.armourClass());
-      const food = s.food && ITEMS[s.food];
-      const foods = Object.keys(s.pack).filter(id => Game.isFood(id));
-      const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion');
-      const ex = s.combat.expedition && EXPEDITIONS[s.combat.expedition.id];
-      if (ex) html += `<p class="warning">🏛️ ${esc(ex.name)}: chamber ${s.combat.expedition.room + 1} of ${ex.rooms.length}. No rest until you are out. Fleeing abandons the expedition.</p>`;
-      html += `<div class="combat">
-        <div class="fighter">
-          <h2>You</h2>
-          ${bar('c-hp', 'hp', 0)}
-          ${bar('c-sanity', 'sanity', 0)}
-          ${bar('c-patk', 'progress', 0)}
-          <div class="small">⚔️ ${withSign(Game.attackBonusVs(m))} to hit (<b>${Math.round(chance * 100)}%</b> vs AC ${m.ac}) · ${Game.damageText()} damage${m.eldritch && Game.eldritchBonus() ? ` <span class="sanity-text">+${Math.round(Game.eldritchBonus() * 100)}% vs eldritch</span>` : ''} · every ${secs(Game.playerStats().speed)}</div>
-          <div class="small">🛡️ AC ${Game.armourClass()}${m.eldritch ? ` · 👁️ ${withSign(Game.wits())} to sanity saves` : ''}</div>
-          <div class="style-row">Stance:
-            ${Object.entries(STANCES).map(([id, st]) => `<button class="btn small${s.stance === id ? ' selected' : ''}" data-act="stance" data-stance="${id}" title="${st.desc}">${st.icon} ${st.name}</button>`).join('')}
-          </div>
-          <div class="style-row">Food:
-            <select id="food-select">${foods.length ? '' : '<option>No food</option>'}${foods.map(id => `<option value="${id}"${id === s.food ? ' selected' : ''}>${ITEMS[id].name} (${fmt(s.pack[id])})</option>`).join('')}</select>
-            <button class="btn small" data-act="eat">Eat${food && Game.isFood(s.food) ? ` (+${Game.foodHeal(s.food)})` : ''}</button>
-          </div>
-          ${potions.length ? `<div class="style-row">Potions: ${potions.map(id => `<button class="btn small" data-act="use" data-item="${id}" title="${esc(ITEMS[id].desc)}">${ITEMS[id].icon} ${esc(ITEMS[id].name)} (${fmt(s.pack[id])})</button>`).join('')}</div>` : ''}
-          ${this.companionBlock()}
-          <button class="btn danger" data-act="stop">Flee</button>
-        </div>
-        <div class="fighter monster${m.eldritch ? ' eldritch' : ''}">
-          <h2>${m.icon} ${m.name}${m.boss ? ' <span class="boss">BOSS</span>' : ''}</h2>
-          ${bar('c-mhp', 'hp', 0)}
-          ${bar('c-matk', 'progress enemy', 0)}
-          <div class="small">🛡️ AC ${m.ac} · ⚔️ ${withSign(m.hit)} to hit (<b>${Math.round(theirs * 100)}%</b> vs you) · ${m.dmg} damage · every ${secs(m.speed)}</div>
-          ${m.eldritch ? `<div class="small sanity-text">Each wound forces a sanity save (DC ${m.eldritch.dc}); failure costs ${m.eldritch.loss} sanity</div>` : ''}
-          <div class="small muted">Slain: ${fmt(s.kills[s.combat.monster] || 0)}</div>
-          <div class="combat-log" id="combat-log">${s.combat.log.map(l => `<div>${esc(l)}</div>`).join('')}</div>
-        </div>
-      </div>`;
+    if (s.combat && s.combat.expedition) {
+      html += `<div class="cards">${this.expeditionCard(s.combat.expedition.id)}</div>`;
     }
     if ((here.monsters || []).length) {
       const phantom = this.hallucinating() ? pick(HALLUCINATIONS.monsters) : null;
       html += `<h2>${here.icon} Enemies at ${esc(here.name)}</h2><div class="cards">${here.monsters.map(m => this.monsterCard(m)).join('')}${phantom ? `<div class="card eldritch phantom"><div class="card-icon">${phantom.icon}</div><div class="card-name">${esc(phantom.name)}</div><div class="small muted">❤️ ?? · 🛡️ AC ?? · ⚔️ ??</div><button class="btn" data-act="phantom">Fight</button></div>` : ''}</div>`;
-    } else {
-      const grounds = Object.keys(LOCATIONS).filter(id => (LOCATIONS[id].monsters || []).length);
-      html += `<p class="muted">Nothing here wants to fight you. Hunting grounds:</p><ul>${grounds.map(id => `<li>${locLink(id)}: ${LOCATIONS[id].monsters.map(m => MONSTERS[m].name).join(', ')}</li>`).join('')}</ul>`;
+    } else if (!s.combat) {
+      const grounds = Object.keys(LOCATIONS).filter(id => (LOCATIONS[id].monsters || []).length && s.known[id]);
+      html += `<p class="muted">Nothing here wants to fight you. Hunting grounds you know of:</p><ul>${grounds.map(id => `<li>${locLink(id)}: ${LOCATIONS[id].monsters.map(m => MONSTERS[m].name).join(', ')}</li>`).join('')}</ul>`;
     }
     return html;
   },
@@ -911,6 +929,8 @@ const UI = {
         this.setBar('c-hp', (s.hp / maxHp) * 100, `❤️ ${fmt(Math.max(0, s.hp))} / ${maxHp}`);
         this.setBar('c-sanity', (s.sanity / Game.maxSanity()) * 100, `👁️ ${fmt(s.sanity)} / ${Game.maxSanity()}`);
         this.setBar('c-patk', (s.combat.playerTimer / Game.playerStats().speed) * 100);
+        const slain = document.getElementById('c-slain');
+        if (slain && slain.textContent !== String(s.combat.slain || 0)) slain.textContent = s.combat.slain || 0;
         const log = document.getElementById('combat-log');
         const html = s.combat.log.map(l => `<div>${esc(l)}</div>`).join('');
         if (log && log.innerHTML !== html) log.innerHTML = html;
