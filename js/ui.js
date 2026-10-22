@@ -71,7 +71,12 @@ const UI = {
     document.body.addEventListener('click', e => this.onClick(e));
     document.body.addEventListener('change', e => this.onChange(e));
     Game.listeners.push((type, payload) => {
-      if (type === 'reset') this.page = 'chronicle';
+      if (type === 'reset') {
+        this.page = 'chronicle';
+        // A fresh start needs the intro and character creation again.
+        if (!Game.state.seenIntro) this.showIntro();
+        else if (!Game.state.created) this.showCreation();
+      }
       if (type === 'break' && !Game.silent) this.showBreak(payload);
       if (type === 'ending' && !Game.silent) this.showEnding(payload.ending);
       if (type === 'event' && !Game.silent) this.showEvent();
@@ -941,7 +946,7 @@ const UI = {
   },
 
   pageSettings() {
-    return `<h1>⚙️ Settings</h1>
+    return `<h1>⚙️ Settings</h1><p class="small muted">Version ${GAME_VERSION}</p>
       <div class="btn-row"><button class="btn" data-act="save">Save now</button><button class="btn" data-act="export">Export save</button><button class="btn" data-act="import">Import save</button></div>
       <textarea id="save-text" rows="6" placeholder="Paste a save here to import it."></textarea>
       <h2>Sound</h2><button class="btn" data-act="audio">${Game.state.settings.audio ? '🔊 Ambient sound is on' : '🔇 Ambient sound is off'}</button>
