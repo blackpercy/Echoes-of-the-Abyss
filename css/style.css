@@ -104,6 +104,8 @@ p { line-height: 1.45; }
 .log-line.bad { color: #e07a74; }
 .log-line.warn { color: #d9b26b; }
 .log-line.good { color: #8fd1a8; }
+.log-line.story { color: #d8c79a; font-style: italic; }
+.log-line.veil { color: #b79cf0; }
 
 /* --- Meters --- */
 .bar {
@@ -232,6 +234,30 @@ textarea { width: 100%; margin-top: .6rem; font-family: monospace; font-size: .8
 .map-panel h2 { margin-top: 0; }
 .features > div { margin: .25rem 0; }
 .roads { margin-top: .8rem; line-height: 1.6; }
+
+/* --- People, quests and the Veil --- */
+.people { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: .8rem; }
+.npc { background: var(--panel); border: 1px solid #5a4a2a; border-radius: 8px; padding: .8rem; }
+.npc.veiled { border-color: var(--sanity); background: linear-gradient(180deg, #1c1529, var(--panel)); }
+.npc-head { display: flex; gap: .6rem; align-items: center; }
+.npc-head .big-icon { font-size: 2rem; }
+.npc-line { font-style: italic; margin: .5rem 0; }
+.quest-offer { border-top: 1px dashed var(--border); padding: .5rem 0; }
+.quest-offer.active { border: 1px solid var(--accent-dim); border-radius: 6px; padding: .5rem .7rem; margin: .4rem 0; }
+.quest-offer p { margin: .3rem 0; }
+.path { font-size: .7rem; padding: 0 .35rem; border-radius: 3px; vertical-align: middle; }
+.path.order { background: #3a3320; color: var(--gold); }
+.path.dreamer { background: #2a1d40; color: #b79cf0; }
+.veil-btn { border-color: var(--sanity); background: #2a1d40; }
+.derangement { background: #1c1529; border: 1px solid var(--eldritch); border-radius: 6px; padding: .5rem .7rem; margin: .4rem 0; }
+.card.veiled { border-style: dashed; border-color: var(--eldritch); }
+.node.hidden circle { stroke: #b79cf0; stroke-dasharray: 4 3; fill: #1a1226; }
+.road.veiled { stroke: #7c5cc4; }
+body.veil #page { background: radial-gradient(ellipse at 50% 0%, rgba(124, 92, 196, .12), transparent 70%); }
+body.veil .map-wrap { box-shadow: 0 0 30px rgba(124, 92, 196, .35); }
+.modal-box.break { border-color: var(--sanity); box-shadow: 0 0 40px rgba(124, 92, 196, .5); }
+.modal-box.break h2 { color: #b79cf0; }
+.modal-box.ending h2 { color: var(--gold); }
 
 /* --- Modal --- */
 #modal:empty { display: none; }

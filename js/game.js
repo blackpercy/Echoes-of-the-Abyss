@@ -97,6 +97,11 @@ const Game = {
       combat: null,
       stance: 'balanced',
       kills: {},
+      madness: 0,
+      derangements: [],
+      quests: {},
+      flags: {},
+      endings: {},
       log: [],
       regen: { hp: 0, sanity: 0 },
       seenIntro: false,
@@ -105,8 +110,8 @@ const Game = {
   },
 
   // --- Events ---
-  emit(type) {
-    for (const fn of this.listeners) fn(type);
+  emit(type, payload) {
+    for (const fn of this.listeners) fn(type, payload);
   },
   log(msg, kind = 'info') {
     if (this.silent) return;
@@ -137,6 +142,7 @@ const Game = {
   },
   hasStation(station) {
     const def = STATIONS[station];
+    if (station === 'shore' && this.hasDerangement('voices')) return true;
     return (this.here().stations || []).includes(station) || (def.portable && this.carries(def.portable));
   },
 
@@ -221,7 +227,7 @@ const Game = {
     return this.here().shop ? SHOPS[this.here().shop] : null;
   },
   sell(item, qty) {
-    if (!this.shop()) return;
+    if (!this.shop() || this.shop().buysNothing) return;
     qty = Math.min(qty, this.count(item));
     if (qty <= 0) return;
     this.removeItem(item, qty);
@@ -232,12 +238,14 @@ const Game = {
   buy(item, qty = 1) {
     const shop = this.shop();
     const entry = shop && shop.stock.find(s => s.item === item);
-    if (!entry) return;
-    const cost = entry.price * qty;
-    if (this.state.gold < cost) return this.log('You cannot afford that.', 'warn');
+    if (!entry || this.shopRefuses()) return;
+    const cost = this.price(entry) * qty;
+    if (this.funds() < cost) return this.log('You cannot afford that.', 'warn');
     if (!this.addItem(item, qty)) return this.log('Your pack is full.', 'warn');
-    this.state.gold -= cost;
-    this.log(`Bought ${qty} × ${ITEMS[item].name} for ${cost} gold.`);
+    const cur = this.currency();
+    if (cur) this.removeItem(cur, cost);
+    else this.state.gold -= cost;
+    this.log(`Bought ${qty} × ${ITEMS[item].name} for ${cost} ${cur ? ITEMS[cur].name : 'gold'}.`);
   },
 
   // --- Equipment ---
@@ -276,8 +284,19 @@ const Game = {
     this.state.pack[item] = this.count(item) + 1;
     this.emit('pack');
   },
+  // Raw fish counts as food for someone with a ghoul's hunger.
+  isFood(item) {
+    return ITEMS[item].type === 'food' || (this.hasDerangement('ghoul_hunger') && item.startsWith('raw_') && !!ITEMS[item.slice(4)]);
+  },
+  foodHeal(item) {
+    if (this.hasDerangement('ghoul_hunger')) {
+      if (item === 'bread') return 0;
+      if (item.startsWith('raw_')) return ITEMS[item.slice(4)].heal;
+    }
+    return ITEMS[item].heal;
+  },
   setFood(item) {
-    if (ITEMS[item].type !== 'food') return;
+    if (!this.isFood(item)) return;
     this.state.food = item;
     this.log(`${ITEMS[item].name} is now your chosen food.`);
     this.emit('pack');
@@ -298,10 +317,10 @@ const Game = {
     return STANCES[this.state.stance] || STANCES.balanced;
   },
   maxHp() {
-    return 20 + 8 * this.level('combat');
+    return 20 + 8 * this.level('combat') - (this.hasDerangement('drowned_lungs') ? 10 : 0);
   },
   maxSanity() {
-    return 100;
+    return 100 - SANITY_PER_MADNESS * this.state.madness;
   },
   proficiency() {
     return 2 + Math.floor((this.level('combat') - 1) / 6);
@@ -310,7 +329,10 @@ const Game = {
     return Math.floor(this.level('combat') / 3);
   },
   attackBonus() {
-    return this.proficiency() + this.playerStats().hit + this.stance().hit;
+    return this.proficiency() + this.playerStats().hit + this.stance().hit - (this.hasDerangement('star_touched') ? 1 : 0);
+  },
+  attackBonusVs(m) {
+    return this.attackBonus() + (m.eldritch && this.hasDerangement('night_eyes') ? 2 : 0);
   },
   damageBonus() {
     return this.might() + this.playerStats().dmg + this.stance().dmg;
@@ -320,11 +342,11 @@ const Game = {
     return this.playerStats().dice + (bonus ? withSign(bonus) : '');
   },
   armourClass() {
-    return 10 + this.playerStats().ac + this.stance().ac;
+    return 10 + this.playerStats().ac + this.stance().ac + (this.hasDerangement('paranoia') ? 2 : 0);
   },
   // Bonus to sanity saving throws: occult understanding plus warding gear.
   wits() {
-    return Math.floor(this.level('occultism') / 5) + this.playerStats().ward;
+    return Math.floor(this.level('occultism') / 5) + this.playerStats().ward - (this.hasDerangement('night_eyes') ? 2 : 0);
   },
   eldritchBonus() {
     return (this.level('occultism') - 1) / 100;
@@ -334,23 +356,24 @@ const Game = {
   heal(amount) {
     this.state.hp = Math.min(this.maxHp(), this.state.hp + amount);
   },
+  // Negative amounts drain sanity but never break the mind on their own.
   restoreSanity(amount) {
-    this.state.sanity = Math.min(this.maxSanity(), this.state.sanity + amount);
+    this.state.sanity = Math.max(Math.min(1, this.state.sanity), Math.min(this.maxSanity(), this.state.sanity + amount));
   },
   eat() {
     const food = this.state.food;
-    if (!food || this.count(food) < 1) return false;
+    if (!food || this.count(food) < 1 || !this.isFood(food)) return false;
     if (this.state.hp >= this.maxHp()) return false;
     this.removeItem(food, 1);
-    this.heal(ITEMS[food].heal);
+    this.heal(this.foodHeal(food));
     return true;
   },
   use(item) {
     const def = ITEMS[item];
     if (this.count(item) < 1) return;
-    if (def.type === 'food') {
+    if (this.isFood(item)) {
       this.removeItem(item, 1);
-      this.heal(def.heal);
+      this.heal(this.foodHeal(item));
       this.log(`You eat the ${def.name}.`);
     } else if (def.type === 'potion') {
       this.removeItem(item, 1);
@@ -363,9 +386,11 @@ const Game = {
   // --- Actions ---
   actionTime(skill, action) {
     const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;
-    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]));
+    const stars = TOOLS[skill] && this.hasDerangement('star_touched') ? 0.85 : 1;
+    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars);
   },
   availableHere(skill, action) {
+    if (action.veil && !this.veilSight()) return false;
     if (action.station) return this.hasStation(action.station);
     return ((this.here().gather || {})[skill] || []).includes(action.id);
   },
@@ -384,6 +409,7 @@ const Game = {
   whereAvailable(skill, action) {
     return Object.keys(LOCATIONS).filter(id => {
       const loc = LOCATIONS[id];
+      if (loc.hidden && !this.veilSight()) return false;
       if (action.station) return (loc.stations || []).includes(action.station);
       return ((loc.gather || {})[skill] || []).includes(action.id);
     });
@@ -414,7 +440,14 @@ const Game = {
       return false;
     }
     for (const [item, qty] of Object.entries(action.input || {})) this.removeItem(item, qty);
-    if (action.sanityCost) this.state.sanity -= action.sanityCost;
+    if (action.sanityCost) {
+      this.state.sanity -= action.sanityCost;
+      if (this.state.sanity <= 0) {
+        this.addXp(skill, action.xp);
+        this.mindBreaks();
+        return false;
+      }
+    }
     for (const [item, qty] of Object.entries(action.output)) this.addItem(item, qty);
     for (const b of action.bonus || []) {
       if (Math.random() < b.chance && this.addItem(b.item, b.qty)) this.log(`Something unusual: ${ITEMS[b.item].name}!`, 'rare');
@@ -425,7 +458,11 @@ const Game = {
 
   // --- Travel ---
   roadBlocker(road) {
-    const missing = (road.req || []).filter(item => !this.carries(item));
+    // You can always leave a hidden place, even if the Veil closes while you are there.
+    const leavingHidden = LOCATIONS[this.state.location].hidden && (road.a === this.state.location || road.b === this.state.location);
+    if (road.veil && !this.veilSight() && !leavingHidden) return 'Only visible through the Veil';
+    if (road.flag && !this.state.flags[road.flag]) return road.note || 'The way is closed to you';
+    const missing = (road.req || []).filter(item => !this.carries(item) && !(item === 'diving_helm' && this.hasDerangement('drowned_lungs')));
     if (missing.length) return 'Requires ' + missing.map(i => ITEMS[i].name).join(', ');
     return null;
   },
@@ -496,6 +533,7 @@ const Game = {
     s.location = loc;
     s.visited[loc] = true;
     if (LOCATIONS[loc].inn) s.home = loc;
+    this.questEvent('visit', loc);
   },
   tickTravel(dt) {
     const t = this.state.travel;
@@ -543,16 +581,17 @@ const Game = {
   },
   playerAttack(c, m) {
     const roll = d20();
-    const total = roll + this.attackBonus();
+    const bonus = this.attackBonusVs(m);
+    const total = roll + bonus;
     if (roll === 1 || (roll !== 20 && total < m.ac)) {
-      this.combatLog(c, `You roll ${roll}${withSign(this.attackBonus())} = ${total} vs AC ${m.ac}: miss.`);
+      this.combatLog(c, `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: miss.`);
       return;
     }
     const crit = roll === 20;
     let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus());
     if (m.eldritch) dmg = Math.floor(dmg * (1 + this.eldritchBonus()));
     c.monsterHp -= dmg;
-    this.combatLog(c, crit ? `Natural 20! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(this.attackBonus())} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
+    this.combatLog(c, crit ? `Natural 20! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
   },
   monsterAttack(c, m) {
     const roll = d20();
@@ -581,6 +620,8 @@ const Game = {
     this.state.gold += gold;
     this.addXp('combat', m.xp);
     this.combatLog(c, `The ${m.name} falls. +${m.xp} xp, +${gold} gold.`);
+    this.questEvent('kill', c.monster);
+    if (!this.state.combat) return;
     for (const d of m.drops) {
       if (Math.random() >= d.chance) continue;
       const qty = randInt(d.qty[0], d.qty[1]);
@@ -620,7 +661,7 @@ const Game = {
         this.monsterAttack(c, m);
         if (this.state.hp < this.maxHp() * AUTO_EAT_THRESHOLD) this.eat();
         if (this.state.hp <= 0) return this.playerDied();
-        if (this.state.sanity <= 0) return this.playerMaddened();
+        if (this.state.sanity <= 0) return this.mindBreaks();
       }
     }
   },
@@ -635,12 +676,6 @@ const Game = {
     const lost = Math.floor(this.state.gold * 0.1);
     this.state.gold -= lost;
     this.log(`You have fallen. You wake at ${LOCATIONS[this.state.home].name}, ${lost} gold poorer.`, 'bad');
-    this.emit('action');
-  },
-  playerMaddened() {
-    this.wakeAtHome();
-    this.state.sanity = 10;
-    this.log(`Your mind breaks. You flee screaming, and later wake at ${LOCATIONS[this.state.home].name} with no memory of the journey.`, 'bad');
     this.emit('action');
   },
 
@@ -660,7 +695,7 @@ const Game = {
         this.heal(Math.ceil(this.maxHp() * 0.02));
       }
       const regenSanity = !s.action || s.action.skill !== 'occultism';
-      s.regen.sanity += dt * rate;
+      s.regen.sanity += dt * rate * (this.hasDerangement('voices') ? 0.5 : 1);
       while (s.regen.sanity >= SANITY_REGEN_MS) {
         s.regen.sanity -= SANITY_REGEN_MS;
         if (regenSanity) this.restoreSanity(1);
@@ -736,6 +771,8 @@ const Game = {
     if (state.action && !findAction(state.action.skill, state.action.id)) state.action = null;
     if (state.combat && !MONSTERS[state.combat.monster]) state.combat = null;
     if (state.travel && !state.travel.path.every(l => LOCATIONS[l])) state.travel = null;
+    state.derangements = state.derangements.filter(id => DERANGEMENTS[id]);
+    for (const id in state.quests) if (!QUESTS[id]) delete state.quests[id];
     return state;
   },
   exportSave() {

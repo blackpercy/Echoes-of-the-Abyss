@@ -27,21 +27,37 @@ function locLink(id) {
   return `<a href="#" class="loc-link" data-act="map-select" data-loc="${id}">${LOCATIONS[id].icon} ${esc(LOCATIONS[id].name)}</a>`;
 }
 
-const KIND_NAMES = { town: 'Settlement', wild: 'Wilderness', dungeon: 'Dungeon' };
+const KIND_NAMES = { town: 'Settlement', wild: 'Wilderness', dungeon: 'Dungeon', hidden: 'Beyond the Veil' };
+
+// Hidden places only appear on the map while you can see through the Veil (or stand in one).
+function isVisible(loc) {
+  return !LOCATIONS[loc].hidden || Game.veilSight() || Game.state.location === loc;
+}
+
+function costText(cost) {
+  const parts = [];
+  if (cost.gold) parts.push(`${cost.gold} gold`);
+  if (cost.sanity) parts.push(`${cost.sanity} sanity`);
+  for (const [item, qty] of Object.entries(cost.items)) parts.push(`${qty} × ${ITEMS[item].name}`);
+  return parts.join(', ');
+}
 
 const UI = {
   page: 'chronicle',
   selectedItem: null,
   selectedBankItem: null,
   mapSelected: null,
+  lastVeil: null,
   dirty: true,
   lastRender: 0,
 
   init() {
     document.body.addEventListener('click', e => this.onClick(e));
     document.body.addEventListener('change', e => this.onChange(e));
-    Game.listeners.push(type => {
+    Game.listeners.push((type, payload) => {
       if (type === 'reset') this.page = 'chronicle';
+      if (type === 'break' && !Game.silent) this.showBreak(payload);
+      if (type === 'ending' && !Game.silent) this.showEnding(payload.ending);
       this.dirty = true;
     });
     this.renderAll();
@@ -84,6 +100,9 @@ const UI = {
         document.body.classList.remove('nav-open');
         break;
       case 'travel': Game.travelTo(d.loc); break;
+      case 'accept': Game.acceptQuest(d.quest); break;
+      case 'turnin': Game.turnIn(d.quest); break;
+      case 'interact': Game.interact(d.npc, d.inter); break;
       case 'save': Game.save(); Game.log('Game saved.', 'good'); break;
       case 'export': {
         const box = document.getElementById('save-text');
@@ -130,6 +149,13 @@ const UI = {
     // The page is rebuilt at most four times a second; meters update every frame.
     // An open dropdown would close on rebuild, so wait until it is released.
     const selectOpen = document.activeElement && document.activeElement.tagName === 'SELECT';
+    const veil = Game.veilSight();
+    if (veil !== this.lastVeil) {
+      if (this.lastVeil !== null) Game.log(veil ? 'The Veil grows thin. You see things that were not there before.' : 'The Veil closes. The hidden things fade from sight.', 'veil');
+      this.lastVeil = veil;
+      document.body.classList.toggle('veil', veil);
+      this.dirty = true;
+    }
     if (this.dirty && !selectOpen) {
       if (this.page === 'settings') {
         this.renderNav();
@@ -152,7 +178,7 @@ const UI = {
       return `<button class="nav-btn${active}${busy}${dim ? ' dim' : ''}" data-act="nav" data-page="${page}"><span class="nav-icon">${icon}</span><span class="nav-name">${name}</span><span class="nav-extra">${extra}</span></button>`;
     };
     let html = `<div class="nav-group"><div class="nav-title">You are at</div>${navBtn('here', here.icon, esc(here.name))}${navBtn('map', '🗺️', 'World Map')}${navBtn('combat', '⚔️', 'Combat', '', !s.combat && !(here.monsters || []).length)}</div>`;
-    html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills')}</div>`;
+    html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills')}${navBtn('quests', '📖', 'Quests', Object.values(s.quests).filter(q => q.status === 'active').length || '')}</div>`;
     const services = [];
     if (here.bank) services.push(navBtn('bank', '🏦', 'Bank'));
     if (here.shop) services.push(navBtn('shop', '🛒', esc(SHOPS[here.shop].name)));
@@ -181,6 +207,7 @@ const UI = {
       bank: () => this.pageBank(),
       shop: () => this.pageShop(),
       settings: () => this.pageSettings(),
+      quests: () => this.pageQuests(),
     };
     main.innerHTML = pages[this.page] ? pages[this.page]() : this.pageSkill(this.page);
     main.scrollTop = scroll;
@@ -191,10 +218,9 @@ const UI = {
     const loc = LOCATIONS[id];
     const rows = [];
     for (const [skill, actions] of Object.entries(loc.gather || {})) {
-      rows.push(`<div><b>${SKILLS[skill].icon} ${SKILLS[skill].name}:</b> ${actions.map(a => {
-        const act = findAction(skill, a);
-        return `${ITEMS[Object.keys(act.output)[0]].icon} ${esc(act.name)} <span class="muted">(${act.level})</span>`;
-      }).join(', ')}</div>`);
+      const visible = actions.map(a => findAction(skill, a)).filter(act => !act.veil || Game.veilSight());
+      if (!visible.length) continue;
+      rows.push(`<div><b>${SKILLS[skill].icon} ${SKILLS[skill].name}:</b> ${visible.map(act => `${ITEMS[Object.keys(act.output)[0]].icon} ${esc(act.name)} <span class="muted">(${act.level})</span>`).join(', ')}</div>`);
     }
     if ((loc.stations || []).length) rows.push(`<div><b>Workplaces:</b> ${loc.stations.map(st => `${STATIONS[st].icon} ${STATIONS[st].name}`).join(', ')}</div>`);
     const services = [];
@@ -203,6 +229,8 @@ const UI = {
     if (loc.inn) services.push(`🛏️ Rest at ${esc(loc.inn)}`);
     if (services.length) rows.push(`<div><b>Services:</b> ${services.join(', ')}</div>`);
     if ((loc.monsters || []).length) rows.push(`<div><b>Enemies:</b> ${loc.monsters.map(m => `${MONSTERS[m].icon} ${MONSTERS[m].name}`).join(', ')}</div>`);
+    const people = Object.keys(NPCS).filter(n => NPCS[n].location === id && Game.check(NPCS[n].if));
+    if (people.length) rows.push(`<div><b>People:</b> ${people.map(n => `${NPCS[n].icon} ${esc(NPCS[n].name)}`).join(', ')}</div>`);
     return rows.join('');
   },
 
@@ -229,7 +257,9 @@ const UI = {
       <li>Cooking needs a fire and alchemy needs a lab, unless you carry a tinderbox or alchemy kit. Smithing is only possible at a forge.</li>
       <li>Once you begin a task you keep at it until you stop, your pack is full or your materials run out, even while you are away from the game (up to 24 hours).</li>
       <li>Fights are settled with dice. You roll a d20 plus your bonus against the enemy's armour class, and damage comes from your weapon's dice. A natural 20 is a critical hit. You eat your chosen food when your health drops below 40%.</li>
-      <li><b>Sanity.</b> When something from beyond wounds you, you make a sanity save. Fail it and you lose sanity. Occult study costs sanity too. At zero you flee in panic. Sanity recovers slowly at rest and quickly at an inn. Warding amulets help you keep it.</li>
+      <li><b>Sanity.</b> When something from beyond wounds you, you make a sanity save. Fail it and you lose sanity. Occult study costs sanity too. Sanity recovers slowly at rest and quickly at an inn, and warding amulets help you keep it.</li>
+      <li><b>The Veil.</b> Below ${VEIL_THRESHOLD} sanity you start to see what is hidden: secret places on the map, strange resources, and people no one else can see. Some of them have work for you.</li>
+      <li><b>Madness is not the end.</b> When your sanity reaches zero your mind breaks. You gain a level of madness and a <b>derangement</b>, a lasting change with a gift and a curse. Madness lowers your maximum sanity, but it opens doors: from <i>${MADNESS_STAGES[PERMANENT_VEIL_MADNESS]}</i> onward the Veil never closes, Saltmire's townsfolk treat you as kin, and the Dreamer's servants will speak with you. The Silent Order wants you sane, and the Abbey can quiet your mind if you change your path.</li>
       <li>The game saves automatically in your browser every ten seconds.</li>
     </ul></div>`;
     return html;
@@ -237,7 +267,7 @@ const UI = {
 
   pageMap() {
     const s = Game.state;
-    const sel = this.mapSelected || s.location;
+    const sel = this.mapSelected && isVisible(this.mapSelected) ? this.mapSelected : s.location;
     const route = sel !== s.location ? Game.findRoute(sel) : null;
     const routeEdges = new Set();
     if (route) for (let i = 0; i < route.path.length - 1; i++) routeEdges.add(findRoad(route.path[i], route.path[i + 1]));
@@ -257,10 +287,11 @@ const UI = {
         <text x="905" y="300" class="sea-text" transform="rotate(90 905 300)">The Black Sea</text>
       </g>`;
     for (const r of ROADS) {
+      if (!isVisible(r.a) || !isVisible(r.b)) continue;
       const a = LOCATIONS[r.a];
       const b = LOCATIONS[r.b];
       const blocked = Game.roadBlocker(r);
-      const cls = routeEdges.has(r) ? 'road route' : blocked ? 'road blocked' : 'road';
+      const cls = (routeEdges.has(r) ? 'road route' : blocked ? 'road blocked' : 'road') + (r.veil ? ' veiled' : '');
       svg += `<line class="${cls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
       const mx = (a.x + b.x) / 2;
       const my = (a.y + b.y) / 2;
@@ -269,6 +300,7 @@ const UI = {
       svg += `<text class="road-time" x="${mx}" y="${my + 18}">${r.time}s</text>`;
     }
     for (const [id, loc] of Object.entries(LOCATIONS)) {
+      if (!isVisible(id)) continue;
       const cls = ['node', loc.kind, id === s.location ? 'current' : '', id === sel ? 'selected' : ''].join(' ');
       svg += `<g class="${cls}" data-act="map-select" data-loc="${id}">
         <circle cx="${loc.x}" cy="${loc.y}" r="24"/>
@@ -285,7 +317,7 @@ const UI = {
       <p>${esc(loc.desc)}</p>
       <div class="features small">${this.locationFeatures(sel)}</div>
       ${this.routeInfo(sel)}
-      <div class="small muted roads">${roadsFrom(sel).map(({ road, to }) => `${locLink(to)} ${road.time}s${road.cost ? ` · ${road.cost} gold` : ''}${road.req ? ` · needs ${road.req.map(i => ITEMS[i].name).join(', ')}` : ''}`).join('<br>')}</div>
+      <div class="small muted roads">${roadsFrom(sel).filter(({ to }) => isVisible(to)).map(({ road, to }) => `${locLink(to)} ${road.time}s${road.cost ? ` · ${road.cost} gold` : ''}${road.req ? ` · needs ${road.req.map(i => ITEMS[i].name).join(', ')}` : ''}`).join('<br>')}</div>
     </div>`;
     return `<h1>🗺️ The Kingdom of Aldmark</h1><div class="map-layout"><div class="map-wrap">${svg}</div>${panel}</div>`;
   },
@@ -299,10 +331,17 @@ const UI = {
       const t = Game.travelProgress();
       return html + `<p class="warning">🧭 You are on the road to ${esc(LOCATIONS[t.target].name)}.</p>`;
     }
+    const people = Game.npcsHere();
+    if (people.length) html += `<h2>People</h2><div class="people">${people.map(n => this.npcCard(n)).join('')}</div>`;
     const gather = Object.entries(loc.gather || {});
     if (gather.length) {
       html += '<h2>Gather</h2><div class="cards">';
-      for (const [skill, ids] of gather) for (const aid of ids) html += this.actionCard(skill, findAction(skill, aid));
+      for (const [skill, ids] of gather) {
+        for (const aid of ids) {
+          const a = findAction(skill, aid);
+          if (!a.veil || Game.veilSight()) html += this.actionCard(skill, a);
+        }
+      }
       html += '</div>';
     }
     for (const st of Object.keys(STATIONS).filter(st => Game.hasStation(st))) {
@@ -324,7 +363,7 @@ const UI = {
       html += `<h2>Enemies</h2><div class="cards">${loc.monsters.map(m => this.monsterCard(m)).join('')}</div>`;
     }
     html += '<h2>Roads</h2><div class="cards">';
-    for (const { road, to } of roadsFrom(id)) {
+    for (const { road, to } of roadsFrom(id).filter(({ to }) => isVisible(to))) {
       const blocked = Game.roadBlocker(road);
       html += `<div class="card"><div class="card-name">${LOCATIONS[to].icon} ${esc(LOCATIONS[to].name)}</div>
         <div class="small">🧭 ${road.time}s${road.cost ? ` · 💰 ${road.cost} gold` : ''}</div>
@@ -348,8 +387,37 @@ const UI = {
     </div>`;
   },
 
+  npcCard(id) {
+    const npc = NPCS[id];
+    let html = `<div class="npc${npc.if && npc.if.veil ? ' veiled' : ''}"><div class="npc-head"><span class="big-icon">${npc.icon}</span><div><b>${esc(npc.name)}</b><div class="muted small">${esc(npc.title)}</div></div></div>
+      <p class="npc-line">${esc(Game.npcLine(id))}</p>`;
+    for (const qid of Object.keys(QUESTS).filter(q => QUESTS[q].giver === id)) {
+      const q = QUESTS[qid];
+      const status = Game.questStatus(qid);
+      if (status === 'none' && Game.check(q.requires)) {
+        html += `<div class="quest-offer"><div><b>📖 ${esc(q.name)}</b>${q.path ? ` <span class="path ${q.path}">${q.path === 'order' ? 'Silent Order' : 'The Dreamer'}</span>` : ''}</div><p class="small">${esc(q.offer)}</p>
+          <div class="small muted">${esc(Game.questProgressText(qid))}</div><button class="btn small" data-act="accept" data-quest="${qid}">Accept</button></div>`;
+      } else if (status === 'active') {
+        html += `<div class="quest-offer active"><div><b>📖 ${esc(q.name)}</b></div><div class="small">${esc(Game.questProgressText(qid))}</div>
+          ${q.objective.type === 'deliver' ? `<button class="btn small" data-act="turnin" data-quest="${qid}"${Game.canTurnIn(qid) ? '' : ' disabled'}>Hand over</button>` : ''}</div>`;
+      }
+    }
+    const inters = (npc.interactions || []).filter(i => Game.check(i.if));
+    if (inters.length) {
+      html += `<div class="btn-row">${inters.map(i => {
+        const cost = Game.interactionCost(i);
+        const text = costText(cost);
+        return `<button class="btn small${cost.sanity ? ' veil-btn' : ''}" data-act="interact" data-npc="${id}" data-inter="${i.id}">${esc(i.label)}${text ? ` <span class="muted">(${esc(text)})</span>` : ''}</button>`;
+      }).join('')}</div>`;
+    }
+    return html + '</div>';
+  },
+
   actionCard(skill, a) {
     const s = Game.state;
+    if (a.veil && !Game.veilSight()) {
+      return '<div class="card locked veiled"><div class="card-icon">🌫️</div><div class="card-name">Something you cannot quite perceive</div><div class="muted small">Perhaps with a thinner mind…</div></div>';
+    }
     if (Game.level(skill) < a.level) {
       return `<div class="card locked"><div class="card-icon">🔒</div><div class="card-name">${esc(a.name)}</div><div class="muted small">Requires level ${a.level}</div></div>`;
     }
@@ -410,10 +478,10 @@ const UI = {
     let html = '<h1>⚔️ Combat</h1>';
     if (s.combat) {
       const m = MONSTERS[s.combat.monster];
-      const chance = chanceToHit(Game.attackBonus(), m.ac);
+      const chance = chanceToHit(Game.attackBonusVs(m), m.ac);
       const theirs = chanceToHit(m.hit, Game.armourClass());
       const food = s.food && ITEMS[s.food];
-      const foods = Object.keys(s.pack).filter(id => ITEMS[id].type === 'food');
+      const foods = Object.keys(s.pack).filter(id => Game.isFood(id));
       const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion');
       html += `<div class="combat">
         <div class="fighter">
@@ -421,14 +489,14 @@ const UI = {
           ${bar('c-hp', 'hp', 0)}
           ${bar('c-sanity', 'sanity', 0)}
           ${bar('c-patk', 'progress', 0)}
-          <div class="small">⚔️ ${withSign(Game.attackBonus())} to hit (<b>${Math.round(chance * 100)}%</b> vs AC ${m.ac}) · ${Game.damageText()} damage${m.eldritch && Game.eldritchBonus() ? ` <span class="sanity-text">+${Math.round(Game.eldritchBonus() * 100)}% vs eldritch</span>` : ''} · every ${secs(Game.playerStats().speed)}</div>
+          <div class="small">⚔️ ${withSign(Game.attackBonusVs(m))} to hit (<b>${Math.round(chance * 100)}%</b> vs AC ${m.ac}) · ${Game.damageText()} damage${m.eldritch && Game.eldritchBonus() ? ` <span class="sanity-text">+${Math.round(Game.eldritchBonus() * 100)}% vs eldritch</span>` : ''} · every ${secs(Game.playerStats().speed)}</div>
           <div class="small">🛡️ AC ${Game.armourClass()}${m.eldritch ? ` · 👁️ ${withSign(Game.wits())} to sanity saves` : ''}</div>
           <div class="style-row">Stance:
             ${Object.entries(STANCES).map(([id, st]) => `<button class="btn small${s.stance === id ? ' selected' : ''}" data-act="stance" data-stance="${id}" title="${st.desc}">${st.icon} ${st.name}</button>`).join('')}
           </div>
           <div class="style-row">Food:
             <select id="food-select">${foods.length ? '' : '<option>No food</option>'}${foods.map(id => `<option value="${id}"${id === s.food ? ' selected' : ''}>${ITEMS[id].name} (${fmt(s.pack[id])})</option>`).join('')}</select>
-            <button class="btn small" data-act="eat">Eat${food ? ` (+${food.heal})` : ''}</button>
+            <button class="btn small" data-act="eat">Eat${food && Game.isFood(s.food) ? ` (+${Game.foodHeal(s.food)})` : ''}</button>
           </div>
           ${potions.length ? `<div class="style-row">Potions: ${potions.map(id => `<button class="btn small" data-act="use" data-item="${id}" title="${esc(ITEMS[id].desc)}">${ITEMS[id].icon} ${esc(ITEMS[id].name)} (${fmt(s.pack[id])})</button>`).join('')}</div>` : ''}
           <button class="btn danger" data-act="stop">Flee</button>
@@ -472,7 +540,13 @@ const UI = {
       <tr><td>Sanity save</td><td>d20 ${withSign(Game.wits())}</td></tr>
       <tr><td>Damage vs eldritch</td><td>+${Math.round(Game.eldritchBonus() * 100)}%</td></tr>
       <tr><td>Respawn point</td><td>${esc(LOCATIONS[s.home].name)}</td></tr>
-    </table></div><div><h2>Skills</h2><table class="stats">`;
+    </table>
+    <h2>Mind</h2><table class="stats">
+      <tr><td>State</td><td>${Game.mindState().name}${Game.veilSight() ? ' · <span class="sanity-text">sees through the Veil</span>' : ''}</td></tr>
+      <tr><td>Madness</td><td>${MADNESS_STAGES[s.madness]} (${s.madness} / ${MADNESS_STAGES.length - 1})</td></tr>
+    </table>
+    ${s.derangements.length ? `<div class="derangements">${s.derangements.map(d => `<div class="derangement"><b>${DERANGEMENTS[d].icon} ${DERANGEMENTS[d].name}</b><div class="small muted">${DERANGEMENTS[d].desc}</div></div>`).join('')}</div>` : '<p class="small muted">No derangements. Yet.</p>'}
+    </div><div><h2>Skills</h2><table class="stats">`;
     for (const g of SKILL_GROUPS) {
       html += `<tr><td colspan="3" class="muted small">${g.name}</td></tr>`;
       for (const id of g.skills) {
@@ -514,10 +588,10 @@ const UI = {
         ${it.req ? `<p class="small ${Game.meetsReq(sel) ? '' : 'lack-text'}">Requires: ${reqLine(it.req)}</p>` : ''}
         <div class="btn-row">
           ${it.type === 'equipment' ? `<button class="btn" data-act="equip" data-item="${sel}">Equip</button>` : ''}
-          ${it.type === 'food' ? `<button class="btn" data-act="food" data-item="${sel}">${s.food === sel ? 'Chosen food ✓' : 'Choose as food'}</button><button class="btn" data-act="use" data-item="${sel}">Eat</button>` : ''}
+          ${Game.isFood(sel) ? `<button class="btn" data-act="food" data-item="${sel}">${s.food === sel ? 'Chosen food ✓' : 'Choose as food'}</button><button class="btn" data-act="use" data-item="${sel}">Eat (+${Game.foodHeal(sel)})</button>` : ''}
           ${it.type === 'potion' ? `<button class="btn" data-act="use" data-item="${sel}">Drink</button>` : ''}
           ${here.bank ? `<button class="btn" data-act="deposit" data-item="${sel}">Deposit all</button>` : ''}
-          ${here.shop ? `<button class="btn" data-act="sell" data-item="${sel}" data-qty="1">Sell 1 (${it.sell}g)</button><button class="btn" data-act="sell" data-item="${sel}" data-qty="all">Sell all (${fmt(it.sell * s.pack[sel])}g)</button>` : ''}
+          ${here.shop && !SHOPS[here.shop].buysNothing ? `<button class="btn" data-act="sell" data-item="${sel}" data-qty="1">Sell 1 (${it.sell}g)</button><button class="btn" data-act="sell" data-item="${sel}" data-qty="all">Sell all (${fmt(it.sell * s.pack[sel])}g)</button>` : ''}
           <button class="btn danger" data-act="drop" data-item="${sel}">Drop</button>
         </div></div></div>`;
     }
@@ -550,16 +624,27 @@ const UI = {
       const shops = Object.keys(LOCATIONS).filter(id => LOCATIONS[id].shop);
       return `<h1>🛒 Shop</h1><p class="muted">There is no merchant at ${esc(Game.here().name)}.</p><ul>${shops.map(id => `<li>${locLink(id)}: ${esc(SHOPS[LOCATIONS[id].shop].name)}</li>`).join('')}</ul>`;
     }
-    let html = `<h1>🛒 ${esc(shop.name)}</h1><p class="muted">${esc(shop.keeper)}</p><h2>Buy</h2><div class="cards">`;
-    for (const { item, price } of shop.stock) {
+    let html = `<h1>🛒 ${esc(shop.name)}</h1><p class="muted">${esc(shop.keeper)}</p>`;
+    if (Game.shopRefuses()) return html + '<p class="warning">The brothers will not sell to you. They make the sign against evil and close the shutters.</p>';
+    const cur = Game.currency();
+    const funds = Game.funds();
+    const curName = cur ? ITEMS[cur].name : 'gold';
+    if (shop.kinDiscountAtMadness !== undefined && s.madness >= shop.kinDiscountAtMadness) html += '<p class="small sanity-text">The shopkeeper recognises something in your eyes. "Kin pays less."</p>';
+    if (cur) html += `<p class="small">You carry ${fmt(funds)} × ${ITEMS[cur].icon} ${esc(curName)}.</p>`;
+    html += '<h2>Buy</h2><div class="cards">';
+    for (const entry of shop.stock) {
+      const item = entry.item;
+      const price = Game.price(entry);
       const it = ITEMS[item];
       const stackable = it.type === 'food' || it.type === 'potion';
       html += `<div class="card"><div class="card-icon">${it.icon}</div><div class="card-name">${esc(it.name)}</div>
         <div class="muted small">${esc(it.desc || statLine(it))}</div>${it.req ? `<div class="small">Requires ${reqLine(it.req)}</div>` : ''}
-        <div class="small">💰 ${fmt(price)} gold${Game.carries(item) ? ' · <span class="good-text">carried</span>' : ''}</div>
-        <div class="btn-row"><button class="btn small" data-act="buy" data-item="${item}" data-qty="1"${s.gold < price ? ' disabled' : ''}>Buy 1</button>${stackable ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="10"${s.gold < price * 10 ? ' disabled' : ''}>Buy 10</button>` : ''}</div></div>`;
+        <div class="small">${cur ? ITEMS[cur].icon : '💰'} ${fmt(price)} ${esc(curName)}${Game.carries(item) ? ' · <span class="good-text">carried</span>' : ''}</div>
+        <div class="btn-row"><button class="btn small" data-act="buy" data-item="${item}" data-qty="1"${funds < price ? ' disabled' : ''}>Buy 1</button>${stackable ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="10"${funds < price * 10 ? ' disabled' : ''}>Buy 10</button>` : ''}</div></div>`;
     }
-    html += '</div><h2>Sell from your pack</h2>';
+    html += '</div>';
+    if (shop.buysNothing) return html + '<p class="muted small">The stalls here buy nothing. Not with gold, anyway.</p>';
+    html += '<h2>Sell from your pack</h2>';
     const ids = Object.keys(s.pack);
     if (!ids.length) return html + '<p class="muted">You carry nothing to sell.</p>';
     html += '<table class="stats sell">';
@@ -568,6 +653,20 @@ const UI = {
         <td><button class="btn small" data-act="sell" data-item="${id}" data-qty="1">Sell 1</button> <button class="btn small" data-act="sell" data-item="${id}" data-qty="all">Sell all</button></td></tr>`;
     }
     return html + '</table>';
+  },
+
+  pageQuests() {
+    const s = Game.state;
+    const ids = Object.keys(s.quests);
+    let html = '<h1>📖 Quests</h1>';
+    const active = ids.filter(id => s.quests[id].status === 'active');
+    const done = ids.filter(id => s.quests[id].status === 'done');
+    html += '<h2>Active</h2>';
+    html += active.length ? active.map(id => `<div class="quest-offer active"><b>${esc(QUESTS[id].name)}</b> <span class="muted small">from ${esc(NPCS[QUESTS[id].giver].name)} at ${locLink(NPCS[QUESTS[id].giver].location)}</span><div class="small">${esc(Game.questProgressText(id))}</div></div>`).join('') : '<p class="muted">No active quests. Talk to people on your travels, and remember that some only speak to the mad.</p>';
+    if (done.length) html += `<h2>Completed</h2><ul>${done.map(id => `<li>${esc(QUESTS[id].name)}</li>`).join('')}</ul>`;
+    const endings = Object.keys(s.endings);
+    if (endings.length) html += `<h2>Endings reached</h2><ul>${endings.map(e => `<li><b>${esc(ENDINGS[e].title)}</b></li>`).join('')}</ul>`;
+    return html;
   },
 
   pageSettings() {
@@ -592,7 +691,7 @@ const UI = {
     const s = Game.state;
     const maxHp = Game.maxHp();
     this.setBar('h-hp', (s.hp / maxHp) * 100, `❤️ ${fmt(Math.max(0, s.hp))} / ${maxHp}`);
-    this.setBar('h-sanity', (s.sanity / Game.maxSanity()) * 100, `👁️ ${fmt(s.sanity)} / ${Game.maxSanity()}`);
+    this.setBar('h-sanity', (s.sanity / Game.maxSanity()) * 100, `👁️ ${fmt(s.sanity)} / ${Game.maxSanity()} · ${Game.mindState().name}`);
     document.getElementById('h-gold').textContent = fmt(s.gold);
     document.body.classList.toggle('low-sanity', s.sanity < 30);
 
@@ -652,6 +751,23 @@ const UI = {
     if (items.length) html += `<p>${items.map(([id, q]) => `<span class="chip ${q < 0 ? 'lack' : ''}">${ITEMS[id].icon} ${q > 0 ? '+' : ''}${fmt(q)} ${esc(ITEMS[id].name)}</span>`).join(' ')}</p>`;
     html += '<button class="btn" data-act="close-modal">Continue</button></div>';
     document.getElementById('modal').innerHTML = html;
+  },
+
+  showBreak({ madness, derangement }) {
+    const d = derangement && DERANGEMENTS[derangement];
+    document.getElementById('modal').innerHTML = `<div class="modal-box break"><h2>Your mind breaks</h2>
+      <p>The world tilts. For a long moment you are somewhere else, somewhere with too many angles and a sky full of eyes. Then you are back, and nothing looks quite the same.</p>
+      <p>You are now <b>${MADNESS_STAGES[madness]}</b>. Your sanity can never rise above ${Game.maxSanity()} again unless your mind is quieted.</p>
+      ${d ? `<div class="derangement"><b>${d.icon} ${d.name}</b><div class="small">${d.desc}</div></div>` : ''}
+      <p class="small muted">Madness is not the end. Look around: some people will only speak to you now, and some places only appear to eyes like yours.</p>
+      <button class="btn" data-act="close-modal">Open your eyes</button></div>`;
+  },
+
+  showEnding(id) {
+    const e = ENDINGS[id];
+    document.getElementById('modal').innerHTML = `<div class="modal-box ending"><h2>${esc(e.title)}</h2><p>${esc(e.text)}</p>
+      <p class="small muted">Your story goes on. The world is still yours to wander, and there is another ending waiting on the other path.</p>
+      <button class="btn" data-act="close-modal">Continue</button></div>`;
   },
 
   showIntro() {
