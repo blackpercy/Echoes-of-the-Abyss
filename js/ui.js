@@ -96,6 +96,8 @@ const UI = {
         document.body.classList.remove('nav-open');
         break;
       case 'toggle-nav': document.body.classList.toggle('nav-open'); return;
+      // On narrow screens the log is a one-line footer; tapping it opens the full log.
+      case 'toggle-log': document.body.classList.toggle('log-open'); return;
       case 'action': Game.startAction(d.skill, d.id); break;
       case 'stop': Game.stop(); break;
       case 'fight': Game.startCombat(d.monster); break;
@@ -886,9 +888,14 @@ const UI = {
     document.getElementById('h-gold').textContent = fmt(s.gold);
     document.body.classList.toggle('low-sanity', s.sanity < 30);
 
+    // Full time of day on wide screens, just the icons on phones.
     const clock = document.getElementById('h-clock');
     const clockText = Game.timeLabel();
-    if (clock.textContent !== clockText) clock.textContent = clockText;
+    if (clock.dataset.text !== clockText) {
+      clock.dataset.text = clockText;
+      const icons = `${Game.isNight() ? '🌙' : '☀️'}${Game.isLowTide() ? '🌊↓' : '🌊↑'}${Game.starsRight() ? '🌌' : ''}`;
+      clock.innerHTML = `<span class="long">${clockText}</span><span class="short" title="${clockText}">${icons}</span>`;
+    }
     document.body.classList.toggle('night', Game.isNight());
     document.getElementById('h-audio').textContent = s.settings.audio ? '🔊' : '🔇';
     let activity = `📍 ${Game.here().name}`;
@@ -971,13 +978,13 @@ const UI = {
       this.journeyKey = key;
       const start = travel.start;
       const veil = findRoad(travel.from, travel.to).veil;
-      el.innerHTML = `<span class="j-end">${Game.state.known[start] ? LOCATIONS[start].icon : '❔'} ${esc(placeName(start))}</span>
+      el.innerHTML = `<span class="j-end">${Game.state.known[start] ? LOCATIONS[start].icon : '❔'} <span class="j-name">${esc(placeName(start))}</span></span>
         <div class="j-track${veil ? ' veiled' : ''}">
           <div class="j-road"></div><div class="j-fill" id="j-fill"></div>
           ${travel.stops.map((f, i) => `<span class="j-stop" style="left:${f * 100}%" title="${esc(placeName(t.path[i + 1]))}"></span>`).join('')}
           <span class="j-walker" id="j-walker">${this.traveller(travel.from, travel.to)}</span>
         </div>
-        <span class="j-end">${Game.state.known[travel.target] ? LOCATIONS[travel.target].icon : '❔'} ${esc(placeName(travel.target))}</span>
+        <span class="j-end">${Game.state.known[travel.target] ? LOCATIONS[travel.target].icon : '❔'} <span class="j-name">${esc(placeName(travel.target))}</span></span>
         <span class="j-eta" id="j-eta"></span>`;
       el.hidden = false;
     }
