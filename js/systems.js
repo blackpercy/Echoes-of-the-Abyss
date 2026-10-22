@@ -25,7 +25,7 @@ Object.assign(Game, {
     return `Day ${this.dayIndex() + 1} · ${parts.join(' · ')}`;
   },
   veilThreshold() {
-    return VEIL_THRESHOLD + (this.state.race === 'tiefling' ? 10 : 0) + (this.isNight() ? NIGHT_VEIL_BONUS : 0);
+    return VEIL_THRESHOLD + (this.state.race === 'tiefling' ? 10 : 0) + (this.isNight() ? NIGHT_VEIL_BONUS : 0) + this.perk('veil');
   },
   whenBlocker(action) {
     if (action.when === 'night' && !this.isNight()) return 'Only at night';

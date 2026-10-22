@@ -112,6 +112,7 @@ const Game = {
       bestiary: {},
       achievements: {},
       expeditionsDone: {},
+      perks: {},
       settings: { audio: false },
       achTimer: 0,
       log: [],
@@ -139,9 +140,10 @@ const Game = {
   addXp(skill, amount) {
     const s = this.state.skills[skill];
     const before = levelFromXp(s.xp);
-    s.xp += amount * this.xpMultiplier();
+    s.xp += amount * this.xpMultiplier() * (1 + this.perk('xp', skill));
     const after = levelFromXp(s.xp);
     if (after > before) {
+      this.announcePerks(skill, before, after);
       this.log(`${SKILLS[skill].icon} ${SKILLS[skill].name} reached level ${after}!`, 'level');
       if (skill === 'combat') this.state.hp = Math.min(this.maxHp(), this.state.hp + (after - before) * 8);
       this.emit('level');
@@ -167,7 +169,7 @@ const Game = {
   },
   capacity(equipment = this.state.equipment) {
     const bag = equipment.back;
-    return BASE_PACK_SLOTS + (bag ? ITEMS[bag].stats.slots : 0) + (this.state.race === 'halfling' ? 3 : 0);
+    return BASE_PACK_SLOTS + (bag ? ITEMS[bag].stats.slots : 0) + (this.state.race === 'halfling' ? 3 : 0) + this.perk('carry');
   },
   usedSlots() {
     return Object.keys(this.state.pack).length;
@@ -301,11 +303,12 @@ const Game = {
     return ITEMS[item].type === 'food' || (this.hasDerangement('ghoul_hunger') && item.startsWith('raw_') && !!ITEMS[item.slice(4)]);
   },
   foodHeal(item) {
+    let heal = ITEMS[item].heal;
     if (this.hasDerangement('ghoul_hunger')) {
       if (item === 'bread') return 0;
-      if (item.startsWith('raw_')) return ITEMS[item.slice(4)].heal;
+      if (item.startsWith('raw_')) heal = ITEMS[item.slice(4)].heal;
     }
-    return ITEMS[item].heal;
+    return Math.round(heal * (1 + this.perk('heal')));
   },
   setFood(item) {
     if (!this.isFood(item)) return;
@@ -329,7 +332,7 @@ const Game = {
     return STANCES[this.state.stance] || STANCES.balanced;
   },
   maxHp() {
-    return 20 + 8 * this.level('combat') - (this.hasDerangement('drowned_lungs') ? 10 : 0);
+    return 20 + 8 * this.level('combat') - (this.hasDerangement('drowned_lungs') ? 10 : 0) + this.perk('hp');
   },
   maxSanity() {
     return 100 - SANITY_PER_MADNESS * this.state.madness;
@@ -341,28 +344,28 @@ const Game = {
     return Math.floor(this.level('combat') / 3);
   },
   attackBonus() {
-    return this.proficiency() + this.playerStats().hit + this.stance().hit - (this.hasDerangement('star_touched') ? 1 : 0);
+    return this.proficiency() + this.playerStats().hit + this.stance().hit - (this.hasDerangement('star_touched') ? 1 : 0) + this.perk('hit');
   },
   attackBonusVs(m) {
     return this.attackBonus() + (m.eldritch && this.hasDerangement('night_eyes') ? 2 : 0) + (m.eldritch && this.state.race === 'tiefling' ? 1 : 0);
   },
   damageBonus() {
-    return this.might() + this.playerStats().dmg + this.stance().dmg;
+    return this.might() + this.playerStats().dmg + this.stance().dmg + this.perk('dmg');
   },
   damageText() {
     const bonus = this.damageBonus();
     return this.playerStats().dice + (bonus ? withSign(bonus) : '');
   },
   armourClass() {
-    return 10 + this.playerStats().ac + this.stance().ac + (this.hasDerangement('paranoia') ? 2 : 0) + (this.state.race === 'dwarf' ? 1 : 0);
+    return 10 + this.playerStats().ac + this.stance().ac + (this.hasDerangement('paranoia') ? 2 : 0) + (this.state.race === 'dwarf' ? 1 : 0) + this.perk('ac');
   },
   // Bonus to sanity saving throws: occult understanding plus warding gear.
   wits() {
     return Math.floor(this.level('occultism') / 5) + this.playerStats().ward - (this.hasDerangement('night_eyes') ? 2 : 0)
-      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0);
+      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0) + this.perk('ward');
   },
   eldritchBonus() {
-    return (this.level('occultism') - 1) / 100;
+    return (this.level('occultism') - 1) / 100 + this.perk('eldritch');
   },
 
   // --- Consumables ---
@@ -390,8 +393,10 @@ const Game = {
       this.log(`You eat the ${def.name}.`);
     } else if (def.type === 'potion') {
       this.removeItem(item, 1);
-      if (def.heal) this.heal(def.heal);
-      if (def.sanity) this.restoreSanity(def.sanity);
+      // Alchemy perks make potions stronger, but never make the Veil Draught drain more.
+      const potency = 1 + this.perk('potency');
+      if (def.heal) this.heal(Math.round(def.heal * potency));
+      if (def.sanity) this.restoreSanity(def.sanity > 0 ? Math.round(def.sanity * potency) : def.sanity);
       this.log(`You drink the ${def.name}.`, 'good');
     }
   },
@@ -400,7 +405,8 @@ const Game = {
   actionTime(skill, action) {
     const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;
     const stars = TOOLS[skill] && this.hasDerangement('star_touched') ? 0.85 : 1;
-    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars * this.raceSpeed(skill));
+    const practised = 1 - Math.min(MAX_PERK_SPEED, this.perk('speed', skill));
+    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars * this.raceSpeed(skill) * practised);
   },
   availableHere(skill, action) {
     if (action.veil && !this.veilSight()) return false;
@@ -416,7 +422,7 @@ const Game = {
     const when = this.whenBlocker(action);
     if (when) return when;
     if (!this.hasAll(action.input)) return 'Missing materials';
-    if (action.sanityCost && this.state.sanity < action.sanityCost) return 'Not enough sanity';
+    if (action.sanityCost && this.state.sanity < this.sanityCostOf(skill, action)) return 'Not enough sanity';
     if (!Object.keys(action.output).every(item => this.canAdd(item))) return 'Your pack is full';
     return null;
   },
@@ -457,16 +463,23 @@ const Game = {
       this.emit('action');
       return false;
     }
-    for (const [item, qty] of Object.entries(action.input || {})) this.removeItem(item, qty);
+    // Perks may save the materials, double the result, or turn up something rare.
+    if (!(Math.random() < this.perk('save', skill))) {
+      for (const [item, qty] of Object.entries(action.input || {})) this.removeItem(item, qty);
+    }
     if (action.sanityCost) {
-      this.state.sanity -= action.sanityCost;
+      this.state.sanity -= this.sanityCostOf(skill, action);
       if (this.state.sanity <= 0) {
         this.addXp(skill, action.xp);
         this.mindBreaks();
         return false;
       }
     }
-    for (const [item, qty] of Object.entries(action.output)) this.addItem(item, qty);
+    const mult = Math.random() < this.perk('double', skill) ? 2 : 1;
+    for (const [item, qty] of Object.entries(action.output)) this.addItem(item, qty * mult);
+    if (RARE_FINDS[skill] && Math.random() < this.perk('rare', skill) && this.addItem(RARE_FINDS[skill], 1)) {
+      this.log(`A lucky find: ${ITEMS[RARE_FINDS[skill]].name}!`, 'rare');
+    }
     for (const b of action.bonus || []) {
       if (Math.random() < b.chance && this.addItem(b.item, b.qty)) this.log(`Something unusual: ${ITEMS[b.item].name}!`, 'rare');
     }
@@ -630,15 +643,16 @@ const Game = {
     }
     const bonus = this.attackBonusVs(m);
     const total = roll + bonus;
-    if (roll === 1 || (roll !== 20 && total < m.ac)) {
+    const critFrom = 20 - this.perk('crit');
+    if (roll === 1 || (roll < critFrom && total < m.ac)) {
       this.combatLog(c, `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: miss.`);
       return;
     }
-    const crit = roll === 20;
+    const crit = roll >= critFrom;
     let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus());
     if (m.eldritch) dmg = Math.floor(dmg * (1 + this.eldritchBonus()));
     c.monsterHp -= dmg;
-    this.combatLog(c, crit ? `Natural 20! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
+    this.combatLog(c, crit ? `${roll === 20 ? 'Natural 20' : `Critical (${roll})`}! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
   },
   monsterAttack(c, m) {
     if (this.companionActive() && Math.random() < COMPANION_TARGET_CHANCE) return this.monsterAttacksCompanion(c, m);
@@ -673,6 +687,8 @@ const Game = {
     this.addXp('combat', xp);
     this.combatLog(c, `The ${m.name} falls. +${Math.round(xp * this.xpMultiplier())} xp, +${gold} gold.`);
     this.recordBestiary(c.monster);
+    const killHeal = this.perk('killHeal');
+    if (killHeal) this.heal(killHeal);
     if (m.eldritch && this.state.madness >= 3) {
       this.restoreSanity(m.eldritch.loss);
       this.combatLog(c, `You feast on its fear (+${m.eldritch.loss} sanity).`);

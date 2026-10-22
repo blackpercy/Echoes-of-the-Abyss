@@ -335,6 +335,34 @@ body.night .map-wrap { filter: brightness(.8) saturate(.8); }
 .chamber-link { flex: 1; height: 2px; background: var(--border); }
 @media (max-width: 700px) { .fight { grid-template-columns: 1fr; } }
 
+/* --- Skill trees --- */
+.perk-badge { display: inline-block; font-family: 'Crimson Pro', serif; font-size: .75rem; color: #0b0d10; background: var(--gold); border-radius: 8px; padding: 0 .4rem; vertical-align: middle; letter-spacing: 0; text-transform: none; }
+.skill-tree { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: .4rem .9rem .8rem; margin: .6rem 0 1rem; }
+.skill-tree summary { cursor: pointer; list-style: none; }
+.skill-tree summary::-webkit-details-marker { display: none; }
+.skill-tree summary h2 { display: inline-block; margin: .4rem 0; }
+.skill-tree summary h2::before { content: '▸ '; color: var(--muted); }
+.skill-tree[open] summary h2::before { content: '▾ '; }
+.tree { position: relative; margin: .5rem 0 .8rem; padding-left: .2rem; }
+/* The trunk: a line joining the level markers. */
+.tree::before { content: ''; position: absolute; left: 1.15rem; top: 1rem; bottom: 1rem; width: 2px; background: linear-gradient(var(--accent), var(--border)); }
+.tier { position: relative; display: flex; align-items: center; gap: .7rem; margin: .45rem 0; }
+.tier-level { position: relative; z-index: 1; flex: none; width: 2rem; height: 2rem; border-radius: 50%; display: grid; place-items: center; font-size: .85rem; font-weight: 600; background: var(--panel-2); border: 2px solid var(--border); color: var(--muted); }
+.tier.done .tier-level { border-color: var(--accent); color: var(--accent); }
+.tier.open .tier-level { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 10px rgba(214, 178, 94, .6); animation: pulse 1.6s infinite; }
+.tier-options { flex: 1; display: flex; align-items: stretch; gap: .4rem; }
+.tier-or { align-self: center; font-size: .75rem; color: var(--muted); font-style: italic; }
+.perk { flex: 1; display: flex; flex-direction: column; gap: .1rem; text-align: left; padding: .4rem .6rem; border-radius: 6px; font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); }
+.perk.open { cursor: pointer; border-color: var(--gold); }
+.perk.open:hover { background: #2a2618; }
+.perk.chosen { border-color: var(--accent); background: #17302a; }
+.perk.passed, .perk.locked { opacity: .45; }
+.perk:disabled { cursor: default; }
+@media (max-width: 700px) {
+  .tier-options { flex-direction: column; }
+  .tier-or { display: none; }
+}
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 1rem; }

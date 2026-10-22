@@ -77,6 +77,7 @@ const UI = {
       if (type === 'event' && !Game.silent) this.showEvent();
       if (type === 'expedition' && !Game.silent) this.showExpedition(payload);
       if (type === 'achievement' && !Game.silent) this.toast(`${payload.icon} Achievement: ${payload.name}`);
+      if (type === 'perk' && !Game.silent) this.toast(`${SKILLS[payload.skill].icon} New ${SKILLS[payload.skill].name} perk to choose`);
       this.dirty = true;
     });
     this.renderAll();
@@ -162,6 +163,8 @@ const UI = {
         if (lines) this.showEventResult(lines);
         break;
       }
+      case 'perk': Game.choosePerk(d.skill, +d.tier, +d.index); break;
+      case 'respec': if (confirm(`Unlearn every ${SKILLS[d.skill].name} perk for ${Game.respecCost(d.skill)} gold?`)) Game.respecPerks(d.skill); break;
       case 'expedition': Game.startExpedition(d.id); this.page = 'combat'; break;
       case 'dismiss': if (confirm(`Part ways with ${Game.companion().name}?`)) Game.dismissCompanion(); break;
       case 'recruit': Game.recruit(); break;
@@ -234,12 +237,12 @@ const UI = {
     const s = Game.state;
     const here = Game.here();
     const navBtn = (page, icon, name, extra = '', dim = false) => {
-      const active = this.page === page || (page === 'character' && SKILLS[this.page]) ? ' active' : '';
+      const active = this.page === page || (page === 'character' && (SKILLS[this.page] || this.page.startsWith('skill-'))) ? ' active' : '';
       const busy = (page === 'here' && s.action) || (page === 'combat' && s.combat) || (page === 'map' && s.travel) ? ' busy' : '';
       return `<button class="nav-btn${active}${busy}${dim ? ' dim' : ''}" data-act="nav" data-page="${page}"><span class="nav-icon">${icon}</span><span class="nav-name">${name}</span><span class="nav-extra">${extra}</span></button>`;
     };
     let html = `<div class="nav-group"><div class="nav-title">You are at</div>${navBtn('here', here.icon, esc(here.name))}${navBtn('map', '🗺️', 'World Map')}${navBtn('combat', '⚔️', 'Combat', '', !s.combat && !(here.monsters || []).length)}</div>`;
-    html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills')}${navBtn('quests', '📖', 'Quests', Object.values(s.quests).filter(q => q.status === 'active').length || '')}${s.cult ? navBtn('cult', '🛐', 'Your Cult', s.cult.followers) : ''}</div>`;
+    html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills', Game.totalPendingPerks() ? `<span class="perk-badge">★ ${Game.totalPendingPerks()}</span>` : '')}${navBtn('quests', '📖', 'Quests', Object.values(s.quests).filter(q => q.status === 'active').length || '')}${s.cult ? navBtn('cult', '🛐', 'Your Cult', s.cult.followers) : ''}</div>`;
     const services = [];
     if (here.bank) services.push(navBtn('bank', '🏦', 'Bank'));
     if (here.shop) services.push(navBtn('shop', '🛒', esc(SHOPS[here.shop].name)));
@@ -271,7 +274,9 @@ const UI = {
       quests: () => this.pageQuests(),
       cult: () => this.pageCult(),
     };
-    main.innerHTML = pages[this.page] ? pages[this.page]() : this.pageSkill(this.page);
+    // Skill pages use "skill-<id>" so the Combat skill does not clash with the Combat page.
+    const skill = this.page.startsWith('skill-') ? this.page.slice(6) : this.page;
+    main.innerHTML = pages[this.page] ? pages[this.page]() : this.pageSkill(skill);
     main.scrollTop = scroll;
   },
 
@@ -547,7 +552,7 @@ const UI = {
       <div class="card-name">${esc(a.name)}</div>
       ${a.desc ? `<div class="muted small">${esc(a.desc)}</div>` : ''}
       ${a.when ? `<div class="small sanity-text">${a.when === 'night' ? '🌙 Only at night' : '🌊 Only at low tide'}</div>` : ''}
-      <div class="small">${secs(Game.actionTime(skill, a))} · ${a.xp} xp${a.sanityCost ? ` · <span class="sanity-text">−${a.sanityCost} sanity</span>` : ''}${a.station ? ` · ${STATIONS[a.station].icon} ${STATIONS[a.station].name}` : ''}</div>
+      <div class="small">${secs(Game.actionTime(skill, a))} · ${a.xp} xp${a.sanityCost ? ` · <span class="sanity-text">−${Game.sanityCostOf(skill, a)} sanity</span>` : ''}${a.station ? ` · ${STATIONS[a.station].icon} ${STATIONS[a.station].name}` : ''}</div>
       ${a.input ? `<div class="small">Uses: ${Object.entries(a.input).map(([id, q]) => `<span class="chip ${Game.count(id) >= q ? '' : 'lack'}">${ITEMS[id].icon} ${q} ${esc(ITEMS[id].name)} <span class="muted">(${fmt(Game.count(id))})</span></span>`).join(' ')}</div>` : ''}
       <div class="small">Makes: ${Object.entries(a.output).map(([id, q]) => itemChip(id, q)).join(' ')} <span class="muted">(carrying ${fmt(Game.count(outItem.id))})</span></div>
       ${where}
@@ -566,8 +571,31 @@ const UI = {
     if (skill === 'occultism') {
       html += '<p class="warning">👁️ Occult study costs sanity, and your sanity does not recover while you study. Every Occultism level beyond the first grants +1% damage against beings from beyond, and every five levels add +1 to your sanity saves.</p>';
     }
-    html += `<div class="cards">${ACTIONS[skill].map(a => this.actionCard(skill, a)).join('')}</div>`;
+    html += this.skillTree(skill);
+    if (ACTIONS[skill]) html += `<h2>Activities</h2><div class="cards">${ACTIONS[skill].map(a => this.actionCard(skill, a)).join('')}</div>`;
     return html;
+  },
+
+  // Ten tiers, one every five levels; pick one of two perks in each.
+  skillTree(skill) {
+    const lvl = Game.level(skill);
+    const pending = Game.pendingPerks(skill);
+    const respec = Game.respecCost(skill);
+    let html = `<details class="skill-tree"${pending || !ACTIONS[skill] ? ' open' : ''}><summary><h2>🌳 ${SKILLS[skill].name} perks ${pending ? `<span class="perk-badge">★ ${pending} to choose</span>` : ''}</h2></summary>
+      <p class="small muted">Every ${PERK_EVERY} levels you choose one of two perks. The choice lasts until you pay to unlearn it.</p><div class="tree">`;
+    for (const tierLevel of Game.perkTiers()) {
+      const chosen = (Game.state.perks[skill] || {})[tierLevel];
+      const open = lvl >= tierLevel && chosen === undefined;
+      const state = chosen !== undefined ? 'done' : open ? 'open' : 'locked';
+      const options = PERK_TREES[skill][tierLevel / PERK_EVERY - 1];
+      html += `<div class="tier ${state}"><div class="tier-level">${tierLevel}</div><div class="tier-options">${options.map((p, i) => {
+        const cls = chosen === undefined ? (open ? 'perk open' : 'perk locked') : chosen === i ? 'perk chosen' : 'perk passed';
+        return `<button class="${cls}" data-act="perk" data-skill="${skill}" data-tier="${tierLevel}" data-index="${i}"${open ? '' : ' disabled'}><b>${chosen === i ? '✦ ' : ''}${esc(p.name)}</b><span class="small">${esc(perkText(p, skill))}</span></button>`;
+      }).join('<span class="tier-or">or</span>')}</div></div>`;
+    }
+    html += '</div>';
+    if (respec) html += `<button class="btn small danger" data-act="respec" data-skill="${skill}">Unlearn all ${SKILLS[skill].name.toLowerCase()} perks (${fmt(respec)} gold)</button>`;
+    return html + '</details>';
   },
 
   monsterCard(id) {
@@ -633,7 +661,8 @@ const UI = {
   pageCombat() {
     const s = Game.state;
     const here = Game.here();
-    let html = '<h1>⚔️ Combat</h1>';
+    const pendingCombat = Game.pendingPerks('combat');
+    let html = `<h1>⚔️ Combat</h1><p class="small"><a href="#" class="loc-link" data-act="nav" data-page="skill-combat">🌳 Combat level ${Game.level('combat')} · perks</a>${pendingCombat ? ` <span class="perk-badge">★ ${pendingCombat} to choose</span>` : ''}</p>`;
     if (s.combat && s.combat.expedition) {
       html += `<div class="cards">${this.expeditionCard(s.combat.expedition.id)}</div>`;
     }
@@ -642,7 +671,7 @@ const UI = {
       html += `<h2>${here.icon} Enemies at ${esc(here.name)}</h2><div class="cards">${here.monsters.map(m => this.monsterCard(m)).join('')}${phantom ? `<div class="card eldritch phantom"><div class="card-icon">${phantom.icon}</div><div class="card-name">${esc(phantom.name)}</div><div class="small muted">❤️ ?? · 🛡️ AC ?? · ⚔️ ??</div><button class="btn" data-act="phantom">Fight</button></div>` : ''}</div>`;
     } else if (!s.combat) {
       const grounds = Object.keys(LOCATIONS).filter(id => (LOCATIONS[id].monsters || []).length && s.known[id]);
-      html += `<p class="muted">Nothing here wants to fight you. Hunting grounds you know of:</p><ul>${grounds.map(id => `<li>${locLink(id)}: ${LOCATIONS[id].monsters.map(m => MONSTERS[m].name).join(', ')}</li>`).join('')}</ul>`;
+      html += grounds.length ? `<p class="muted">Nothing here wants to fight you. Hunting grounds you know of:</p><ul>${grounds.map(id => `<li>${locLink(id)}: ${LOCATIONS[id].monsters.map(m => MONSTERS[m].name).join(', ')}</li>`).join('')}</ul>` : '<p class="muted">Nothing here wants to fight you, and you know of no hunting grounds yet. Explore, or ask around.</p>';
     }
     return html;
   },
@@ -684,7 +713,8 @@ const UI = {
       for (const id of g.skills) {
         const lvl = Game.level(id);
         const pct = lvl >= MAX_LEVEL ? 100 : ((s.skills[id].xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl])) * 100;
-        html += `<tr><td>${id === 'combat' ? `${SKILLS[id].icon} ${SKILLS[id].name}` : `<a href="#" class="loc-link" data-act="nav" data-page="${id}">${SKILLS[id].icon} ${SKILLS[id].name}</a>`}</td><td>${lvl}</td><td class="skill-mini"><div class="bar progress"><div class="fill" style="width:${pct}%"></div></div></td></tr>`;
+        const pending = Game.pendingPerks(id);
+        html += `<tr><td><a href="#" class="loc-link" data-act="nav" data-page="skill-${id}">${SKILLS[id].icon} ${SKILLS[id].name}</a>${pending ? ` <span class="perk-badge" title="Perks waiting to be chosen">★ ${pending}</span>` : ''}</td><td>${lvl}</td><td class="skill-mini"><div class="bar progress"><div class="fill" style="width:${pct}%"></div></div></td></tr>`;
       }
     }
     html += '</table>';

@@ -36,6 +36,12 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 90 in all.
+  - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
+  - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
+  - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.
+  - Combat perks give hit, AC, hitpoints, damage, a wider critical range or healing when you slay an enemy.
+  - Perks can be unlearned for gold.
 - **Your character.** Choose an ancestry (human, dwarf, elf, halfling, tiefling) and a background (fisher, acolyte, soldier, scholar, smuggler). Each gives bonuses and changes how people talk to you.
 - **A map you discover.** You start knowing only Saltmire. Roads out of places you have visited are visible but unexplored ("???"), and people will tell you about places further away if you ask.
 - **Road events.** Bandits, a hooded pedlar, a drowned procession seen only through the Veil, and more. You make choices, some with skill checks (d20 + skill level ÷ 4 against a DC).
@@ -69,6 +75,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 | `js/mind.js` | Madness, the Veil, NPC interactions and the quest engine |
 | `js/systems.js` | Logic for time, fog of war, events, companions, the cult, expeditions, world changes and achievements |
 | `js/audio.js` | Generated ambient sound |
+| `js/perks.js` | Skill trees: perk effects, the ten tiers per skill, choosing and unlearning perks |
 | `js/main.js` | Boot, game loop and autosave |
 | `css/style.css` | Styling, including the mobile layout |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Offline support and app installation. Bump `CACHE` in `sw.js` when files change. |
