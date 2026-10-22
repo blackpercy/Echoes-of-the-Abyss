@@ -3,6 +3,8 @@
 // Extends the Game object from game.js.
 
 const ACHIEVEMENT_CHECK_MS = 3000;
+// Everyone travels this much faster than the base road times in data.js.
+const BASE_TRAVEL_SPEED = 1.5;
 const EXPEDITION_ROOM_PAUSE_MS = 2000;
 
 Object.assign(Game, {
@@ -85,7 +87,11 @@ Object.assign(Game, {
     return road.cost;
   },
   travelSpeed() {
-    return this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1;
+    return BASE_TRAVEL_SPEED * (this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1);
+  },
+  // Seconds a road takes at your current speed, for display.
+  roadSeconds(road) {
+    return Math.round(road.time / this.travelSpeed());
   },
 
   // --- Road events ---

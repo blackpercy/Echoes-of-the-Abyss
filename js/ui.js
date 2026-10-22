@@ -373,7 +373,7 @@ const UI = {
       const my = (a.y + b.y) / 2;
       if (blocked) svg += `<text class="road-mark" x="${mx}" y="${my}">🔒</text>`;
       else if (r.cost) svg += `<text class="road-mark" x="${mx}" y="${my}">⛵</text>`;
-      svg += `<text class="road-time" x="${mx}" y="${my + 18}">${r.time}s</text>`;
+      svg += `<text class="road-time" x="${mx}" y="${my + 18}">${Game.roadSeconds(r)}s</text>`;
     }
     for (const [id, loc] of Object.entries(LOCATIONS)) {
       if (!isVisible(id)) continue;
@@ -405,7 +405,7 @@ const UI = {
       <div class="features small">${this.locationFeatures(sel)}</div>
       ${this.routeInfo(sel)}
       <div class="small muted">${Game.timeLabel()}</div>
-      <div class="small muted roads">${roadsFrom(sel).filter(({ to }) => isVisible(to)).map(({ road, to }) => `${locLink(to)} ${road.time}s${Game.roadCost(road) ? ` · ${Game.roadCost(road)} gold` : ''}${road.req ? ` · needs ${road.req.map(i => ITEMS[i].name).join(', ')}` : ''}`).join('<br>')}</div>
+      <div class="small muted roads">${roadsFrom(sel).filter(({ to }) => isVisible(to)).map(({ road, to }) => `${locLink(to)} ${Game.roadSeconds(road)}s${Game.roadCost(road) ? ` · ${Game.roadCost(road)} gold` : ''}${road.req ? ` · needs ${road.req.map(i => ITEMS[i].name).join(', ')}` : ''}`).join('<br>')}</div>
     </div>`;
     return `<h1>🗺️ The Kingdom of Aldmark</h1><div class="map-layout"><div class="map-wrap">${svg}</div>${panel}</div>`;
   },
@@ -462,7 +462,7 @@ const UI = {
     for (const { road, to } of roadsFrom(id).filter(({ to }) => isVisible(to))) {
       const blocked = Game.roadBlocker(road);
       html += `<div class="card"><div class="card-name">${s.known[to] ? `${LOCATIONS[to].icon} ${esc(LOCATIONS[to].name)}` : '❔ Unexplored road'}</div>
-        <div class="small">🧭 ${road.time}s${Game.roadCost(road) ? ` · 💰 ${Game.roadCost(road)} gold` : road.cost ? ' · <span class="good-text">free passage</span>' : ''}</div>
+        <div class="small">🧭 ${Game.roadSeconds(road)}s${Game.roadCost(road) ? ` · 💰 ${Game.roadCost(road)} gold` : road.cost ? ' · <span class="good-text">free passage</span>' : ''}</div>
         ${blocked ? `<div class="small lack-text">🔒 ${esc(blocked)}</div>` : ''}
         <button class="btn" data-act="travel" data-loc="${to}"${blocked ? ' disabled' : ''}>Travel</button></div>`;
     }
