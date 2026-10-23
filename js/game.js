@@ -334,7 +334,7 @@ const Game = {
       for (const [k, v] of Object.entries(ITEMS[item].stats || {})) if (k in total) total[k] += v;
     }
     const weapon = this.state.equipment.weapon;
-    total.speed = weapon ? ITEMS[weapon].speed : 2000;
+    total.speed = Math.round((weapon ? ITEMS[weapon].speed : 2000) * (1 - this.attackSpeedBonus()));
     total.dice = weapon ? ITEMS[weapon].dice : '1d2';
     return total;
   },
@@ -354,13 +354,13 @@ const Game = {
     return Math.floor(this.level('combat') / 3);
   },
   attackBonus() {
-    return this.proficiency() + this.playerStats().hit + this.stance().hit - (this.hasDerangement('star_touched') ? 1 : 0) + this.perk('hit');
+    return this.proficiency() + this.playerStats().hit + this.stance().hit - (this.hasDerangement('star_touched') ? 1 : 0) + this.perk('hit') + this.weaponHit();
   },
   attackBonusVs(m) {
     return this.attackBonus() + (m.eldritch && this.hasDerangement('night_eyes') ? 2 : 0) + (m.eldritch && this.state.race === 'tiefling' ? 1 : 0);
   },
   damageBonus() {
-    return this.might() + this.playerStats().dmg + this.stance().dmg + this.perk('dmg');
+    return this.might() + this.playerStats().dmg + this.stance().dmg + this.perk('dmg') + this.weaponDmg();
   },
   damageText() {
     const bonus = this.damageBonus();
@@ -372,10 +372,10 @@ const Game = {
   // Bonus to sanity saving throws: occult understanding plus warding gear.
   wits() {
     return Math.floor(this.level('occultism') / 5) + this.playerStats().ward - (this.hasDerangement('night_eyes') ? 2 : 0)
-      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0) + this.perk('ward') + this.companionAura('ward');
+      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0) + this.perk('ward') + this.companionAura('ward') + this.weaponWard();
   },
   eldritchBonus() {
-    return (this.level('occultism') - 1) / 100 + this.perk('eldritch');
+    return (this.level('occultism') - 1) / 100 + this.perk('eldritch') + this.weaponEldritch();
   },
 
   // --- Consumables ---
@@ -688,9 +688,10 @@ const Game = {
     }
     const bonus = this.attackBonusVs(m);
     const total = roll + bonus;
-    const critFrom = 20 - this.perk('crit');
-    if (roll === 1 || (roll < critFrom && total < m.ac)) {
-      this.combatLog(c, `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: miss.`);
+    const critFrom = this.critFrom();
+    const ac = this.effectiveAc(m);
+    if (roll === 1 || (roll < critFrom && total < ac)) {
+      this.combatLog(c, `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${ac}: miss.`);
       c.sneakUsed = true;
       return;
     }
@@ -706,7 +707,9 @@ const Game = {
     }
     if (m.eldritch) dmg = Math.floor(dmg * (1 + this.eldritchBonus()));
     c.monsterHp -= dmg;
-    this.combatLog(c, crit ? `${roll === 20 ? 'Natural 20' : `Critical (${roll})`}! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${m.ac}: hit for ${dmg}.`);
+    this.combatLog(c, crit ? `${roll === 20 ? 'Natural 20' : `Critical (${roll})`}! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${ac}: hit for ${dmg}.`);
+    const leech = this.perk('wLeech', this.weaponSkill());
+    if (leech) this.heal(leech);
   },
   monsterAttack(c, m) {
     if (this.companionActive() && Math.random() < this.companionTargetChance()) return this.monsterAttacksCompanion(c, m);
@@ -739,6 +742,7 @@ const Game = {
     this.state.gold += gold;
     const xp = m.eldritch && this.starsRight() ? m.xp * 2 : m.xp;
     this.addXp('combat', xp);
+    this.addXp(this.weaponSkill(), xp * WEAPON_XP_SHARE);
     this.combatLog(c, `The ${m.name} falls. +${Math.round(xp * this.xpMultiplier())} xp, +${gold} gold.`);
     this.recordBestiary(c.monster);
     if (this.companionActive()) this.addXp('fellowship', Math.round(m.xp * FELLOWSHIP_KILL_SHARE));
@@ -798,6 +802,12 @@ const Game = {
         c.playerTimer -= speed;
         this.playerAttack(c, m);
         if (c.monsterHp <= 0) return this.monsterKilled(c, m);
+        // Weapon perks can give a second, free attack.
+        if (Math.random() < this.perk('wDouble', this.weaponSkill())) {
+          this.combatLog(c, 'A second strike!');
+          this.playerAttack(c, m);
+          if (c.monsterHp <= 0) return this.monsterKilled(c, m);
+        }
       }
       if (c.monsterTimer >= m.speed) {
         c.monsterTimer -= m.speed;

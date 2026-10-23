@@ -468,6 +468,47 @@ Object.assign(Game, {
     }
   },
 
+  // --- Weapon skills ---
+  // Bare hands count as Blades.
+  weaponSkill() {
+    const w = this.state.equipment.weapon;
+    return w ? ITEMS[w].wtype : 'blades';
+  },
+  weaponHit() {
+    const ws = this.weaponSkill();
+    return Math.floor(this.level(ws) / WEAPON_LEVELS_PER_BONUS) + this.perk('wHit', ws);
+  },
+  weaponDmg() {
+    const ws = this.weaponSkill();
+    return Math.floor(this.level(ws) / WEAPON_LEVELS_PER_BONUS) + this.perk('wDmg', ws);
+  },
+  // Lowest d20 roll that counts as a critical hit.
+  critFrom() {
+    const ws = this.weaponSkill();
+    const blades = ws === 'blades' ? BLADE_CRIT_LEVELS.filter(l => this.level('blades') >= l).length : 0;
+    return 20 - this.perk('crit') - this.perk('wCrit', ws) - blades;
+  },
+  // Polearms punch through armour.
+  pierce() {
+    const ws = this.weaponSkill();
+    return (ws === 'polearms' ? Math.floor(this.level('polearms') / POLEARM_PIERCE_LEVELS) : 0) + this.perk('wPierce', ws);
+  },
+  effectiveAc(m) {
+    return Math.max(0, m.ac - this.pierce());
+  },
+  attackSpeedBonus() {
+    const ws = this.weaponSkill();
+    return Math.min(MAX_ATTACK_SPEED_BONUS, (ws === 'bows' ? BOW_SPEED_PER_LEVEL * (this.level('bows') - 1) : 0) + this.perk('wSpeed', ws));
+  },
+  weaponEldritch() {
+    const ws = this.weaponSkill();
+    return (ws === 'staves' ? STAFF_ELDRITCH_PER_LEVEL * (this.level('staves') - 1) : 0) + this.perk('wEldritch', ws);
+  },
+  weaponWard() {
+    const ws = this.weaponSkill();
+    return (ws === 'staves' ? Math.floor(this.level('staves') / STAFF_WARD_LEVELS) : 0) + this.perk('wWard', ws);
+  },
+
   // --- Stealth ---
   sneakDice() {
     return Math.floor(this.level('stealth') / SNEAK_LEVELS_PER_DIE) + this.perk('sneak');

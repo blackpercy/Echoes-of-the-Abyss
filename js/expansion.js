@@ -211,3 +211,50 @@ ACHIEVEMENTS.push(
   { id: 'boat', icon: '🚣', name: 'Your Own Boat', desc: 'Build a rowboat.', test: g => g.carries('rowboat') },
   { id: 'thief', icon: '🗡️', name: 'Light Fingers', desc: 'Find an expedition\'s hidden vault.', test: g => !!g.state.flags.vault },
 );
+
+// --- Weapon skills ---
+// Each weapon belongs to a type; fighting with it trains that type's skill.
+Object.assign(SKILLS, {
+  blades: { name: 'Blades', icon: '🗡️', type: 'weapon', desc: 'Daggers and swords. Every level sharpens your aim and your cuts; at 25 and 50 your critical range widens.' },
+  polearms: { name: 'Polearms', icon: '🔱', type: 'weapon', desc: 'Spears, tridents and halberds. Reach and weight: every 15 levels you punch through another point of armour.' },
+  bows: { name: 'Bows', icon: '🏹', type: 'weapon', desc: 'Shortbows to pale bows. Every level makes you loose arrows a little faster.' },
+  staves: { name: 'Staves', icon: '🪄', type: 'weapon', desc: 'Carved staves that channel more than force. Every level adds damage against eldritch beings and steadies your mind.' },
+});
+SKILL_GROUPS.push({ name: 'Weapons', skills: ['blades', 'polearms', 'bows', 'staves'] });
+const WEAPON_XP_SHARE = 0.5;          // share of each kill's xp that goes to the weapon type you used
+const WEAPON_LEVELS_PER_BONUS = 10;   // +1 to hit and +1 damage per this many weapon-skill levels
+const BLADE_CRIT_LEVELS = [25, 50];   // Blades widen the critical range at these levels
+const POLEARM_PIERCE_LEVELS = 15;     // Polearms ignore 1 AC per this many levels
+const BOW_SPEED_PER_LEVEL = 0.006;    // Bows attack this much faster per level
+const STAFF_ELDRITCH_PER_LEVEL = 0.01; // Staves add this much damage vs eldritch per level
+const STAFF_WARD_LEVELS = 10;          // and +1 to sanity saves per this many levels
+const MAX_ATTACK_SPEED_BONUS = 0.6;
+
+// Halberds, smithed in every metal: slow, heavy polearms.
+const HALBERD_DICE = { iron: '1d10', silver: '1d10', blackiron: '1d12', adamantine: '2d8', starmetal: '2d10' };
+for (const t of GEAR_TIERS) {
+  const id = `${t.key}_halberd`;
+  addItem(id, { name: `${t.prefix} Halberd`, icon: '🪓', type: 'equipment', slot: 'weapon', speed: 2900, dice: HALBERD_DICE[t.key], stats: { hit: Math.max(0, t.hit - 1), dmg: t.dmg + 2 }, req: { combat: t.req }, sell: Math.round(ITEMS[t.bar].sell * 3 * 1.5) });
+  ACTIONS.smithing.push({ id, name: `Forge ${ITEMS[id].name}`, level: Math.min(50, t.smith + 3), xp: t.xp * 3, time: 4500, station: t.station, input: { [t.bar]: 3 }, output: { [id]: 1 } });
+}
+ACTIONS.smithing.sort((a, b) => a.level - b.level);
+
+// Staves, carved at the workbench: modest damage, but they steady the mind.
+const STAVES = [
+  ['ash_staff', 'Ash Staff', 2, 'ash_logs', '1d6', { hit: 1, ward: 1 }, 1, 15],
+  ['oak_staff', 'Twisted Oak Staff', 8, 'twisted_oak_logs', '1d8', { hit: 1, dmg: 1, ward: 1 }, 6, 40],
+  ['grave_staff', 'Grave Pine Staff', 16, 'grave_pine_logs', '1d8', { hit: 2, dmg: 1, ward: 2 }, 13, 110],
+  ['shadow_staff', 'Shadowbark Staff', 26, 'shadowbark_logs', '2d6', { hit: 3, dmg: 2, ward: 2 }, 23, 320],
+  ['pale_staff', 'Pale Staff', 38, 'pale_logs', '2d6', { hit: 4, dmg: 3, ward: 3 }, 35, 900],
+];
+for (const [id, name, level, logs, dice, stats, req, sell] of STAVES) {
+  addItem(id, { name, icon: '🪄', type: 'equipment', slot: 'weapon', speed: 2400, dice, stats, req: { combat: req }, sell });
+  ACTIONS.carpentry.push({ id, name: `Carve a ${name}`, level, xp: Math.round(sell / 2) + 10, time: 4000, station: 'workbench', input: { [logs]: 4 }, output: { [id]: 1 } });
+}
+ACTIONS.carpentry.sort((a, b) => a.level - b.level);
+
+// Every weapon gets a type, from its name.
+for (const item of Object.values(ITEMS)) {
+  if (item.slot !== 'weapon') continue;
+  item.wtype = /staff/.test(item.id) ? 'staves' : /bow/.test(item.id) ? 'bows' : /spear|trident|halberd/.test(item.id) ? 'polearms' : 'blades';
+}

@@ -607,6 +607,19 @@ const UI = {
       html += `<p class="muted small">Tool: ${tier < 0 ? `<span class="lack-text">none, so you need a ${ITEMS[TOOLS[skill][0]].name} in your pack</span>` : `<b>${ITEMS[TOOLS[skill][tier]].name}</b>${TOOL_SPEEDUP[tier] ? ` (−${TOOL_SPEEDUP[tier] * 100}% time)` : ''}`}. Better tools are sold in the shops.</p>`;
     }
     if (skill === 'archaeology') html += this.relicCollection();
+    if (SKILLS[skill].type === 'weapon') {
+      const lvl = Game.level(skill);
+      const wielding = Game.weaponSkill() === skill;
+      const traits = {
+        blades: `critical hits from ${20 - BLADE_CRIT_LEVELS.filter(l => lvl >= l).length}–20 (wider at level ${BLADE_CRIT_LEVELS.join(' and ')})`,
+        polearms: `ignore ${Math.floor(lvl / POLEARM_PIERCE_LEVELS)} AC (one more every ${POLEARM_PIERCE_LEVELS} levels)`,
+        bows: `attack ${Math.round(BOW_SPEED_PER_LEVEL * 100 * (lvl - 1))}% faster`,
+        staves: `+${Math.round(STAFF_ELDRITCH_PER_LEVEL * 100 * (lvl - 1))}% damage against eldritch beings and +${Math.floor(lvl / STAFF_WARD_LEVELS)} to sanity saves`,
+      };
+      const weapons = Object.values(ITEMS).filter(i => i.wtype === skill).map(i => `${i.icon} ${esc(i.name)}`).join(', ');
+      html += `<p class="small">${SKILLS[skill].icon} Trained by fighting with this weapon type (${Math.round(WEAPON_XP_SHARE * 100)}% of each kill's xp). Right now: +${Math.floor(lvl / WEAPON_LEVELS_PER_BONUS)} to hit and damage, ${traits[skill]}.${wielding ? ' <span class="good-text">You are wielding one.</span>' : ''}</p>
+        <p class="small muted">Weapons: ${weapons}</p>`;
+    }
     if (skill === 'wisdom') {
       html += `<p class="small">🦉 Wisdom gains ${Math.round(WISDOM_SHARE * 100)}% of the experience you earn in every other skill. Each level gives +${(WISDOM_XP_PER_LEVEL * 100).toFixed(1)}% experience in all skills: right now <b>+${(WISDOM_XP_PER_LEVEL * 100 * (Game.level('wisdom') - 1)).toFixed(1)}%</b>${Game.perk('allXp') ? `, plus <b>+${Math.round(Game.perk('allXp') * 100)}%</b> from perks` : ''}.</p>`;
     }
@@ -684,7 +697,7 @@ const UI = {
   fightPanel(stopLabel) {
     const s = Game.state;
     const m = MONSTERS[s.combat.monster];
-    const chance = chanceToHit(Game.attackBonusVs(m), m.ac);
+    const chance = chanceToHit(Game.attackBonusVs(m), Game.effectiveAc(m));
     const theirs = chanceToHit(Game.monsterHit(m), Game.armourClass());
     const foods = Object.keys(s.pack).filter(id => Game.isFood(id));
     const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion');
@@ -700,7 +713,8 @@ const UI = {
         ${bar('c-hp', 'hp', 0)}
         ${bar('c-sanity', 'sanity', 0)}
         ${bar('c-patk', 'progress', 0)}
-        <div class="small muted">${withSign(Game.attackBonusVs(m))} to hit (${Math.round(chance * 100)}% vs AC ${m.ac}) · ${Game.damageText()} · AC ${Game.armourClass()}${m.eldritch ? ` · ${withSign(Game.wits())} sanity saves` : ''}</div>
+        <div class="small muted">${withSign(Game.attackBonusVs(m))} to hit (${Math.round(chance * 100)}% vs AC ${Game.effectiveAc(m)}) · ${Game.damageText()} · AC ${Game.armourClass()}${m.eldritch ? ` · ${withSign(Game.wits())} sanity saves` : ''}</div>
+        <div class="small muted">${SKILLS[Game.weaponSkill()].icon} ${SKILLS[Game.weaponSkill()].name} ${Game.level(Game.weaponSkill())} · crits on ${Game.critFrom() === 20 ? '20' : `${Game.critFrom()}–20`}${Game.pierce() ? ` · ignores ${Game.pierce()} AC` : ''} · attacks every ${secs(Game.playerStats().speed)}</div>
         ${this.companionBlock()}
       </div>
       <div class="combat-log" id="combat-log">${s.combat.log.map(l => `<div>${esc(l)}</div>`).join('')}</div>
@@ -755,6 +769,7 @@ const UI = {
       <tr><td>Armour class</td><td>${Game.armourClass()}</td></tr>
       <tr><td>Sanity save</td><td>d20 ${withSign(Game.wits())}</td></tr>
       <tr><td>Damage vs eldritch</td><td>+${Math.round(Game.eldritchBonus() * 100)}%</td></tr>
+      <tr><td>Weapon skill</td><td>${SKILLS[Game.weaponSkill()].icon} ${SKILLS[Game.weaponSkill()].name} ${Game.level(Game.weaponSkill())} · crits on ${Game.critFrom() === 20 ? '20' : `${Game.critFrom()}–20`}${Game.pierce() ? ` · ignores ${Game.pierce()} AC` : ''}</td></tr>
       <tr><td>Respawn point</td><td>${esc(LOCATIONS[s.home].name)}</td></tr>
     </table>`);
     html += this.section('char-mind', 'Mind', `<table class="stats">
