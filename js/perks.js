@@ -47,9 +47,9 @@ const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', 
 // Ten tiers (levels 5, 10 … 50), two options each: [effect, value].
 const PERK_TEMPLATES = {
   gathering: [
-    [['speed', 0.05], ['double', 0.05]],
+    [['speed', 0.15], ['double', 0.05]],
     [['xp', 0.1], ['carry', 1]],
-    [['speed', 0.05], ['rare', 0.01]],
+    [['speed', 0.15], ['rare', 0.01]],
     [['double', 0.05], ['xp', 0.1]],
     [['speed', 0.07], ['carry', 2]],
     [['double', 0.07], ['rare', 0.02]],
@@ -59,9 +59,9 @@ const PERK_TEMPLATES = {
     [['double', 0.12], ['speed', 0.12]],
   ],
   production: special => [
-    [['speed', 0.05], ['save', 0.05]],
+    [['speed', 0.15], ['save', 0.05]],
     [['xp', 0.1], ['double', 0.05]],
-    [['speed', 0.05], ['save', 0.05]],
+    [['speed', 0.15], ['save', 0.05]],
     [special[0], ['xp', 0.1]],
     [['speed', 0.07], ['double', 0.05]],
     [['save', 0.07], special[1]],
@@ -73,7 +73,7 @@ const PERK_TEMPLATES = {
   occultism: [
     [['sanityCost', -0.15], ['xp', 0.1]],
     [['ward', 1], ['veil', 5]],
-    [['speed', 0.05], ['double', 0.05]],
+    [['speed', 0.15], ['double', 0.05]],
     [['sanityCost', -0.15], ['eldritch', 0.05]],
     [['ward', 1], ['xp', 0.15]],
     [['veil', 5], ['save', 0.07]],
@@ -83,10 +83,10 @@ const PERK_TEMPLATES = {
     [['ward', 3], ['sanityCost', -0.25]],
   ],
   dreaming: [
-    [['speed', 0.05], ['dreamRest', 1]],
+    [['speed', 0.15], ['dreamRest', 1]],
     [['xp', 0.1], ['double', 0.05]],
     [['sanityCost', -0.15], ['rare', 0.01]],
-    [['dreamRest', 1], ['speed', 0.05]],
+    [['dreamRest', 1], ['speed', 0.15]],
     [['double', 0.07], ['xp', 0.15]],
     [['sanityCost', -0.2], ['ward', 1]],
     [['speed', 0.07], ['rare', 0.02]],
@@ -96,7 +96,7 @@ const PERK_TEMPLATES = {
   ],
   cartography: [
     [['travel', 0.03], ['xp', 0.1]],
-    [['scout', 1], ['speed', 0.05]],
+    [['scout', 1], ['speed', 0.15]],
     [['travel', 0.04], ['double', 0.05]],
     [['scout', 1], ['carry', 1]],
     [['travel', 0.05], ['xp', 0.15]],
@@ -107,7 +107,7 @@ const PERK_TEMPLATES = {
     [['travel', 0.1], ['scout', 3]],
   ],
   stealth: [
-    [['speed', 0.05], ['safe', 0.25]],
+    [['speed', 0.15], ['safe', 0.25]],
     [['sneak', 1], ['xp', 0.1]],
     [['double', 0.05], ['safe', 0.25]],
     [['sneak', 1], ['scout', 1]],
