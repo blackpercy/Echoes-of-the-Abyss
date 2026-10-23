@@ -394,8 +394,9 @@ Object.assign(Game, {
   collectCult() {
     const cult = this.state.cult;
     if (!cult || this.state.location !== CULT_SHRINE) return;
-    this.state.gold += cult.gold;
-    const parts = cult.gold ? [`${cult.gold} gold`] : [];
+    const tithes = this.goldFound(cult.gold);
+    this.state.gold += tithes;
+    const parts = tithes ? [`${tithes} gold`] : [];
     cult.gold = 0;
     for (const [item, qty] of Object.entries(cult.stash)) {
       if (!this.addItem(item, qty)) this.state.bank[item] = this.bankCount(item) + qty;
@@ -491,6 +492,11 @@ Object.assign(Game, {
     let total = 0;
     for (const [id, set] of Object.entries(RELIC_SETS)) if (set.bonus[0] === effect && this.relicSetDone(id)) total += set.bonus[1];
     return total;
+  },
+
+  // Gold you find or are given (fights, thefts, treasure, quests, tithes), boosted by Wisdom perks. Selling is not.
+  goldFound(amount) {
+    return Math.round(amount * (1 + this.perk('gold')));
   },
 
   // --- Debug ---

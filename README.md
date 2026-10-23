@@ -23,7 +23,8 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **16 skills, levels 1–50.**
+- **17 skills, levels 1–50.**
+  - General: Wisdom, which gains 10% of the xp from every other skill. Each level gives +0.2% xp in all skills, and every perk choice is between learning faster and something else: gold, pack slots, hitpoints, sanity saves, travel, activity speed or crits.
   - Gathering: Woodcutting, Fishing, Mining, Foraging, Hunting, Archaeology, Dreaming
   - Crafting: Cooking, Smithing, Alchemy, Occultism, Carpentry
   - Adventuring: Combat, Fellowship, Stealth, Cartography
@@ -46,7 +47,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 160 in all.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 170 in all.
   - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
   - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
   - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.

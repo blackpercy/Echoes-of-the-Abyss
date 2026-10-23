@@ -9,9 +9,15 @@ Object.assign(SKILLS, {
   stealth: { name: 'Stealth', icon: '🗡️', type: 'combat', desc: 'Pick pockets, burgle the unwary and strike from the shadows. Each level sharpens your sneak attack and your eye for hidden vaults.' },
   cartography: { name: 'Cartography', icon: '🧭', type: 'combat', desc: 'Learned on the road. Every journey and every discovery teaches you; your maps reveal places you have never been, and you travel faster.' },
 });
-SKILL_GROUPS[0].skills.push('hunting', 'archaeology', 'dreaming');
-SKILL_GROUPS[1].skills.push('carpentry');
-SKILL_GROUPS[2].skills.push('stealth', 'cartography');
+SKILL_GROUPS.find(g => g.name === 'Gathering').skills.push('hunting', 'archaeology', 'dreaming');
+
+// Wisdom: a general skill that grows from everything you do.
+SKILLS.wisdom = { name: 'Wisdom', icon: '🦉', type: 'general', desc: 'Everything you learn teaches you how to learn. Wisdom gains a share of the experience from every other skill, and each level makes all your learning a little faster.' };
+SKILL_GROUPS.unshift({ name: 'General', skills: ['wisdom'] });
+const WISDOM_SHARE = 0.1;            // share of every other skill's xp that also goes to Wisdom
+const WISDOM_XP_PER_LEVEL = 0.002;   // +0.2% xp in every skill per Wisdom level
+SKILL_GROUPS.find(g => g.name === 'Crafting').skills.push('carpentry');
+SKILL_GROUPS.find(g => g.name === 'Adventuring').skills.push('stealth', 'cartography');
 
 // --- New workplaces ---
 Object.assign(STATIONS, {

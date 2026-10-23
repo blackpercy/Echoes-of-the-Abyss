@@ -120,7 +120,7 @@ Object.assign(Game, {
   grant(gain) {
     if (!gain) return;
     const s = this.state;
-    if (gain.gold) s.gold += gain.gold;
+    if (gain.gold) s.gold += this.goldFound(gain.gold);
     for (const [item, qty] of Object.entries(gain.items || {})) {
       if (this.addItem(item, qty)) this.log(`Received ${qty} × ${ITEMS[item].name}.`, 'good');
       else {

@@ -600,6 +600,9 @@ const UI = {
       html += `<p class="muted small">Tool: ${tier < 0 ? `<span class="lack-text">none, so you need a ${ITEMS[TOOLS[skill][0]].name} in your pack</span>` : `<b>${ITEMS[TOOLS[skill][tier]].name}</b>${TOOL_SPEEDUP[tier] ? ` (−${TOOL_SPEEDUP[tier] * 100}% time)` : ''}`}. Better tools are sold in the shops.</p>`;
     }
     if (skill === 'archaeology') html += this.relicCollection();
+    if (skill === 'wisdom') {
+      html += `<p class="small">🦉 Wisdom gains ${Math.round(WISDOM_SHARE * 100)}% of the experience you earn in every other skill. Each level gives +${(WISDOM_XP_PER_LEVEL * 100).toFixed(1)}% experience in all skills: right now <b>+${(WISDOM_XP_PER_LEVEL * 100 * (Game.level('wisdom') - 1)).toFixed(1)}%</b>${Game.perk('allXp') ? `, plus <b>+${Math.round(Game.perk('allXp') * 100)}%</b> from perks` : ''}.</p>`;
+    }
     if (skill === 'stealth') {
       html += `<p class="small">🗡️ Your first blow against each enemy, if it lands, is a <b>sneak attack</b> for +${Game.sneakDice()}d6 (one die per ${SNEAK_LEVELS_PER_DIE} Stealth levels, plus perks). After an expedition you search for a hidden vault: d20 ${withSign(Math.floor(Game.level('stealth') / 4))} against DC ${VAULT_DC} doubles the treasure.</p>`;
     }

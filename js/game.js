@@ -138,10 +138,19 @@ const Game = {
   level(skill) {
     return levelFromXp(this.state.skills[skill].xp);
   },
+  // Experience after every bonus: race, the skill's own perks, Wisdom, and learning while away.
   addXp(skill, amount) {
+    const bonus = this.perk('xp', skill) + this.perk('allXp') + WISDOM_XP_PER_LEVEL * (this.level('wisdom') - 1)
+      + (this.silent ? this.perk('offlineXp') : 0);
+    const gain = amount * this.xpMultiplier() * (1 + bonus);
+    this.gainXp(skill, gain);
+    // A share of everything you learn also becomes Wisdom.
+    if (skill !== 'wisdom' && gain > 0) this.gainXp('wisdom', gain * WISDOM_SHARE * (1 + this.perk('xp', 'wisdom')));
+  },
+  gainXp(skill, gain) {
     const s = this.state.skills[skill];
     const before = levelFromXp(s.xp);
-    s.xp += amount * this.xpMultiplier() * (1 + this.perk('xp', skill));
+    s.xp += gain;
     const after = levelFromXp(s.xp);
     if (after > before) {
       this.announcePerks(skill, before, after);
@@ -407,8 +416,8 @@ const Game = {
       }
       if (def.treasure) {
         const gold = randInt(def.treasure[0], def.treasure[1]);
-        this.state.gold += gold;
-        this.log(`You follow the map and dig up a hoard of ${gold} gold.`, 'rare');
+        this.state.gold += this.goldFound(gold);
+        this.log(`You follow the map and dig up a hoard of ${this.goldFound(gold)} gold.`, 'rare');
       }
     }
   },
@@ -417,7 +426,7 @@ const Game = {
   actionTime(skill, action) {
     const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;
     const stars = TOOLS[skill] && this.hasDerangement('star_touched') ? 0.85 : 1;
-    const practised = 1 - Math.min(MAX_PERK_SPEED, this.perk('speed', skill) + (skill === 'archaeology' ? this.companionAura('dig') : 0));
+    const practised = 1 - Math.min(MAX_PERK_SPEED, this.perk('speed', skill) + this.perk('speedAll') + (skill === 'archaeology' ? this.companionAura('dig') : 0));
     return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars * this.raceSpeed(skill) * practised);
   },
   availableHere(skill, action) {
@@ -505,7 +514,7 @@ const Game = {
     }
     const mult = Math.random() < this.perk('double', skill) ? 2 : 1;
     for (const [item, qty] of Object.entries(action.output)) this.addItem(item, qty * mult);
-    if (action.gold) this.state.gold += randInt(action.gold[0], action.gold[1]) * mult;
+    if (action.gold) this.state.gold += this.goldFound(randInt(action.gold[0], action.gold[1]) * mult);
     if (action.sanityGain) this.restoreSanity(action.sanityGain + this.perk('dreamRest', skill));
     if (RARE_FINDS[skill] && Math.random() < this.perk('rare', skill) && this.addItem(RARE_FINDS[skill], 1)) {
       this.log(`A lucky find: ${ITEMS[RARE_FINDS[skill]].name}!`, 'rare');
@@ -726,7 +735,7 @@ const Game = {
   monsterKilled(c, m) {
     this.state.kills[c.monster] = (this.state.kills[c.monster] || 0) + 1;
     c.slain = (c.slain || 0) + 1;
-    const gold = randInt(m.gold[0], m.gold[1]);
+    const gold = this.goldFound(randInt(m.gold[0], m.gold[1]));
     this.state.gold += gold;
     const xp = m.eldritch && this.starsRight() ? m.xp * 2 : m.xp;
     this.addXp('combat', xp);
