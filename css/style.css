@@ -376,6 +376,14 @@ body.night .map-wrap { filter: brightness(.8) saturate(.8); }
 .popup-close:hover { color: var(--text); }
 .popup-footer { justify-content: flex-end; margin-top: .8rem; }
 
+/* --- Collapsible sections --- */
+details.section > summary { cursor: pointer; list-style: none; }
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary h2 { display: inline-block; }
+details.section > summary h2::before { content: '▸ '; color: var(--muted); }
+details.section[open] > summary h2::before { content: '▾ '; }
+details.section > summary:hover h2 { color: var(--accent); }
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 1rem; }

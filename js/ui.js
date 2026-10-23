@@ -70,6 +70,12 @@ const UI = {
   init() {
     document.body.addEventListener('click', e => this.onClick(e));
     document.body.addEventListener('change', e => this.onChange(e));
+    // "toggle" does not bubble, so listen in the capture phase for any section being folded or opened.
+    document.addEventListener('toggle', e => {
+      const id = e.target.dataset && e.target.dataset.section;
+      if (!id) return;
+      Game.state.settings.sections = Object.assign(Game.state.settings.sections || {}, { [id]: e.target.open });
+    }, true);
     Game.listeners.push((type, payload) => {
       if (type === 'reset') {
         this.page = 'chronicle';
@@ -443,53 +449,54 @@ const UI = {
       return html + `<p class="warning">🧭 You are on the road to ${esc(placeName(t.target))}. ${t.paused ? 'Something has stopped you.' : `${Math.round(t.overall * 100)}% of the way there.`}</p>`;
     }
     const people = Game.npcsHere();
-    if (people.length) html += `<h2>People</h2><div class="people">${people.map(n => this.npcCard(n)).join('')}</div>`;
+    if (people.length) html += this.section('here-people', `People <span class="small muted">${people.length}</span>`, `<div class="people">${people.map(n => this.npcCard(n)).join('')}</div>`);
     const gather = Object.entries(loc.gather || {});
     if (gather.length) {
-      html += '<h2>Gather</h2><div class="cards">';
+      let cards = '';
       for (const [skill, ids] of gather) {
         for (const aid of ids) {
           const a = findAction(skill, aid);
-          if (!a.veil || Game.veilSight()) html += this.actionCard(skill, a);
+          if (!a.veil || Game.veilSight()) cards += this.actionCard(skill, a);
         }
       }
-      html += '</div>';
+      html += this.section('here-gather', 'Gather', `<div class="cards">${cards}</div>`);
     }
     for (const st of Object.keys(STATIONS).filter(st => Game.hasStation(st))) {
       const portable = STATIONS[st].portable;
       // Where this workplace comes from when the location itself does not have one.
       const source = (loc.stations || []).includes(st) ? null : portable && Game.carries(portable) ? `your ${ITEMS[portable].name}` : 'the voices in your head';
       const skills = Object.keys(ACTIONS).filter(sk => ACTIONS[sk].some(a => a.station === st));
-      html += `<h2>${STATIONS[st].icon} ${STATIONS[st].name}${source ? ` <span class="muted small">(${source})</span>` : ''}</h2>`;
+      let body = '';
       for (const sk of skills) {
         const known = ACTIONS[sk].filter(a => a.station === st && Game.level(sk) >= a.level);
-        html += `<p class="small muted">${SKILLS[sk].icon} ${SKILLS[sk].name} ${Game.level(sk)} · <a href="#" class="loc-link" data-act="nav" data-page="${sk}">all ${SKILLS[sk].name.toLowerCase()} recipes</a></p>`;
-        html += known.length ? `<div class="cards">${known.map(a => this.actionCard(sk, a)).join('')}</div>` : '<p class="muted small">You know no recipes for this yet.</p>';
+        body += `<p class="small muted">${SKILLS[sk].icon} ${SKILLS[sk].name} ${Game.level(sk)} · <a href="#" class="loc-link" data-act="nav" data-page="skill-${sk}">all ${SKILLS[sk].name.toLowerCase()} recipes</a></p>`;
+        body += known.length ? `<div class="cards">${known.map(a => this.actionCard(sk, a)).join('')}</div>` : '<p class="muted small">You know no recipes for this yet.</p>';
       }
+      html += this.section(`here-station-${st}`, `${STATIONS[st].icon} ${STATIONS[st].name}${source ? ` <span class="muted small">(${source})</span>` : ''}`, body);
     }
     const services = [];
     if (loc.bank) services.push('<button class="btn" data-act="nav" data-page="bank">🏦 Visit the bank</button>');
     if (loc.shop) services.push(`<button class="btn" data-act="nav" data-page="shop">🛒 ${esc(SHOPS[loc.shop].name)}</button>`);
-    if (services.length) html += `<h2>Services</h2><div class="btn-row">${services.join('')}</div>`;
+    if (services.length) html += this.section('here-services', 'Services', `<div class="btn-row">${services.join('')}</div>`);
     if (loc.inn) html += `<p class="small good-text">🛏️ Resting at ${esc(loc.inn)}: health and sanity recover ${INN_REGEN_MULTIPLIER}× faster here. If you fall, you wake here.</p>`;
     if ((loc.monsters || []).length) {
-      html += `<h2>Enemies</h2><div class="cards">${loc.monsters.map(m => this.monsterCard(m)).join('')}</div>`;
+      html += this.section('here-enemies', `Enemies <span class="small muted">${loc.monsters.length}</span>`, `<div class="cards">${loc.monsters.map(m => this.monsterCard(m)).join('')}</div>`);
     }
     const expeditions = Object.keys(EXPEDITIONS).filter(e => EXPEDITIONS[e].location === id);
-    if (expeditions.length) html += `<h2>Expeditions</h2><div class="cards">${expeditions.map(e => this.expeditionCard(e)).join('')}</div>`;
+    if (expeditions.length) html += this.section('here-expeditions', 'Expeditions', `<div class="cards">${expeditions.map(e => this.expeditionCard(e)).join('')}</div>`);
     if (s.cult && id === CULT_SHRINE) {
       html += `<h2>🛐 Your Hidden Shrine</h2><p class="small">${s.cult.followers} followers. Their offerings: ${s.cult.gold} gold${Object.entries(s.cult.stash).map(([it, q]) => `, ${q} × ${ITEMS[it].name}`).join('')}.</p>
         <div class="btn-row"><button class="btn" data-act="collect">Collect offerings</button><button class="btn" data-act="nav" data-page="cult">Tend your flock</button></div>`;
     }
-    html += '<h2>Roads</h2><div class="cards">';
+    let roads = '';
     for (const { road, to } of roadsFrom(id).filter(({ to }) => isVisible(to))) {
       const blocked = Game.roadBlocker(road);
-      html += `<div class="card"><div class="card-name">${s.known[to] ? `${LOCATIONS[to].icon} ${esc(LOCATIONS[to].name)}` : '❔ Unexplored road'}</div>
+      roads += `<div class="card"><div class="card-name">${s.known[to] ? `${LOCATIONS[to].icon} ${esc(LOCATIONS[to].name)}` : '❔ Unexplored road'}</div>
         <div class="small">🧭 ${Game.roadSeconds(road)}s${Game.roadCost(road) ? ` · 💰 ${Game.roadCost(road)} gold` : road.cost ? ' · <span class="good-text">free passage</span>' : ''}</div>
         ${blocked ? `<div class="small lack-text">🔒 ${esc(blocked)}</div>` : ''}
         <button class="btn" data-act="travel" data-loc="${to}"${blocked ? ' disabled' : ''}>Travel</button></div>`;
     }
-    return html + '</div>';
+    return html + this.section('here-roads', 'Roads', `<div class="cards">${roads}</div>`);
   },
 
   skillHeader(skill) {
@@ -632,8 +639,7 @@ const UI = {
     const lvl = Game.level(skill);
     const pending = Game.pendingPerks(skill);
     const respec = Game.respecCost(skill);
-    let html = `<details class="skill-tree"${pending || !ACTIONS[skill] ? ' open' : ''}><summary><h2>🌳 ${SKILLS[skill].name} perks ${pending ? `<span class="perk-badge">★ ${pending} to choose</span>` : ''}</h2></summary>
-      <p class="small muted">Every ${PERK_EVERY} levels you choose one of two perks. The choice lasts until you pay to unlearn it.</p><div class="tree">`;
+    let html = `<p class="small muted">Every ${PERK_EVERY} levels you choose one of two perks. The choice lasts until you pay to unlearn it.</p><div class="tree">`;
     for (const tierLevel of Game.perkTiers()) {
       const chosen = (Game.state.perks[skill] || {})[tierLevel];
       const open = lvl >= tierLevel && chosen === undefined;
@@ -646,7 +652,8 @@ const UI = {
     }
     html += '</div>';
     if (respec) html += `<button class="btn small danger" data-act="respec" data-skill="${skill}">Unlearn all ${SKILLS[skill].name.toLowerCase()} perks (${fmt(respec)} gold)</button>`;
-    return html + '</details>';
+    const title = `🌳 ${SKILLS[skill].name} perks ${pending ? `<span class="perk-badge">★ ${pending} to choose</span>` : ''}`;
+    return this.section(`tree-${skill}`, title, html, !ACTIONS[skill], 'skill-tree', pending > 0);
   },
 
   monsterCard(id) {
@@ -732,15 +739,14 @@ const UI = {
     const race = RACES[s.race];
     const bg = s.background && BACKGROUNDS[s.background];
     let html = `<h1>🧝 Character & Skills</h1><p>${race.icon} <b>${race.name}</b>${bg ? ` · ${bg.icon} <b>${bg.name}</b>` : ''}</p>
-      <p class="small muted">${esc(race.desc)}${bg ? ' ' + esc(bg.desc) : ''}</p>
-      <div class="two-col"><div><h2>Equipment</h2><div class="slots">`;
-    for (const [slot, name] of Object.entries(SLOTS)) {
+      <p class="small muted">${esc(race.desc)}${bg ? ' ' + esc(bg.desc) : ''}</p><div class="two-col"><div>`;
+    html += this.section('char-equipment', 'Equipment', `<div class="slots">${Object.entries(SLOTS).map(([slot, name]) => {
       const item = s.equipment[slot];
-      html += `<div class="slot"><div class="muted small">${name}</div>${item
+      return `<div class="slot"><div class="muted small">${name}</div>${item
         ? `<div>${ITEMS[item].icon} <b>${esc(ITEMS[item].name)}</b></div><div class="small">${statLine(ITEMS[item])}</div><button class="btn small" data-act="unequip" data-slot="${slot}">Unequip</button>`
         : '<div class="muted">Empty</div>'}</div>`;
-    }
-    html += `</div><h2>In a fight</h2><table class="stats">
+    }).join('')}</div>`);
+    html += this.section('char-fight', 'In a fight', `<table class="stats">
       <tr><td>Hitpoints</td><td>${fmt(s.hp)} / ${Game.maxHp()}</td></tr>
       <tr><td>Sanity</td><td>${fmt(s.sanity)} / ${Game.maxSanity()}</td></tr>
       <tr><td>Proficiency</td><td>${withSign(Game.proficiency())}</td></tr>
@@ -750,32 +756,46 @@ const UI = {
       <tr><td>Sanity save</td><td>d20 ${withSign(Game.wits())}</td></tr>
       <tr><td>Damage vs eldritch</td><td>+${Math.round(Game.eldritchBonus() * 100)}%</td></tr>
       <tr><td>Respawn point</td><td>${esc(LOCATIONS[s.home].name)}</td></tr>
-    </table>
-    <h2>Mind</h2><table class="stats">
+    </table>`);
+    html += this.section('char-mind', 'Mind', `<table class="stats">
       <tr><td>State</td><td>${Game.mindState().name}${Game.veilSight() ? ' · <span class="sanity-text">sees through the Veil</span>' : ''}</td></tr>
       <tr><td>Madness</td><td>${MADNESS_STAGES[s.madness]} (${s.madness} / ${MADNESS_STAGES.length - 1})</td></tr>
-    </table>
-    ${s.madness ? `<h2>Gifts of madness</h2>${MADNESS_ABILITIES.slice(1, s.madness + 1).map(a => `<div class="derangement"><b>✦ ${a.name}</b><div class="small muted">${a.desc}</div></div>`).join('')}` : ''}
-    ${s.companions.length ? `<h2>Companions <span class="small muted">${s.companions.length} / ${Game.companionCapacity()}</span></h2>${this.companionBlock(true)}` : ''}
-    ${s.derangements.length ? `<div class="derangements">${s.derangements.map(d => `<div class="derangement"><b>${DERANGEMENTS[d].icon} ${DERANGEMENTS[d].name}</b><div class="small muted">${DERANGEMENTS[d].desc}</div></div>`).join('')}</div>` : '<p class="small muted">No derangements. Yet.</p>'}
-    </div><div><h2>Skills</h2><table class="stats">`;
+    </table>`);
+    if (s.madness) {
+      html += this.section('char-gifts', `Gifts of madness <span class="small muted">${s.madness}</span>`,
+        MADNESS_ABILITIES.slice(1, s.madness + 1).map(a => `<div class="derangement"><b>✦ ${a.name}</b><div class="small muted">${a.desc}</div></div>`).join(''), false);
+    }
+    html += this.section('char-derangements', `Derangements <span class="small muted">${s.derangements.length}</span>`,
+      s.derangements.length ? s.derangements.map(d => `<div class="derangement"><b>${DERANGEMENTS[d].icon} ${DERANGEMENTS[d].name}</b><div class="small muted">${DERANGEMENTS[d].desc}</div></div>`).join('') : '<p class="small muted">No derangements. Yet.</p>', false);
+    if (s.companions.length) {
+      html += this.section('char-companions', `Companions <span class="small muted">${s.companions.length} / ${Game.companionCapacity()}</span>`, this.companionBlock(true), false);
+    }
+    html += '</div><div>';
+    let skills = '<table class="stats">';
     for (const g of SKILL_GROUPS) {
-      html += `<tr><td colspan="3" class="muted small">${g.name}</td></tr>`;
+      skills += `<tr><td colspan="3" class="muted small">${g.name}</td></tr>`;
       for (const id of g.skills) {
         const lvl = Game.level(id);
         const pct = lvl >= MAX_LEVEL ? 100 : ((s.skills[id].xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl])) * 100;
         const pending = Game.pendingPerks(id);
-        html += `<tr><td><a href="#" class="loc-link" data-act="nav" data-page="skill-${id}">${SKILLS[id].icon} ${SKILLS[id].name}</a>${pending ? ` <span class="perk-badge" title="Perks waiting to be chosen">★ ${pending}</span>` : ''}</td><td>${lvl}</td><td class="skill-mini"><div class="bar progress"><div class="fill" style="width:${pct}%"></div></div></td></tr>`;
+        skills += `<tr><td><a href="#" class="loc-link" data-act="nav" data-page="skill-${id}">${SKILLS[id].icon} ${SKILLS[id].name}</a>${pending ? ` <span class="perk-badge" title="Perks waiting to be chosen">★ ${pending}</span>` : ''}</td><td>${lvl}</td><td class="skill-mini"><div class="bar progress"><div class="fill" style="width:${pct}%"></div></div></td></tr>`;
       }
     }
-    html += '</table>';
+    html += this.section('char-skills', 'Skills', skills + '</table>');
     const kills = Object.entries(s.kills);
     if (kills.length) {
-      html += '<h2>Slain</h2><table class="stats">';
-      for (const [id, n] of kills) html += `<tr><td>${MONSTERS[id].icon} ${MONSTERS[id].name}</td><td>${fmt(n)}</td></tr>`;
-      html += '</table>';
+      html += this.section('char-slain', `Slain <span class="small muted">${fmt(Game.totalKills())}</span>`,
+        `<table class="stats">${kills.map(([id, n]) => `<tr><td>${MONSTERS[id].icon} ${MONSTERS[id].name}</td><td>${fmt(n)}</td></tr>`).join('')}</table>`, false);
     }
     return html + '</div></div>';
+  },
+
+  // A collapsible section. Whether you left it open or folded is remembered in your save.
+  // forceOpen opens it regardless (e.g. a skill tree with a perk waiting).
+  section(id, title, body, defaultOpen = true, cls = '', forceOpen = false) {
+    const saved = Game.state.settings.sections || {};
+    const open = forceOpen || (id in saved ? saved[id] : defaultOpen);
+    return `<details class="section ${cls}" data-section="${id}"${open ? ' open' : ''}><summary><h2>${title}</h2></summary>${body}</details>`;
   },
 
   itemGrid(store, act, selected) {
@@ -906,14 +926,15 @@ const UI = {
     const done = ids.filter(id => s.quests[id].status === 'done');
     html += '<h2>Active</h2>';
     html += active.length ? active.map(id => `<div class="quest-offer active"><b>${esc(QUESTS[id].name)}</b> <span class="muted small">from ${esc(NPCS[QUESTS[id].giver].name)} at ${locLink(NPCS[QUESTS[id].giver].location)}</span><div class="small">${esc(Game.questProgressText(id))}</div></div>`).join('') : '<p class="muted">No active quests. Talk to people on your travels, and remember that some only speak to the mad.</p>';
-    if (done.length) html += `<h2>Completed</h2><ul>${done.map(id => `<li>${esc(QUESTS[id].name)}</li>`).join('')}</ul>`;
+    if (done.length) html += this.section('quests-done', `Completed <span class="small muted">${done.length}</span>`, `<ul>${done.map(id => `<li>${esc(QUESTS[id].name)}</li>`).join('')}</ul>`, false);
     const endings = Object.keys(s.endings);
-    if (endings.length) html += `<h2>Endings reached</h2><ul>${endings.map(e => `<li><b>${esc(ENDINGS[e].title)}</b></li>`).join('')}</ul>`;
+    if (endings.length) html += this.section('quests-endings', `Endings reached <span class="small muted">${endings.length}</span>`, `<ul>${endings.map(e => `<li><b>${esc(ENDINGS[e].title)}</b></li>`).join('')}</ul>`, false);
     return html;
   },
 
   relicCollection() {
-    let html = '<h2>🏺 Your collection</h2><div class="bestiary">';
+    const done = Object.keys(RELIC_SETS).filter(id => Game.relicSetDone(id)).length;
+    let html = '<div class="bestiary">';
     for (const [id, set] of Object.entries(RELIC_SETS)) {
       const done = Game.relicSetDone(id);
       const [effect, value] = set.bonus;
@@ -924,7 +945,7 @@ const UI = {
           return `<div class="relic${placed ? ' placed' : ''}">${placed ? '✦' : carried ? '◇' : '·'} ${esc(name)}${carried ? ` <button class="btn small" data-act="place-relic" data-item="${r}">Place</button>` : ''}</div>`;
         }).join('')}</div></div>`;
     }
-    return html + '</div>';
+    return this.section('relics', `🏺 Your collection <span class="small muted">${done} / ${Object.keys(RELIC_SETS).length} complete</span>`, html + '</div>');
   },
 
   companionBlock(full) {
