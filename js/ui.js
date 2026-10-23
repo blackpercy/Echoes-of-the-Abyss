@@ -90,6 +90,12 @@ const UI = {
 
   // --- Clicks ---
   onClick(e) {
+    // Clicking the dark backdrop around the item popup closes it.
+    if (e.target.id === 'modal' && this.popupOpen()) {
+      this.closeItemPopup();
+      this.dirty = true;
+      return;
+    }
     const el = e.target.closest('[data-act]');
     if (!el) return;
     e.preventDefault();
@@ -97,6 +103,7 @@ const UI = {
     switch (d.act) {
       case 'nav':
         this.page = d.page;
+        this.closeItemPopup();
         this.selectedItem = null;
         this.selectedBankItem = null;
         document.body.classList.remove('nav-open');
@@ -110,7 +117,11 @@ const UI = {
       case 'stance': Game.setStance(d.stance); break;
       case 'eat': if (!Game.eat()) Game.log('You cannot eat right now.', 'warn'); break;
       case 'use': Game.use(d.item); break;
-      case 'select': this.selectedItem = d.item; break;
+      case 'select':
+        this.itemPopup = d.item;
+        this.showItemPopup();
+        break;
+      case 'close-popup': this.closeItemPopup(); break;
       case 'select-bank': this.selectedBankItem = d.item; break;
       case 'sell': Game.sell(d.item, d.qty === 'all' ? Game.count(d.item) : +d.qty); break;
       case 'equip': Game.equip(d.item); break;
@@ -187,6 +198,7 @@ const UI = {
         if (this.page === 'settings') this.renderPage();
         break;
     }
+    if (this.popupOpen() && d.act !== 'select' && d.act !== 'close-popup') this.showItemPopup();
     this.dirty = true;
   },
   onChange(e) {
@@ -201,6 +213,7 @@ const UI = {
     this.renderNav();
     this.renderPage();
     this.renderLog();
+    if (this.popupOpen() && Game.count(this.itemPopup) !== this.popupCount) this.showItemPopup();
     this.dirty = false;
   },
 
@@ -775,32 +788,54 @@ const UI = {
     const cap = Game.capacity();
     let html = `<h1>🎒 Pack</h1>${bar('pack-cap', 'xp', (used / cap) * 100, `${used} / ${cap} slots`)}
       <p class="muted small">Each kind of item takes one slot, however many you carry. A bag on your back adds slots.</p>`;
-    const sel = this.selectedItem && s.pack[this.selectedItem] ? this.selectedItem : null;
-    if (sel) {
-      const it = ITEMS[sel];
-      html += `<div class="item-detail"><div class="big-icon">${it.icon}</div><div>
-        <h2>${esc(it.name)} <span class="muted">× ${fmt(s.pack[sel])}</span></h2>
-        <p class="muted">${esc(it.desc)}</p>
-        ${it.type === 'equipment' ? `<p class="small">${statLine(it)}${it.speed ? ` · attacks every ${secs(it.speed)}` : ''}</p>` : ''}
-        ${it.req ? `<p class="small ${Game.meetsReq(sel) ? '' : 'lack-text'}">Requires: ${reqLine(it.req)}</p>` : ''}
-        <div class="btn-row">
-          ${it.type === 'equipment' ? `<button class="btn" data-act="equip" data-item="${sel}">Equip</button>` : ''}
-          ${Game.isFood(sel) ? `<button class="btn" data-act="food" data-item="${sel}">${s.food === sel ? 'Chosen food ✓' : 'Choose as food'}</button><button class="btn" data-act="use" data-item="${sel}">Eat (+${Game.foodHeal(sel)})</button>` : ''}
-          ${it.type === 'potion' ? `<button class="btn" data-act="use" data-item="${sel}">Drink</button>` : ''}
-          ${it.type === 'map' ? `<button class="btn" data-act="use" data-item="${sel}">Read the map</button>` : ''}
-          ${it.type === 'relic' ? (Game.state.relics[sel] ? '<span class="small muted">Already in your collection</span>' : `<button class="btn" data-act="place-relic" data-item="${sel}">Place in collection</button>`) : ''}
-          ${sel === 'shrine_idol' && Game.state.cult ? `<button class="btn" data-act="raise-idol"${Game.state.location === CULT_SHRINE ? '' : ' disabled'}>Raise it in your shrine</button>` : ''}
-          ${here.bank ? `<button class="btn" data-act="deposit" data-item="${sel}">Deposit all</button>` : ''}
-          ${here.shop && !SHOPS[here.shop].buysNothing ? `<button class="btn" data-act="sell" data-item="${sel}" data-qty="1">Sell 1 (${it.sell}g)</button><button class="btn" data-act="sell" data-item="${sel}" data-qty="all">Sell all (${fmt(it.sell * s.pack[sel])}g)</button>` : ''}
-          <button class="btn danger" data-act="drop" data-item="${sel}">Drop</button>
-        </div></div></div>`;
-    }
-    let grid = this.itemGrid(s.pack, 'select', sel);
+    let grid = this.itemGrid(s.pack, 'select', this.itemPopup);
     if (this.hallucinating()) {
       const ph = pick(HALLUCINATIONS.items);
       grid = grid.replace(/<\/div>$/, `<button class="bank-item phantom" data-act="phantom"><span class="bank-icon">${ph.icon}</span><span class="bank-qty">1</span><span class="bank-name">${esc(ph.name)}</span></button></div>`);
     }
     return html + grid;
+  },
+
+  // The item popup: details and every action for one item in your pack.
+  itemPopup: null,
+  popupCount: null,
+  showItemPopup() {
+    const s = Game.state;
+    const here = Game.here();
+    const sel = this.itemPopup;
+    const modal = document.getElementById('modal');
+    if (!sel || !s.pack[sel]) return this.closeItemPopup();
+    const it = ITEMS[sel];
+    this.popupCount = s.pack[sel];
+    modal.innerHTML = `<div class="modal-box item-popup"><button class="popup-close" data-act="close-popup" aria-label="Close">✕</button>
+      <div class="item-detail"><div class="big-icon">${it.icon}</div><div>
+        <h2>${esc(it.name)} <span class="muted">× ${fmt(s.pack[sel])}</span></h2>
+        <p class="muted">${esc(it.desc)}</p>
+        ${it.type === 'equipment' ? `<p class="small">${statLine(it)}${it.speed ? ` · attacks every ${secs(it.speed)}` : ''}</p>` : ''}
+        ${it.req ? `<p class="small ${Game.meetsReq(sel) ? '' : 'lack-text'}">Requires: ${reqLine(it.req)}</p>` : ''}
+        <p class="small muted">Worth ${fmt(it.sell)} gold each${s.food === sel ? ' · your chosen food' : ''}</p>
+        <div class="btn-row">
+          ${it.type === 'equipment' ? `<button class="btn" data-act="equip" data-item="${sel}">Equip</button>` : ''}
+          ${Game.isFood(sel) ? `<button class="btn" data-act="food" data-item="${sel}">${s.food === sel ? 'Chosen food ✓' : 'Choose as food'}</button><button class="btn" data-act="use" data-item="${sel}">Eat (+${Game.foodHeal(sel)})</button>` : ''}
+          ${it.type === 'potion' ? `<button class="btn" data-act="use" data-item="${sel}">Drink</button>` : ''}
+          ${it.type === 'map' ? `<button class="btn" data-act="use" data-item="${sel}">Read the map</button>` : ''}
+          ${it.type === 'relic' ? (s.relics[sel] ? '<span class="small muted">Already in your collection</span>' : `<button class="btn" data-act="place-relic" data-item="${sel}">Place in collection</button>`) : ''}
+          ${sel === 'shrine_idol' && s.cult ? `<button class="btn" data-act="raise-idol"${s.location === CULT_SHRINE ? '' : ' disabled'}>Raise it in your shrine</button>` : ''}
+          ${here.bank ? `<button class="btn" data-act="deposit" data-item="${sel}">Deposit all</button>` : ''}
+          ${here.shop && !SHOPS[here.shop].buysNothing ? `<button class="btn" data-act="sell" data-item="${sel}" data-qty="1">Sell 1 (${it.sell}g)</button><button class="btn" data-act="sell" data-item="${sel}" data-qty="all">Sell all (${fmt(it.sell * s.pack[sel])}g)</button>` : ''}
+          <button class="btn danger" data-act="drop" data-item="${sel}">Drop</button>
+        </div></div></div>
+      <div class="btn-row popup-footer"><button class="btn" data-act="close-popup">Close</button></div></div>`;
+  },
+  closeItemPopup() {
+    const modal = document.getElementById('modal');
+    if (modal.querySelector('.item-popup')) modal.innerHTML = '';
+    this.itemPopup = null;
+    this.popupCount = null;
+  },
+  // True while the popup is the thing on screen (another modal, like a road event, may have replaced it).
+  popupOpen() {
+    return !!this.itemPopup && !!document.querySelector('#modal .item-popup');
   },
 
   pageBank() {

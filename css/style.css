@@ -368,6 +368,14 @@ body.night .map-wrap { filter: brightness(.8) saturate(.8); }
 .relic { color: var(--muted); padding: .1rem 0; }
 .relic.placed { color: var(--gold); }
 
+/* --- Item popup --- */
+.modal-box.item-popup { position: relative; width: min(560px, 100%); }
+.item-popup .item-detail { border: none; background: none; padding: 0; margin: 0; }
+.item-popup h2 { padding-right: 2rem; }
+.popup-close { position: absolute; top: .6rem; right: .7rem; background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; }
+.popup-close:hover { color: var(--text); }
+.popup-footer { justify-content: flex-end; margin-top: .8rem; }
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 1rem; }
