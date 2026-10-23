@@ -1,6 +1,6 @@
 // Service worker: caches the game so it can be installed and played offline.
 // Bump CACHE whenever files change so players get the new version.
-const CACHE = 'echoes-of-the-abyss-v16';
+const CACHE = 'echoes-of-the-abyss-v17';
 const FILES = [
   './', './index.html', './css/style.css', './icon.svg', './manifest.webmanifest',
   './js/data.js', './js/story.js', './js/content.js', './js/expansion.js', './js/game.js', './js/mind.js',

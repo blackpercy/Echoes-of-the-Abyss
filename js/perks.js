@@ -3,7 +3,7 @@
 
 const PERK_EVERY = 5;
 const PERK_RESPEC_GOLD = 100; // per perk forgotten
-const MAX_PERK_SPEED = 0.5;
+const MAX_PERK_SPEED = 0.95;
 
 // What each kind of perk does. Values add up across every perk you have chosen.
 // Keys marked "skill" only apply to the skill whose tree they are in; the rest apply everywhere.
