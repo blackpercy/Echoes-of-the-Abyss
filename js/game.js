@@ -430,6 +430,31 @@ const Game = {
     }
   },
 
+  // The strongest thing in your pack that restores hitpoints ('hp') or sanity ('sanity'), and how much.
+  bestRestorer(kind) {
+    let best = null;
+    for (const id of Object.keys(this.state.pack)) {
+      const def = ITEMS[id];
+      let amount = 0;
+      if (kind === 'hp') {
+        if (this.isFood(id)) amount = this.foodHeal(id);
+        else if (def.type === 'potion' && def.heal > 0) amount = Math.round(def.heal * (1 + this.perk('potency')));
+        else if (def.type === 'scroll' && def.heal) amount = Math.round(def.heal * this.scrollPower());
+      } else if (def.type === 'potion' && def.sanity > 0) {
+        amount = Math.round(def.sanity * (1 + this.perk('potency')));
+      }
+      if (amount > 0 && (!best || amount > best.amount)) best = { item: id, amount };
+    }
+    return best;
+  },
+  quickRestore(kind) {
+    const best = this.bestRestorer(kind);
+    if (!best) return this.log(kind === 'hp' ? 'You carry nothing that heals.' : 'You carry nothing that calms the mind.', 'warn');
+    const full = kind === 'hp' ? this.state.hp >= this.maxHp() : this.state.sanity >= this.maxSanity();
+    if (full) return this.log(kind === 'hp' ? 'You are not hurt.' : 'Your mind is as steady as it gets.', 'warn');
+    this.use(best.item);
+  },
+
   // --- Actions ---
   actionTime(skill, action) {
     const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;

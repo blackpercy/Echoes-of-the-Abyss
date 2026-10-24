@@ -144,6 +144,7 @@ const UI = {
       case 'stop': Game.stop(); break;
       case 'fight': Game.startCombat(d.monster); break;
       case 'stance': Game.setStance(d.stance); break;
+      case 'quick': Game.quickRestore(d.kind); break;
       case 'eat': if (!Game.eat()) Game.log('You cannot eat right now.', 'warn'); break;
       case 'use': Game.use(d.item); break;
       case 'select':
@@ -1175,6 +1176,21 @@ const UI = {
     }
   },
 
+  // The quick buttons beside the health and sanity bars: the strongest restorer you carry.
+  updateQuick(kind, full) {
+    const btn = document.getElementById('q-' + kind);
+    const best = Game.bestRestorer(kind);
+    const key = best ? `${best.item}:${Game.count(best.item)}:${best.amount}:${full}` : `none:${full}`;
+    if (btn.dataset.key === key) return;
+    btn.dataset.key = key;
+    btn.disabled = !best || full;
+    btn.innerHTML = best ? `${ITEMS[best.item].icon}<span class="quick-qty">${fmt(Game.count(best.item))}</span>` : (kind === 'hp' ? '❤️' : '👁️');
+    btn.classList.toggle('empty', !best);
+    btn.title = best
+      ? `${ITEMS[best.item].name}: ${kind === 'hp' ? '+' + best.amount + ' hitpoints' : '+' + best.amount + ' sanity'}${full ? ' (already full)' : ''}`
+      : (kind === 'hp' ? 'Nothing in your pack heals you' : 'Nothing in your pack restores sanity');
+  },
+
   updateMeters() {
     const s = Game.state;
     const maxHp = Game.maxHp();
@@ -1182,6 +1198,8 @@ const UI = {
     this.setBar('h-sanity', (s.sanity / Game.maxSanity()) * 100, `👁️ ${fmt(s.sanity)} / ${Game.maxSanity()} · ${Game.mindState().name}`);
     document.getElementById('h-gold').textContent = fmt(s.gold);
     document.body.classList.toggle('low-sanity', s.sanity < 30);
+    this.updateQuick('hp', s.hp >= maxHp);
+    this.updateQuick('sanity', s.sanity >= Game.maxSanity());
 
     // Full time of day on wide screens, just the icons on phones.
     const clock = document.getElementById('h-clock');
