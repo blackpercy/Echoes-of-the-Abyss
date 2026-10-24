@@ -17,13 +17,13 @@ const PERK_EFFECTS = {
   carry: { text: v => `+${v} pack slot${v > 1 ? 's' : ''}` },
   heal: { text: v => `Food heals ${Math.round(v * 100)}% more` },
   potency: { text: v => `Potions are ${Math.round(v * 100)}% stronger` },
-  hit: { text: v => `+${v} to hit` },
-  dmg: { text: v => `+${v} damage` },
-  ac: { text: v => `+${v} AC` },
+  hit: { text: v => `${withSign(v)} to hit` },
+  dmg: { text: v => `${withSign(v)} damage` },
+  ac: { text: v => `${withSign(v)} AC` },
   hp: { text: v => `+${v} maximum hitpoints` },
   crit: { text: v => `Critical hits on ${v} more number${v > 1 ? 's' : ''} of the d20` },
   killHeal: { text: v => `Heal ${v} hitpoints whenever you slay an enemy` },
-  ward: { text: v => `+${v} to sanity saves` },
+  ward: { text: v => `${withSign(v)} to sanity saves` },
   veil: { text: v => `You see through the Veil ${v} sanity sooner` },
   eldritch: { text: v => `+${Math.round(v * 100)}% damage against eldritch beings` },
   travel: { text: v => `Travel ${Math.round(v * 100)}% faster` },
@@ -40,7 +40,7 @@ const PERK_EFFECTS = {
   offlineXp: { text: v => `+${Math.round(v * 100)}% experience while you are away` },
   gold: { text: v => `+${Math.round(v * 100)}% gold from fights, thefts, treasure, quests and tithes` },
   speedAll: { text: v => `Every activity is ${Math.round(v * 100)}% faster` },
-  dreamRest: { scope: 'skill', text: v => `Gentle dreams restore +${v} more sanity` },
+  dreamRest: { scope: 'skill', text: (v, skill) => skill === 'faith' ? `Prayer restores +${v} more sanity` : `Gentle dreams restore +${v} more sanity` },
   safe: { scope: 'skill', text: v => `${Math.round(v * 100)}% less likely to be caught` },
   sneak: { text: v => `Sneak attacks deal +${v}d6` },
   scout: { text: v => `+${v} to road-event checks` },
@@ -52,10 +52,16 @@ const PERK_EFFECTS = {
   compHeal: { text: v => `Each companion heals you ${v} each turn` },
   compGuard: { text: v => `Your companions draw ${Math.round(v * 100)}% more attacks away from you` },
   rally: { text: () => 'Downed companions get back up after 30 seconds, without an inn' },
+  wStun: { scope: 'skill', text: v => `+${Math.round(v * 100)}% chance to stagger the enemy` },
+  atkSpeed: { text: v => `Attack ${Math.round(v * 100)}% faster` },
+  haggle: { text: v => `Prices ${Math.round(v * 100)}% better when buying and selling` },
+  tradeStock: { text: v => `Markets hold ${v} more of each good for you` },
+  scrollPower: { text: v => `Scrolls are ${Math.round(v * 100)}% stronger` },
+  buffTime: { text: v => `Rites, brews and scrolls last ${Math.round(v * 100)}% longer` },
 };
 
 // What the "rare" perks turn up while gathering.
-const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx' };
+const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx', gravedigging: 'saints_knucklebone', tidecombing: 'ambergris' };
 
 // Ten tiers (levels 5, 10 … 50), two options each: [effect, value].
 const PERK_TEMPLATES = {
@@ -204,6 +210,90 @@ const PERK_TEMPLATES = {
     [['compHeal', 4], ['compGuard', 0.15]],
     [['compDmg', 3], ['compHp', 50]],
   ],
+  maces: [
+    [['wStun', 0.03], ['wDmg', 1]],
+    [['wHit', 1], ['ac', 1]],
+    [['wDmg', 2], ['wStun', 0.03]],
+    [['wHit', 1], ['hp', 15]],
+    [['wStun', 0.05], ['wDmg', 2]],
+    [['wDouble', 0.05], ['ac', 1]],
+    [['wDmg', 3], ['wStun', 0.05]],
+    [['wHit', 2], ['hp', 25]],
+    [['wStun', 0.07], ['wDouble', 0.1]],
+    [['wDmg', 4], ['wStun', 0.1]],
+  ],
+  unarmed: [
+    [['wSpeed', 0.05], ['wHit', 1]],
+    [['sneak', 1], ['wDmg', 1]],
+    [['wDouble', 0.05], ['wCrit', 1]],
+    [['wHit', 1], ['wLeech', 1]],
+    [['wSpeed', 0.07], ['sneak', 1]],
+    [['wDmg', 2], ['wDouble', 0.07]],
+    [['wCrit', 1], ['wSpeed', 0.08]],
+    [['sneak', 1], ['wLeech', 2]],
+    [['wDouble', 0.1], ['wDmg', 3]],
+    [['wCrit', 2], ['sneak', 2]],
+  ],
+  trading: [
+    [['haggle', 0.03], ['xp', 0.1]],
+    [['tradeStock', 5], ['carry', 1]],
+    [['speed', 0.15], ['gold', 0.05]],
+    [['haggle', 0.03], ['double', 0.05]],
+    [['tradeStock', 10], ['xp', 0.15]],
+    [['haggle', 0.04], ['carry', 2]],
+    [['speed', 0.15], ['gold', 0.05]],
+    [['haggle', 0.05], ['double', 0.07]],
+    [['tradeStock', 15], ['travel', 0.15]],
+    [['haggle', 0.06], ['gold', 0.1]],
+  ],
+  sailing: [
+    [['travel', 0.15], ['xp', 0.1]],
+    [['speed', 0.15], ['safe', 0.25]],
+    [['double', 0.05], ['travel', 0.15]],
+    [['carry', 1], ['xp', 0.1]],
+    [['travel', 0.15], ['speed', 0.15]],
+    [['safe', 0.25], ['double', 0.07]],
+    [['travel', 0.15], ['xp', 0.15]],
+    [['carry', 2], ['speed', 0.15]],
+    [['double', 0.08], ['travel', 0.15]],
+    [['travel', 0.15], ['double', 0.12]],
+  ],
+  faith: [
+    [['dreamRest', 1], ['ward', 1]],
+    [['xp', 0.1], ['speed', 0.15]],
+    [['eldritch', 0.05], ['dreamRest', 1]],
+    [['ward', 1], ['save', 0.05]],
+    [['speed', 0.15], ['hp', 15]],
+    [['dreamRest', 2], ['eldritch', 0.07]],
+    [['ward', 2], ['xp', 0.15]],
+    [['double', 0.07], ['dreamRest', 2]],
+    [['eldritch', 0.08], ['speed', 0.15]],
+    [['ward', 3], ['dreamRest', 3]],
+  ],
+  lore: [
+    [['sanityCost', -0.15], ['xp', 0.1]],
+    [['veil', 5], ['double', 0.05]],
+    [['speed', 0.15], ['ward', 1]],
+    [['sanityCost', -0.15], ['eldritch', 0.05]],
+    [['xp', 0.15], ['veil', 5]],
+    [['double', 0.07], ['ward', 1]],
+    [['sanityCost', -0.2], ['speed', 0.15]],
+    [['eldritch', 0.07], ['xp', 0.15]],
+    [['ward', 2], ['double', 0.08]],
+    [['sanityCost', -0.25], ['allXp', 0.05]],
+  ],
+  ritualism: [
+    [['save', 0.05], ['buffTime', 0.15]],
+    [['sanityCost', -0.15], ['xp', 0.1]],
+    [['speed', 0.15], ['buffTime', 0.15]],
+    [['save', 0.07], ['ward', 1]],
+    [['buffTime', 0.2], ['sanityCost', -0.15]],
+    [['xp', 0.15], ['save', 0.07]],
+    [['buffTime', 0.2], ['speed', 0.15]],
+    [['sanityCost', -0.2], ['eldritch', 0.07]],
+    [['save', 0.12], ['buffTime', 0.25]],
+    [['buffTime', 0.3], ['sanityCost', -0.25]],
+  ],
   combat: [
     [['hit', 1], ['ac', 1]],
     [['hp', 10], ['dmg', 1]],
@@ -240,6 +330,18 @@ const PERK_NAMES = {
   stealth: ['Soft Steps', 'Innocent Face', 'Backstab', 'Thieves\' Cant', 'Deep Pockets', 'Unseen', 'Knife in the Dark', 'Eyes on the Road', 'Quick Hands', 'Two Purses', 'Vanish', 'Assassin\'s Mark', 'Master Thief', 'Killing Blow', 'Second Purse', 'Shadow Blade', 'Fleet Footed', 'Watcher on the Road', 'Death from Nowhere', 'Prince of Thieves'],
   cartography: ['Shortcut', 'Field Notes', 'Read the Road', 'Quick Survey', 'Known Paths', 'Twin Copies', 'Pathfinder', 'Map Case', 'Swift Feet', 'Master Draughtsman', 'Wayfinder', 'Spare Copies', 'Fast Roads', 'Quick Hand', 'Guide of Aldmark', 'Atlas Satchel', 'Running Road', 'Second Edition', 'Map of Everything', 'Eyes of the World'],
   fellowship: ['Drilled Together', 'Shield Wall', 'Shared Rations', 'Road-Wise', 'Sparring Partner', 'Steady Words', 'Bodyguard', 'Field Dressing', 'Practised Tactics', 'Shortcuts', 'Never Leave a Friend', 'Hearty Fellow', 'Brothers in Arms', 'Back to Back', 'Courage Shared', 'Long Road Home', 'Tender Mercies', 'Stand in Front', 'Legendary Duo', 'Unbreakable Bond'],
+  gravedigging: ['Strong Back', 'Two Graves at Once', "Sexton's Lore", 'Burial Sack', 'Practised Spade', 'Saintly Glint', 'Deep Plots', 'Parish Records', 'Quick Shovel', 'Body Bag', 'Mass Grave', 'Holy Bones', 'Night Shift', 'Resurrection Man', 'Family Vault', 'Coffin Cart', 'Lightning Spade', 'The Saint Provides', 'Lord of the Barrows', 'Six Feet in a Breath'],
+  tidecombing: ['Quick Feet', 'Double Haul', 'Tide Tables', 'Wet Pockets', 'Low-Tide Stride', 'Golden Lump', 'Twin Finds', 'Old Beachcomber', 'Sand Sifter', 'Driftwood Pack', 'Rich Strandline', 'Grey Gold', 'Wave-Runner', 'Salt in the Blood', 'The Sea Gives Twice', 'Fisherman\'s Creel', 'Running Tide', 'Treasure of the Deep', 'Spring Tide', 'Lord of the Strand'],
+  tailoring: ['Quick Needle', 'Thrifty Cutting', "Tailor's Notes", 'Two from One', 'Steady Seams', 'Offcuts', 'Warding Stitch', "Draper's Lore", 'Fast Hems', 'Twin Garments', 'Waste Not', 'Sigil Thread', "Master's Pace", "Couturier's Lore", 'Double Bolt', 'Cut to the Thread', 'Lightning Needle', 'Woven Wards', 'Master Tailor', 'Not a Thread Wasted'],
+  inscription: ['Quick Quill', 'Saved Ink', "Scribe's Notes", 'Second Copy', 'Steady Hand', 'Blotted Not', 'Burning Words', 'Library Lore', 'Running Script', 'Twin Scrolls', 'No Spilt Ink', 'Words of Power', "Master's Pace", "Archivist's Lore", 'Fair Copies', 'Palimpsest', 'Lightning Pen', 'True Names', 'Master Scribe', 'Not a Drop Wasted'],
+  brewing: ['Quick Mash', 'Saved Grain', "Brewer's Notes", 'Double Batch', 'Steady Boil', 'Spent Grain', 'Strong Stuff', "Cellarer's Lore", 'Fast Ferment', 'Overflowing Cask', 'Clean Brew', 'Hearty Ale', "Master's Pace", "Alewife's Lore", 'Twin Casks', 'Second Runnings', 'Lightning Brew', 'Potent Spirits', 'Master Brewer', 'Not a Drop Spilt'],
+  trading: ['Sharp Bargain', 'Ledger Sense', 'Contacts', 'Mule', 'Quick Sale', 'Merchant\'s Eye', 'Shrewd Haggler', 'Double Deal', 'Warehouses', 'Trade Secrets', 'Silver Tongue', 'Wagon', 'Fast Talk', 'Lucky Purse', 'Master Haggler', 'Two for One', 'Monopoly', 'Caravan Roads', 'Merchant Prince', 'Gold Breeds Gold'],
+  sailing: ['Fair Winds', 'Sea Legs', 'Quick Rigging', 'Know the Watch', 'Double Wage', 'Following Sea', 'Sea Chest', 'Old Salt', 'Full Sail', 'Swift Hands', 'Smuggler\'s Luck', 'Bonus Pay', 'Trade Winds', 'Salt-Sense', 'Sea Locker', 'Swift Rigging', 'Rich Cargo', 'Clipper', 'Ocean Road', "Captain's Share"],
+  faith: ['Gentle Prayer', 'Shield of Faith', 'Novice\'s Zeal', 'Swift Devotion', 'Righteous Fury', 'Quiet Prayer', 'Armour of Faith', 'Thrifty Rites', 'Swift Litany', 'Steadfast Body', 'Psalms of Comfort', 'Smite the Unclean', 'Sanctified Mind', 'Devout', 'Double Blessing', 'Hymns of Peace', 'Hammer of the Gods', 'Untiring Prayer', 'Saint\'s Ward', 'Grace'],
+  lore: ['Guarded Reading', 'Quick Learner', 'Thin Pages', 'Doubled Notes', 'Speed-Reader', 'Iron Mind', 'Careful Reader', 'Know Thy Foe', 'Forbidden Studies', 'Second Sight', 'Annotations', 'Mind Like a Vault', 'Hardened Mind', 'Skimmer', 'Bane of the Outer Dark', 'Deep Study', 'Warded Library', 'Copious Notes', 'The Unbroken Reader', 'Polymath of the Abyss'],
+  ritualism: ['Spare Offerings', 'Lingering Blessing', 'Steady Rites', 'Novice of the Circle', 'Quick Chalk', 'Long Echo', 'Thrifty Altar', 'Salt Ward', 'Enduring Rites', 'Steady Mind', 'Adept of the Circle', 'Second Offering', 'Long Blessing', 'Swift Rites', 'Iron Will', 'Bane of the Outsiders', 'Nothing Wasted', 'Eternal Rite', 'Echoes of Power', 'Unbroken Circle'],
+  maces: ['Stunning Blow', 'Heavy Head', 'Steady Grip', 'Braced', 'Crushing Weight', 'Ringing Blow', 'Firm Footing', 'Thick Skin', 'Concussive Force', 'Bone-Breaker', 'Flail of Blows', 'Iron Guard', 'Skull-Cracker', 'Daze', 'Sure Swing', 'Hardened Body', 'Earthshaker', 'Twin Blows', 'Hammer of Doom', 'The Last Bell'],
+  unarmed: ['Quick Fists', 'Steady Jab', 'Sucker Punch', 'Heavy Hands', 'Flurry', 'Pressure Points', 'True Strike', 'Bloodied Knuckles', 'Lightning Jab', 'Ambusher', 'Iron Fists', 'Combination', 'Nerve Strike', 'Blinding Speed', 'Death from the Shadows', 'Bloody Hands', 'Thousand Fists', 'Fists of Iron', 'One-Inch Punch', 'The Silent Hand'],
   combat: ['Weapon Training', 'Shield Drill', 'Toughness', 'Heavy Blows', 'Keen Edge', 'Second Wind', 'Battle Focus', 'Iron Skin', 'Brutal Strikes', 'Unyielding', 'Deadly Precision', 'Steel Nerves', "Veteran's Eye", 'Fortress', 'Executioner', 'Bloodthirst', 'Colossus', 'Monster Hunter', 'Legend of Aldmark', 'The Last Wall'],
 };
 
@@ -267,6 +369,18 @@ const PERK_TREES = (() => {
     carpentry: PERK_TEMPLATES.production([['carry', 1], ['hit', 1], ['carry', 2]]),
     stealth: PERK_TEMPLATES.stealth,
     cartography: PERK_TEMPLATES.cartography,
+    gravedigging: PERK_TEMPLATES.gathering,
+    tidecombing: PERK_TEMPLATES.gathering,
+    tailoring: PERK_TEMPLATES.production([['ward', 1], ['ward', 1], ['ward', 2]]),
+    inscription: PERK_TEMPLATES.production([['scrollPower', 0.15], ['scrollPower', 0.15], ['scrollPower', 0.2]]),
+    brewing: PERK_TEMPLATES.production([['potency', 0.1], ['heal', 0.1], ['potency', 0.15]]),
+    trading: PERK_TEMPLATES.trading,
+    sailing: PERK_TEMPLATES.sailing,
+    faith: PERK_TEMPLATES.faith,
+    lore: PERK_TEMPLATES.lore,
+    ritualism: PERK_TEMPLATES.ritualism,
+    maces: PERK_TEMPLATES.maces,
+    unarmed: PERK_TEMPLATES.unarmed,
   };
   const trees = {};
   for (const [skill, tiers] of Object.entries(layout)) {
@@ -303,8 +417,8 @@ Object.assign(Game, {
         if (p.effect === effect) total += p.value;
       }
     }
-    // Completed relic collections grant the same kinds of bonus as perks.
-    if (PERK_EFFECTS[effect].scope !== 'skill') total += this.relicBonus(effect);
+    // Completed relic collections, rites, brews and scrolls grant the same kinds of bonus as perks.
+    if (PERK_EFFECTS[effect].scope !== 'skill') total += this.relicBonus(effect) + this.buffBonus(effect);
     return total;
   },
   pendingPerks(skill) {

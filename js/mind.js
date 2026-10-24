@@ -221,6 +221,7 @@ Object.assign(Game, {
     if (id === 'apothecary' && this.state.background === 'acolyte') p *= 0.8;
     if (id === 'general_store' && this.state.background === 'acolyte') p *= 1.1;
     if (this.here().kin) p *= 0.7;
+    if (!shop.currency) p *= 1 - this.haggle();
     return Math.max(1, Math.round(p));
   },
   currency() {

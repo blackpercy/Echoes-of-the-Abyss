@@ -114,6 +114,8 @@ const Game = {
       expeditionsDone: {},
       perks: {},
       relics: {},
+      buffs: {},
+      trade: {},
       settings: { audio: false },
       achTimer: 0,
       log: [],
@@ -255,9 +257,10 @@ const Game = {
     qty = Math.min(qty, this.count(item));
     if (qty <= 0) return;
     this.removeItem(item, qty);
-    const gold = ITEMS[item].sell * qty;
+    const gold = this.sellPrice(item) * qty;
     this.state.gold += gold;
     this.log(`Sold ${qty} × ${ITEMS[item].name} for ${gold} gold.`);
+    this.addXp('trading', gold * TRADING_XP_PER_GOLD + this.tradeXp(item) * qty);
   },
   buy(item, qty = 1) {
     const shop = this.shop();
@@ -333,9 +336,11 @@ const Game = {
       if (!item) continue;
       for (const [k, v] of Object.entries(ITEMS[item].stats || {})) if (k in total) total[k] += v;
     }
+    // Bare hands and knuckles use your Unarmed dice and speed.
     const weapon = this.state.equipment.weapon;
-    total.speed = Math.round((weapon ? ITEMS[weapon].speed : 2000) * (1 - this.attackSpeedBonus()));
-    total.dice = weapon ? ITEMS[weapon].dice : '1d2';
+    const fist = !weapon || ITEMS[weapon].fist;
+    total.speed = Math.round((fist ? UNARMED_SPEED : ITEMS[weapon].speed) * (1 - this.attackSpeedBonus()));
+    total.dice = fist ? this.fistDice() : ITEMS[weapon].dice;
     return total;
   },
   stance() {
@@ -372,7 +377,7 @@ const Game = {
   // Bonus to sanity saving throws: occult understanding plus warding gear.
   wits() {
     return Math.floor(this.level('occultism') / 5) + this.playerStats().ward - (this.hasDerangement('night_eyes') ? 2 : 0)
-      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0) + this.perk('ward') + this.companionAura('ward') + this.weaponWard();
+      + (this.state.race === 'elf' ? 2 : 0) + (this.state.background === 'scholar' ? 1 : 0) + this.perk('ward') + this.companionAura('ward') + this.weaponWard() + Math.floor(this.level('faith') / FAITH_WARD_LEVELS);
   },
   eldritchBonus() {
     return (this.level('occultism') - 1) / 100 + this.perk('eldritch') + this.weaponEldritch();
@@ -408,6 +413,9 @@ const Game = {
       if (def.heal) this.heal(Math.round(def.heal * potency));
       if (def.sanity) this.restoreSanity(def.sanity > 0 ? Math.round(def.sanity * potency) : def.sanity);
       this.log(`You drink the ${def.name}.`, 'good');
+      if (def.buff) this.addBuff(item, def.buff);
+    } else if (def.type === 'scroll') {
+      this.readScroll(item);
     } else if (def.type === 'map') {
       this.removeItem(item, 1);
       if (def.reveal) {
@@ -447,6 +455,10 @@ const Game = {
     const when = this.whenBlocker(action);
     if (when) return when;
     if (action.minMadness && this.state.madness < action.minMadness) return 'Only a broken mind can find the way';
+    if (action.maxMadness !== undefined && this.state.madness > action.maxMadness) return 'The gods no longer answer a mind so far gone';
+    const missing = (action.needs || []).find(item => !this.carries(item));
+    if (missing) return `Needs ${ITEMS[missing].name}`;
+    if (action.hpCost && this.state.hp <= action.hpCost) return 'Not enough hitpoints';
     if (!this.hasAll(action.input)) return 'Missing materials';
     if (action.sanityCost && this.state.sanity < this.sanityCostOf(skill, action)) return 'Not enough sanity';
     if (!Object.keys(action.output).every(item => this.canAdd(item))) return 'Your pack is full';
@@ -512,7 +524,9 @@ const Game = {
       this.emit('action');
       return false;
     }
-    const mult = Math.random() < this.perk('double', skill) ? 2 : 1;
+    if (action.hpCost) this.state.hp -= action.hpCost;
+    // Low tide doubles what the strandline gives up.
+    const mult = (Math.random() < this.perk('double', skill) ? 2 : 1) * (action.tideDouble && this.isLowTide() ? 2 : 1);
     for (const [item, qty] of Object.entries(action.output)) this.addItem(item, qty * mult);
     if (action.gold) this.state.gold += this.goldFound(randInt(action.gold[0], action.gold[1]) * mult);
     if (action.sanityGain) this.restoreSanity(action.sanityGain + this.perk('dreamRest', skill));
@@ -523,6 +537,26 @@ const Game = {
       if (Math.random() < b.chance && this.addItem(b.item, b.qty)) this.log(`Something unusual: ${ITEMS[b.item].name}!`, 'rare');
     }
     this.addXp(skill, action.xp);
+    if (action.buff) this.addBuff(`${skill}-${action.id}`, action.buff);
+    // Something may climb out of the grave you are digging.
+    if (action.ambush && Math.random() < action.ambush.chance) {
+      const loc = this.state.location;
+      this.log(`Something stirs! A ${MONSTERS[action.ambush.monster].name} attacks.`, 'bad');
+      const result = this.quickFight(action.ambush.monster);
+      // Beaten or broken: the digging is over (the fall or the break has already been told).
+      if (!this.state.action || this.state.location !== loc) {
+        this.state.action = null;
+        this.emit('action');
+        return false;
+      }
+      this.log(result);
+    }
+    // A rite is performed once; start it again when you want its blessing renewed.
+    if (action.once) {
+      this.state.action = null;
+      this.emit('action');
+      return false;
+    }
     return true;
   },
 
@@ -532,6 +566,7 @@ const Game = {
     const leavingHidden = LOCATIONS[this.state.location].hidden && (road.a === this.state.location || road.b === this.state.location);
     if (road.veil && !this.veilSight() && !leavingHidden) return 'Only visible through the Veil';
     if (road.flag && !this.state.flags[road.flag]) return road.note || 'The way is closed to you';
+    if (road.lore && this.level('lore') < road.lore) return `Requires ${SKILLS.lore.name} ${road.lore}`;
     const waived = item => item === 'diving_helm' && (this.hasDerangement('drowned_lungs') || this.starsRight());
     const missing = (road.req || []).filter(item => !this.carries(item) && !waived(item));
     if (missing.length) return 'Requires ' + missing.map(i => ITEMS[i].name).join(', ');
@@ -623,9 +658,10 @@ const Game = {
   tickTravel(dt) {
     const t = this.state.travel;
     if (t.event) return;
-    t.progress += dt * this.travelSpeed();
+    t.progress += dt * this.travelSpeed(findRoad(t.path[t.leg], t.path[t.leg + 1]));
     while (this.state.travel) {
-      const legTime = findRoad(t.path[t.leg], t.path[t.leg + 1]).time * 1000;
+      const road = findRoad(t.path[t.leg], t.path[t.leg + 1]);
+      const legTime = road.time * 1000;
       // Halfway along each road, something may happen (never while you are away).
       if (!t.rolled && t.progress >= legTime / 2) {
         t.rolled = true;
@@ -642,6 +678,7 @@ const Game = {
       t.progress -= legTime;
       if (this.companionActive()) this.addXp('fellowship', (legTime / 1000) * FELLOWSHIP_XP_PER_ROAD_SECOND);
       this.addXp('cartography', (legTime / 1000) * CARTOGRAPHY_XP_PER_ROAD_SECOND);
+      if (road.sea) this.addXp('sailing', (legTime / 1000) * SAILING_XP_PER_SEA_SECOND);
       t.leg++;
       t.rolled = false;
       this.arriveAt(t.path[t.leg]);
@@ -710,6 +747,11 @@ const Game = {
     this.combatLog(c, crit ? `${roll === 20 ? 'Natural 20' : `Critical (${roll})`}! You strike for ${dmg} damage.` : `You roll ${roll}${withSign(bonus)} = ${total} vs AC ${ac}: hit for ${dmg}.`);
     const leech = this.perk('wLeech', this.weaponSkill());
     if (leech) this.heal(leech);
+    // A heavy blow staggers the enemy: it starts its next swing over.
+    if (c.monsterHp > 0 && Math.random() < this.stunChance()) {
+      c.monsterTimer = 0;
+      this.combatLog(c, `The ${m.name} staggers!`);
+    }
   },
   monsterAttack(c, m) {
     if (this.companionActive() && Math.random() < this.companionTargetChance()) return this.monsterAttacksCompanion(c, m);
@@ -745,6 +787,7 @@ const Game = {
     this.addXp(this.weaponSkill(), xp * WEAPON_XP_SHARE);
     this.combatLog(c, `The ${m.name} falls. +${Math.round(xp * this.xpMultiplier())} xp, +${gold} gold.`);
     this.recordBestiary(c.monster);
+    if (m.eldritch && this.weaponSkill() === 'unarmed') this.state.flags.bareKnuckle = true;
     if (this.companionActive()) this.addXp('fellowship', Math.round(m.xp * FELLOWSHIP_KILL_SHARE));
     this.companionsFeed();
     const killHeal = this.perk('killHeal');
@@ -837,6 +880,7 @@ const Game = {
     const s = this.state;
     s.clock += dt;
     this.tickCult(dt);
+    this.tickBuffs(dt);
     s.achTimer += dt;
     if (s.achTimer >= ACHIEVEMENT_CHECK_MS) {
       s.achTimer = 0;
@@ -855,7 +899,7 @@ const Game = {
         s.regen.hp -= HP_REGEN_MS;
         this.heal(Math.ceil(this.maxHp() * 0.02));
       }
-      const regenSanity = !s.action || s.action.skill !== 'occultism';
+      const regenSanity = !s.action || !SANITY_DRAINING_SKILLS.includes(s.action.skill);
       s.regen.sanity += dt * rate * (this.hasDerangement('voices') ? 0.5 : 1);
       while (s.regen.sanity >= SANITY_REGEN_MS) {
         s.regen.sanity -= SANITY_REGEN_MS;
@@ -886,6 +930,8 @@ const Game = {
       this.tick(dt);
       left -= dt;
     }
+    // Blessings run out even when there was nothing else to simulate.
+    this.tickBuffs(left);
     this.silent = false;
     this.checkAchievements();
     const diff = { ms, items: {}, gold: s.gold - before.gold, xp: {}, moved: s.location !== before.location ? s.location : null };

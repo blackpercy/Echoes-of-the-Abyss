@@ -138,6 +138,7 @@ const UI = {
       case 'deposit-all': Game.depositAll(); break;
       case 'withdraw': Game.withdraw(d.item, d.qty === 'all' ? Game.bankCount(d.item) : +d.qty); break;
       case 'buy': Game.buy(d.item, +d.qty); break;
+      case 'trade-buy': Game.tradeBuy(d.item, +d.qty); break;
       case 'map-select':
         this.mapSelected = d.loc;
         this.page = 'map';
@@ -339,7 +340,7 @@ const UI = {
     }
     const via = route.path.slice(1, -1).map(placeName);
     const travelling = Game.state.travel && Game.state.travel.path[Game.state.travel.path.length - 1] === target;
-    return `<p>🧭 ${Math.round(route.time / Game.travelSpeed())}s on the road${route.cost ? ` · 💰 ${route.cost} gold` : ''}${via.length ? `<br><span class="muted small">Via ${via.map(esc).join(' → ')}</span>` : ''}</p>
+    return `<p>🧭 ${Game.routeSeconds(route.path)}s on the road${route.cost ? ` · 💰 ${route.cost} gold` : ''}${via.length ? `<br><span class="muted small">Via ${via.map(esc).join(' → ')}</span>` : ''}</p>
       <button class="btn" data-act="travel" data-loc="${target}"${travelling ? ' disabled' : ''}>${travelling ? 'Travelling…' : 'Travel here'}</button>`;
   },
 
@@ -389,7 +390,7 @@ const UI = {
       <g class="deco">
         <text x="120" y="470">▲</text><text x="180" y="430">▲</text><text x="240" y="390">▲</text><text x="90" y="520">▲</text><text x="330" y="560">▲</text><text x="60" y="420">▲</text>
         <text x="430" y="300">🌲</text><text x="510" y="290">🌲</text><text x="410" y="380">🌲</text><text x="520" y="380">🌲</text><text x="330" y="270">🌲</text><text x="40" y="230">🌳</text><text x="130" y="320">🌳</text>
-        <text x="905" y="300" class="sea-text" transform="rotate(90 905 300)">The Black Sea</text>
+        <text x="855" y="40" class="sea-text">The Black Sea</text>
       </g>`;
     for (const r of ROADS) {
       if (!isVisible(r.a) || !isVisible(r.b)) continue;
@@ -448,6 +449,7 @@ const UI = {
       const t = Game.travelProgress();
       return html + `<p class="warning">🧭 You are on the road to ${esc(placeName(t.target))}. ${t.paused ? 'Something has stopped you.' : `${Math.round(t.overall * 100)}% of the way there.`}</p>`;
     }
+    html += this.buffList();
     const people = Game.npcsHere();
     if (people.length) html += this.section('here-people', `People <span class="small muted">${people.length}</span>`, `<div class="people">${people.map(n => this.npcCard(n)).join('')}</div>`);
     const gather = Object.entries(loc.gather || {});
@@ -571,8 +573,15 @@ const UI = {
     const active = s.action && s.action.skill === skill && s.action.id === a.id;
     const blocker = active ? null : Game.actionBlocker(skill, a);
     const outItem = ITEMS[Object.keys(a.output)[0]] || { icon: a.icon || '❔', id: null };
-    const makes = [...Object.entries(a.output).map(([id, q]) => itemChip(id, q)), a.gold ? `<span class="chip">💰 ${a.gold[0]}–${a.gold[1]} gold</span>` : ''].filter(Boolean).join(' ');
+    const makes = [...Object.entries(a.output).map(([id, q]) => itemChip(id, q)), a.gold ? `<span class="chip">💰 ${a.gold[0]}–${a.gold[1]} gold</span>` : '',
+      a.buff ? `<span class="chip">${a.buff.icon} ${esc(a.buff.name)}: ${esc(Game.effectsText(a.buff.effects))} for ${Math.round(a.buff.ms * (1 + Game.perk('buffTime')) / 60000)} min</span>` : '',
+      a.sanityGain && !Object.keys(a.output).length ? '<span class="chip">🧠 peace of mind</span>' : ''].filter(Boolean).join(' ');
     const extras = [
+      a.needs ? `<span class="${a.needs.every(i => Game.carries(i)) ? 'muted' : 'lack-text'}">needs ${a.needs.map(i => esc(ITEMS[i].name)).join(', ')}</span>` : '',
+      a.hpCost ? `<span class="lack-text">−${a.hpCost} hitpoints</span>` : '',
+      a.tideDouble ? `<span class="${Game.isLowTide() ? 'good-text' : 'muted'}">🌊 double at low tide${Game.isLowTide() ? ' (now!)' : ''}</span>` : '',
+      a.ambush ? `<span class="lack-text">${Math.round(a.ambush.chance * 100)}% chance a ${esc(MONSTERS[a.ambush.monster].name)} wakes</span>` : '',
+      a.maxMadness !== undefined && Game.state.madness > a.maxMadness ? '<span class="sanity-text">the gods do not answer you</span>' : '',
       a.sanityGain ? `<span class="good-text">+${a.sanityGain + Game.perk('dreamRest', skill)} sanity</span>` : '',
       a.risk ? `<span class="lack-text">${Math.round(a.risk * (1 - Math.min(0.9, Game.perk('safe', skill))) * 100)}% risk of being caught</span>` : '',
       a.minMadness ? `<span class="sanity-text">needs madness: ${MADNESS_STAGES[a.minMadness]}</span>` : '',
@@ -615,8 +624,10 @@ const UI = {
         polearms: `ignore ${Math.floor(lvl / POLEARM_PIERCE_LEVELS)} AC (one more every ${POLEARM_PIERCE_LEVELS} levels)`,
         bows: `attack ${Math.round(BOW_SPEED_PER_LEVEL * 100 * (lvl - 1))}% faster`,
         staves: `+${Math.round(STAFF_ELDRITCH_PER_LEVEL * 100 * (lvl - 1))}% damage against eldritch beings and +${Math.floor(lvl / STAFF_WARD_LEVELS)} to sanity saves`,
+        maces: `${Math.round(Math.min(MAX_STUN, MACE_STUN_PER_LEVEL * lvl) * 100)}% chance that a hit staggers the enemy, so it starts its swing over`,
+        unarmed: `your fists roll ${FIST_DICE.filter(([l]) => lvl >= l).pop()[1]} (bigger dice every 10 levels) and attack every ${secs(UNARMED_SPEED)}, and sneak attacks deal +${Math.floor(lvl / UNARMED_SNEAK_LEVELS)}d6`,
       };
-      const weapons = Object.values(ITEMS).filter(i => i.wtype === skill).map(i => `${i.icon} ${esc(i.name)}`).join(', ');
+      const weapons = (skill === 'unarmed' ? ['👊 Your bare hands'] : []).concat(Object.values(ITEMS).filter(i => i.wtype === skill).map(i => `${i.icon} ${esc(i.name)}`)).join(', ');
       html += `<p class="small">${SKILLS[skill].icon} Trained by fighting with this weapon type (${Math.round(WEAPON_XP_SHARE * 100)}% of each kill's xp). Right now: +${Math.floor(lvl / WEAPON_LEVELS_PER_BONUS)} to hit and damage, ${traits[skill]}.${wielding ? ' <span class="good-text">You are wielding one.</span>' : ''}</p>
         <p class="small muted">Weapons: ${weapons}</p>`;
     }
@@ -638,6 +649,40 @@ const UI = {
         <p class="small"><b>You can lead ${Game.companionCapacity()} companion${Game.companionCapacity() > 1 ? 's' : ''}</b> (one more every ${FELLOWSHIP_LEVELS_PER_COMPANION} Fellowship levels). With you now: ${Game.companions().length}.</p>
         ${Game.companions().length ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, at the Silent Abbey and, for the touched, in Saltmire. Others may join you once you have helped them.</p>'}
         <p class="small muted">Right now: +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100 * (lvl - 1))}% hitpoints, ${withSign(Math.floor(lvl / 10))} to hit, ${withSign(Math.floor(lvl / 8))} damage.</p>`;
+    }
+    if (skill === 'gravedigging') {
+      html += '<p class="small">⚰️ Every grave you open may hold an occupant who objects. If something wakes, you fight it then and there; win and you dig on. Bones feed ink, rites and the market under the hill.</p>';
+    }
+    if (skill === 'tidecombing') {
+      html += `<p class="small">🐚 The tide turns every few minutes. While it is out, the strandline gives up twice as much, and the wreck and the black sand can be reached at all. Right now: <b>${Game.isLowTide() ? 'low tide' : 'high tide'}</b>.</p>`;
+    }
+    if (skill === 'tailoring') {
+      html += '<p class="small">🧵 Robes and hoods protect less than metal, but turn aside madness far better. Work at a loom in town, or anywhere with a sewing kit. Linen is sold in shops; kelp-cloth comes from the shore.</p>';
+    }
+    if (skill === 'inscription') {
+      html += `<p class="small">✒️ Scrolls are read once, from your pack or in the middle of a fight. Fire and banishing scrolls strike the enemy you are fighting; the rest heal you or bless you for a while.${Game.perk('scrollPower') ? ` Your scrolls are <b>${Math.round(Game.perk('scrollPower') * 100)}% stronger</b>.` : ''}</p>`;
+    }
+    if (skill === 'brewing') {
+      html += '<p class="small">🍺 Brew in the cellars of inns. A drink restores sanity, and most leave you a little worse at aiming for a while. The finest have stranger effects.</p>';
+    }
+    if (skill === 'trading') {
+      const goods = Object.entries(TRADE_GOODS).map(([id, g]) => `<tr><td>${g.icon} ${esc(g.name)}</td><td>${Game.level('trading') >= g.level ? '' : `<span class="lack-text">level ${g.level}</span> `}${esc(LOCATIONS[g.origin].name)} ${g.base}g</td><td class="muted">${Object.entries(g.prices).map(([loc, p]) => `${esc(LOCATIONS[loc].name)} ${p}g`).join(' · ')}</td></tr>`).join('');
+      html += `<p class="small">⚖️ Every town makes some goods cheaply and pays well for others. Buy them at the market in the shop, carry them to a town that wants them, and sell. You earn Trading xp for every gold you make selling anything, and more for goods sold where they are wanted. Your prices are now <b>${Math.round(Game.haggle() * 100)}% better</b> in every shop.</p>
+        ${this.section('trade-goods', 'Trade goods: where they are made, and what others pay', `<table class="stats">${goods}</table>`, false)}`;
+    }
+    if (skill === 'sailing') {
+      html += `<p class="small">⛵ You learn Sailing at sea: ${SAILING_XP_PER_SEA_SECOND} xp per second on a sea road. You sail ${Math.round(SAILING_SPEED_PER_LEVEL * 100 * (Game.level('sailing') - 1))}% faster than a landlubber${Game.level('sailing') >= SAILING_FREE_PASSAGE ? ', and you work your passage on any ship for free' : `, and from level ${SAILING_FREE_PASSAGE} you work your passage for free`}. Port Ulric lies across the bay from Saltmire Shore.</p>`;
+    }
+    if (skill === 'faith') {
+      html += `<p class="small">🕯️ Pray in a chapel, or anywhere with prayer beads. Every ${FAITH_WARD_LEVELS} Faith levels give +1 to sanity saves (now ${withSign(Math.floor(Game.level('faith') / FAITH_WARD_LEVELS))}). The gods do not answer a mind that is ${MADNESS_STAGES[FAITH_MAX_MADNESS + 1]} or worse.</p>`;
+    }
+    if (skill === 'lore') {
+      const lvl = Game.level('lore');
+      html += `<p class="small">📖 Carry a forbidden tome to a library and read it. The tome is never used up, but your sanity is, and it does not recover while you read. Every 10 levels you see through the Veil ${LORE_VEIL_PER_TEN} sanity sooner (now +${LORE_VEIL_PER_TEN * Math.floor(lvl / 10)}).
+        ${lvl >= THIRD_CELLAR_LORE ? 'You know where the stair beneath the Silent Abbey leads.' : `At level ${THIRD_CELLAR_LORE} you will understand what the brothers of the Silent Abbey will not talk about.`}</p>`;
+    }
+    if (skill === 'ritualism') {
+      html += `<p class="small">🔯 Each rite is performed once and blesses you for a while; perform it again to renew the blessing. Draw a circle in the graveyard, at the crater, in the grove or the lighthouse, or anywhere with ritual chalk.</p>${this.buffList()}`;
     }
     if (skill === 'occultism') {
       html += '<p class="warning">👁️ Occult study costs sanity, and your sanity does not recover while you study. Every Occultism level beyond the first grants +1% damage against beings from beyond, and every five levels add +1 to your sanity saves.</p>';
@@ -700,7 +745,7 @@ const UI = {
     const chance = chanceToHit(Game.attackBonusVs(m), Game.effectiveAc(m));
     const theirs = chanceToHit(Game.monsterHit(m), Game.armourClass());
     const foods = Object.keys(s.pack).filter(id => Game.isFood(id));
-    const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion');
+    const potions = Object.keys(s.pack).filter(id => ITEMS[id].type === 'potion' || ITEMS[id].type === 'scroll');
     return `<div class="fight">
       <div class="fight-side enemy">
         <div class="small"><b>${m.icon} ${m.name}</b></div>
@@ -714,7 +759,8 @@ const UI = {
         ${bar('c-sanity', 'sanity', 0)}
         ${bar('c-patk', 'progress', 0)}
         <div class="small muted">${withSign(Game.attackBonusVs(m))} to hit (${Math.round(chance * 100)}% vs AC ${Game.effectiveAc(m)}) · ${Game.damageText()} · AC ${Game.armourClass()}${m.eldritch ? ` · ${withSign(Game.wits())} sanity saves` : ''}</div>
-        <div class="small muted">${SKILLS[Game.weaponSkill()].icon} ${SKILLS[Game.weaponSkill()].name} ${Game.level(Game.weaponSkill())} · crits on ${Game.critFrom() === 20 ? '20' : `${Game.critFrom()}–20`}${Game.pierce() ? ` · ignores ${Game.pierce()} AC` : ''} · attacks every ${secs(Game.playerStats().speed)}</div>
+        <div class="small muted">${SKILLS[Game.weaponSkill()].icon} ${SKILLS[Game.weaponSkill()].name} ${Game.level(Game.weaponSkill())} · crits on ${Game.critFrom() === 20 ? '20' : `${Game.critFrom()}–20`}${Game.pierce() ? ` · ignores ${Game.pierce()} AC` : ''}${Game.stunChance() ? ` · ${Math.round(Game.stunChance() * 100)}% stagger` : ''} · attacks every ${secs(Game.playerStats().speed)}</div>
+        ${this.buffList()}
         ${this.companionBlock()}
       </div>
       <div class="combat-log" id="combat-log">${s.combat.log.map(l => `<div>${esc(l)}</div>`).join('')}</div>
@@ -769,9 +815,10 @@ const UI = {
       <tr><td>Armour class</td><td>${Game.armourClass()}</td></tr>
       <tr><td>Sanity save</td><td>d20 ${withSign(Game.wits())}</td></tr>
       <tr><td>Damage vs eldritch</td><td>+${Math.round(Game.eldritchBonus() * 100)}%</td></tr>
-      <tr><td>Weapon skill</td><td>${SKILLS[Game.weaponSkill()].icon} ${SKILLS[Game.weaponSkill()].name} ${Game.level(Game.weaponSkill())} · crits on ${Game.critFrom() === 20 ? '20' : `${Game.critFrom()}–20`}${Game.pierce() ? ` · ignores ${Game.pierce()} AC` : ''}</td></tr>
+      <tr><td>Weapon skill</td><td>${SKILLS[Game.weaponSkill()].icon} ${SKILLS[Game.weaponSkill()].name} ${Game.level(Game.weaponSkill())} · crits on ${Game.critFrom() === 20 ? '20' : `${Game.critFrom()}–20`}${Game.pierce() ? ` · ignores ${Game.pierce()} AC` : ''}${Game.stunChance() ? ` · ${Math.round(Game.stunChance() * 100)}% stagger` : ''}</td></tr>
       <tr><td>Respawn point</td><td>${esc(LOCATIONS[s.home].name)}</td></tr>
     </table>`);
+    if (Object.keys(s.buffs).length) html += this.section('char-buffs', 'Blessings and effects', this.buffList());
     html += this.section('char-mind', 'Mind', `<table class="stats">
       <tr><td>State</td><td>${Game.mindState().name}${Game.veilSight() ? ' · <span class="sanity-text">sees through the Veil</span>' : ''}</td></tr>
       <tr><td>Madness</td><td>${MADNESS_STAGES[s.madness]} (${s.madness} / ${MADNESS_STAGES.length - 1})</td></tr>
@@ -803,6 +850,31 @@ const UI = {
         `<table class="stats">${kills.map(([id, n]) => `<tr><td>${MONSTERS[id].icon} ${MONSTERS[id].name}</td><td>${fmt(n)}</td></tr>`).join('')}</table>`, false);
     }
     return html + '</div></div>';
+  },
+
+  // Active blessings, brews and scrolls, with the time left on each.
+  buffList() {
+    const buffs = Object.values(Game.state.buffs);
+    if (!buffs.length) return '';
+    return `<div class="buffs">${buffs.map(b => `<span class="chip buff" title="${esc(Game.effectsText(b.effects))}">${b.icon} ${esc(b.name)} <span class="muted">${b.left >= 60000 ? `${Math.ceil(b.left / 60000)} min` : `${Math.ceil(b.left / 1000)}s`}</span></span>`).join(' ')}</div>`;
+  },
+
+  // The goods this town makes, sold cheaply to traders.
+  marketBlock() {
+    const goods = Game.marketGoods();
+    if (!goods.length) return '';
+    const cards = goods.map(id => {
+      const g = TRADE_GOODS[id];
+      const price = Game.tradeBuyPrice(id);
+      const supply = Game.tradeSupply(id);
+      const locked = Game.level('trading') < g.level;
+      const best = Object.entries(g.prices).sort((a, b) => b[1] - a[1])[0];
+      return `<div class="card${locked ? ' locked' : ''}"><div class="card-icon">${g.icon}</div><div class="card-name">${esc(g.name)}</div>
+        <div class="small">💰 ${fmt(price)} gold · ${supply} / ${Game.tradeSupplyMax()} in stock</div>
+        <div class="small muted">Best price: ${esc(LOCATIONS[best[0]].name)}, ${best[1]}g${Game.carries(id) ? ` · carrying ${fmt(Game.count(id))}` : ''}</div>
+        ${locked ? `<div class="small lack-text">Requires Trading ${g.level}</div>` : `<div class="btn-row"><button class="btn small" data-act="trade-buy" data-item="${id}" data-qty="1"${supply && Game.state.gold >= price ? '' : ' disabled'}>Buy 1</button><button class="btn small" data-act="trade-buy" data-item="${id}" data-qty="${supply}"${supply && Game.state.gold >= price ? '' : ' disabled'}>Buy all you can</button></div>`}</div>`;
+    }).join('');
+    return `<h2>⚖️ Market</h2><p class="small muted">Goods made here, cheap. Carry them to a town that wants them. Stock refills over time.</p><div class="cards">${cards}</div>`;
   },
 
   // A collapsible section. Whether you left it open or folded is remembered in your save.
@@ -856,6 +928,7 @@ const UI = {
           ${it.type === 'equipment' ? `<button class="btn" data-act="equip" data-item="${sel}">Equip</button>` : ''}
           ${Game.isFood(sel) ? `<button class="btn" data-act="food" data-item="${sel}">${s.food === sel ? 'Chosen food ✓' : 'Choose as food'}</button><button class="btn" data-act="use" data-item="${sel}">Eat (+${Game.foodHeal(sel)})</button>` : ''}
           ${it.type === 'potion' ? `<button class="btn" data-act="use" data-item="${sel}">Drink</button>` : ''}
+          ${it.type === 'scroll' ? `<button class="btn" data-act="use" data-item="${sel}"${it.damage && !(s.combat && !s.combat.respawn) ? ' disabled title="Read it in a fight"' : ''}>Read aloud</button>` : ''}
           ${it.type === 'map' ? `<button class="btn" data-act="use" data-item="${sel}">Read the map</button>` : ''}
           ${it.type === 'relic' ? (s.relics[sel] ? '<span class="small muted">Already in your collection</span>' : `<button class="btn" data-act="place-relic" data-item="${sel}">Place in collection</button>`) : ''}
           ${sel === 'shrine_idol' && s.cult ? `<button class="btn" data-act="raise-idol"${s.location === CULT_SHRINE ? '' : ' disabled'}>Raise it in your shrine</button>` : ''}
@@ -909,6 +982,7 @@ const UI = {
     const curName = cur ? ITEMS[cur].name : 'gold';
     if (shop.kinDiscountAtMadness !== undefined && s.madness >= shop.kinDiscountAtMadness) html += '<p class="small sanity-text">The shopkeeper recognises something in your eyes. "Kin pays less."</p>';
     if (cur) html += `<p class="small">You carry ${fmt(funds)} × ${ITEMS[cur].icon} ${esc(curName)}.</p>`;
+    html += this.marketBlock();
     html += '<h2>Buy</h2><div class="cards">';
     for (const entry of shop.stock) {
       const item = entry.item;
@@ -927,7 +1001,7 @@ const UI = {
     if (!ids.length) return html + '<p class="muted">You carry nothing to sell.</p>';
     html += '<table class="stats sell">';
     for (const id of ids) {
-      html += `<tr><td>${ITEMS[id].icon} ${esc(ITEMS[id].name)}</td><td>× ${fmt(s.pack[id])}</td><td class="muted">${ITEMS[id].sell}g each</td>
+      html += `<tr><td>${ITEMS[id].icon} ${esc(ITEMS[id].name)}</td><td>× ${fmt(s.pack[id])}</td><td class="muted">${Game.sellPrice(id)}g each</td>
         <td><button class="btn small" data-act="sell" data-item="${id}" data-qty="1">Sell 1</button> <button class="btn small" data-act="sell" data-item="${id}" data-qty="all">Sell all</button></td></tr>`;
     }
     return html + '</table>';
@@ -1064,7 +1138,7 @@ const UI = {
     const travel = Game.travelProgress();
     this.updateJourney(travel);
     if (travel) {
-      activity = s.travel.event ? '⏸ Something on the road…' : `🧭 Travelling to ${placeName(travel.target)} (${Math.ceil(travel.remaining / 1000 / Game.travelSpeed())}s)`;
+      activity = s.travel.event ? '⏸ Something on the road…' : `🧭 Travelling to ${placeName(travel.target)} (${Game.journeySeconds()}s)`;
       if (player) {
         const a = LOCATIONS[travel.from];
         const b = LOCATIONS[travel.to];
@@ -1154,7 +1228,7 @@ const UI = {
     document.getElementById('j-walker').style.left = pct + '%';
     el.classList.toggle('paused', travel.paused);
     el.classList.toggle('night', Game.isNight());
-    const eta = travel.paused ? '⏸ halted' : `${Math.ceil(travel.remaining / 1000 / Game.travelSpeed())}s`;
+    const eta = travel.paused ? '⏸ halted' : `${Game.journeySeconds()}s`;
     const etaEl = document.getElementById('j-eta');
     if (etaEl.textContent !== eta) etaEl.textContent = eta;
   },

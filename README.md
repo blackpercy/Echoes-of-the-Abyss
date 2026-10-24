@@ -23,18 +23,21 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **21 skills, levels 1–50.**
-  - Weapons: Blades, Polearms, Bows, Staves. Fighting with a weapon trains its type (50% of each kill's xp). Every 10 levels give +1 to hit and damage, and each type has its own trait:
+- **33 skills, levels 1–50.**
+  - Weapons: Blades, Polearms, Bows, Staves, Maces, Unarmed. Fighting with a weapon trains its type (50% of each kill's xp). Every 10 levels give +1 to hit and damage, and each type has its own trait:
     - **Blades:** a wider critical range at levels 25 and 50.
     - **Polearms:** ignore 1 enemy AC per 15 levels.
     - **Bows:** attack 0.6% faster per level.
     - **Staves:** +1% damage against eldritch beings per level and +1 to sanity saves per 10 levels.
+    - **Maces:** +0.5% chance per level that a hit staggers the enemy, so it starts its swing over.
+    - **Unarmed:** your fists roll bigger dice every 10 levels (1d3 up to 2d6) and attack quickly; sneak attacks deal +1d6 per 15 levels. Knuckles keep your fists' dice and add their own bonuses.
 
     Each type also has its own perk tree, with second strikes, life-steal and armour piercing. Halberds can be smithed in every metal, and staves are carved at the workbench.
   - General: Wisdom, which gains 10% of the xp from every other skill. Each level gives +0.2% xp in all skills, and every perk choice is between learning faster and something else: gold, pack slots, hitpoints, sanity saves, travel, activity speed or crits.
-  - Gathering: Woodcutting, Fishing, Mining, Foraging, Hunting, Archaeology, Dreaming
-  - Crafting: Cooking, Smithing, Alchemy, Occultism, Carpentry
-  - Adventuring: Combat, Fellowship, Stealth, Cartography
+  - Gathering: Woodcutting, Fishing, Mining, Foraging, Hunting, Archaeology, Dreaming, Grave Digging, Tidecombing
+  - Crafting: Cooking, Smithing, Alchemy, Occultism, Carpentry, Tailoring, Inscription, Brewing
+  - Adventuring: Combat, Fellowship, Stealth, Cartography, Trading, Sailing
+  - Mind and Spirit: Faith, Forbidden Lore, Ritualism
 - **Dreaming.** Sleep at an inn or on a bedroll and descend into the Dreamlands: Ulthar, the Enchanted Wood, Celephaïs, Dylath-Leen. Gentle dreams restore sanity. Leng and Kadath can only be reached by a broken mind.
 - **Hunting.** Hunt game in the wild and tan the hides into light armour. Light armour gives less AC than metal but +1–2 to hit. Venison is cooked into food.
 - **Archaeology.** Dig at five sites for relics. Complete a collection to earn a permanent bonus: +1 AC, +2 pack slots, +1 to sanity saves, +15 hitpoints or +5% damage against eldritch beings. Professor Peaslee digs 15% faster.
@@ -44,6 +47,16 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Shrine idols that give your cult room for more followers.
   - A **rowboat**: no ferry fee, and the only way to the new **Drowned Isle**.
 - **Stealth.** Pick pockets and burgle for gold, at the risk of being caught and fined. Your first blow on each enemy is a sneak attack (+1d6 per 10 levels). After an expedition you may find a hidden vault that doubles the treasure. Some road events now have stealthy choices.
+- **Grave Digging.** Dig graves with a spade for bones, grave goods, a saint's knucklebone and stranger bones. Whatever you disturb may wake, and you fight it there and then.
+- **Tidecombing.** Comb the shore for kelp, sea glass, deep-spawn eggs and ambergris. Low tide doubles the haul, and the wreck and the black sand can only be reached at low tide.
+- **Tailoring.** Sew robes and hoods at a loom. They give less AC than metal but far better sanity saves. Also a sailcloth sack.
+- **Inscription.** Make ink and parchment and write scrolls: mending, flame and banishing to read in a fight, and warding, haste, true sight, fortune and the Elder Glyph to bless you for a while. Bind ten Necronomicon pages into the whole book.
+- **Brewing.** Brew in inn cellars. Drink restores sanity, and most drinks leave you a little worse at aiming for a while.
+- **Trading.** Each town makes goods cheaply and pays well for other towns' goods. Markets hold a limited stock that refills over time. Every Trading level gives better prices in every shop, and selling anything trains the skill.
+- **Faith.** Pray, keep vigils, bless holy water and silver icons, and lay the dead to rest. Every 10 levels give +1 to sanity saves. The gods stop answering once you are Dream-Kissed.
+- **Sailing.** Learned on sea roads, which it makes faster. From level 15 you work your passage for free. A trading ketch sails from Saltmire Shore to the new free port of **Port Ulric**.
+- **Forbidden Lore.** Read forbidden tomes at a library for eldritch insight. Reading costs sanity but never uses up the book. Every 10 levels you see through the Veil sooner, and at level 20 you find the stair to **the Third Cellar** beneath the Silent Abbey.
+- **Ritualism.** Perform rites in a ritual circle, each with an offering, for a blessing that lasts 10–15 minutes: wards, extra damage, gold, travel speed or experience.
 - **Cartography.** You learn it by travelling and discovering places. It makes travel faster and improves road-event checks. Draw maps that reveal unexplored places, and treasure maps that lead to buried gold.
 - **Dice-based combat.** Each attack is a d20 roll plus your proficiency and gear against the enemy's armour class. Damage comes from weapon dice (`1d8`, `2d6+3`…) and a natural 20 is a critical hit. Pick an aggressive, balanced or defensive stance.
 - **Sanity.** When something eldritch wounds you, you roll a sanity save against its DC. Failing it, or studying the occult, costs sanity. At zero you flee in panic. Warding amulets and Occultism levels improve your saves, potions restore sanity, and inns let you recover.
@@ -54,7 +67,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 210 in all.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 330 in all.
   - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
   - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
   - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.
@@ -101,6 +114,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 | `js/story.js` | The Veil: madness stages, derangements, hidden places, NPCs, quests and endings |
 | `js/content.js` | The living world: time and tide, road events, races, companions, cult, expeditions, more NPCs and quests, world changes, bestiary, achievements, hallucinations |
 | `js/expansion.js` | Dreaming, Hunting, Archaeology, Carpentry, Stealth and Cartography: their items, activities, workplaces, relic sets, the Drowned Isle and new road-event choices |
+| `js/expansion2.js` | Grave Digging, Tidecombing, Tailoring, Inscription, Brewing, Trading, Faith, Sailing, Forbidden Lore, Ritualism, Maces and Unarmed: their items, activities, workplaces, trade goods, Port Ulric and the Third Cellar |
 | `js/game.js` | Engine: state, tick loop, travel and route finding, pack and bank, combat, sanity, saving, offline simulation |
 | `js/ui.js` | Page rendering, the SVG world map, meters and click handling |
 | `js/mind.js` | Madness, the Veil, NPC interactions and the quest engine |

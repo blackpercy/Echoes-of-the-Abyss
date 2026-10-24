@@ -152,6 +152,8 @@ p { line-height: 1.45; }
   border-radius: 4px; padding: 0 .35rem; margin: .1rem 0; font-size: .85rem;
 }
 .chip.lack { border-color: var(--danger); color: #e07a74; }
+.buffs { display: flex; flex-wrap: wrap; gap: .3rem; margin: .3rem 0; }
+.chip.buff { border-color: var(--accent-dim); color: var(--accent); }
 .boss { font-size: .7rem; background: var(--danger); padding: 0 .3rem; border-radius: 3px; vertical-align: middle; }
 
 /* --- Buttons --- */

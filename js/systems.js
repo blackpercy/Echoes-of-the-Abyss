@@ -38,7 +38,8 @@ Object.assign(Game, {
     return `Day ${this.dayIndex() + 1} · ${parts.join(' · ')}`;
   },
   veilThreshold() {
-    return VEIL_THRESHOLD + (this.state.race === 'tiefling' ? 10 : 0) + (this.isNight() ? NIGHT_VEIL_BONUS : 0) + this.perk('veil');
+    return VEIL_THRESHOLD + (this.state.race === 'tiefling' ? 10 : 0) + (this.isNight() ? NIGHT_VEIL_BONUS : 0) + this.perk('veil')
+      + LORE_VEIL_PER_TEN * Math.floor(this.level('lore') / 10);
   },
   whenBlocker(action) {
     if (action.when === 'night' && !this.isNight()) return 'Only at night';
@@ -94,16 +95,39 @@ Object.assign(Game, {
   // --- Roads ---
   roadCost(road) {
     if (!road.cost || this.state.background === 'smuggler' || this.carries('rowboat')) return 0;
+    if (road.sea && this.level('sailing') >= SAILING_FREE_PASSAGE) return 0;
     if (road.tideFree && this.isLowTide()) return 0;
     return road.cost;
   },
-  travelSpeed() {
+  // On a sea road, Sailing makes you faster too.
+  travelSpeed(road) {
     const charted = 1 + CARTOGRAPHY_TRAVEL_PER_LEVEL * (this.level('cartography') - 1);
-    return BASE_TRAVEL_SPEED * charted * (1 + this.perk('travel')) * (this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1);
+    const sailed = road && road.sea ? 1 + SAILING_SPEED_PER_LEVEL * (this.level('sailing') - 1) : 1;
+    return BASE_TRAVEL_SPEED * charted * sailed * (1 + this.perk('travel')) * (this.state.madness >= 2 && this.veilSight() ? 1 / 0.7 : 1);
   },
   // Seconds a road takes at your current speed, for display.
   roadSeconds(road) {
-    return Math.round(road.time / this.travelSpeed());
+    return Math.round(road.time / this.travelSpeed(road));
+  },
+  // Seconds left on the journey, each remaining road at its own speed.
+  journeySeconds() {
+    const t = this.state.travel;
+    if (!t) return 0;
+    let ms = 0;
+    for (let i = t.leg; i < t.path.length - 1; i++) {
+      const road = findRoad(t.path[i], t.path[i + 1]);
+      ms += (road.time * 1000 - (i === t.leg ? t.progress : 0)) / this.travelSpeed(road);
+    }
+    return Math.ceil(ms / 1000);
+  },
+  // Seconds a planned route would take.
+  routeSeconds(path) {
+    let secs = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+      const road = findRoad(path[i], path[i + 1]);
+      secs += road.time / this.travelSpeed(road);
+    }
+    return Math.round(secs);
   },
 
   // --- Road events ---
@@ -469,10 +493,19 @@ Object.assign(Game, {
   },
 
   // --- Weapon skills ---
-  // Bare hands count as Blades.
   weaponSkill() {
     const w = this.state.equipment.weapon;
-    return w ? ITEMS[w].wtype : 'blades';
+    return w ? ITEMS[w].wtype : 'unarmed';
+  },
+  // Your fists hit harder as Unarmed grows.
+  fistDice() {
+    const lvl = this.level('unarmed');
+    return FIST_DICE.filter(([l]) => lvl >= l).pop()[1];
+  },
+  // Maces stagger: a hit may make the enemy start its swing over.
+  stunChance() {
+    const ws = this.weaponSkill();
+    return Math.min(MAX_STUN, (ws === 'maces' ? MACE_STUN_PER_LEVEL * this.level('maces') : 0) + this.perk('wStun', ws));
   },
   weaponHit() {
     const ws = this.weaponSkill();
@@ -498,7 +531,7 @@ Object.assign(Game, {
   },
   attackSpeedBonus() {
     const ws = this.weaponSkill();
-    return Math.min(MAX_ATTACK_SPEED_BONUS, (ws === 'bows' ? BOW_SPEED_PER_LEVEL * (this.level('bows') - 1) : 0) + this.perk('wSpeed', ws));
+    return Math.min(MAX_ATTACK_SPEED_BONUS, (ws === 'bows' ? BOW_SPEED_PER_LEVEL * (this.level('bows') - 1) : 0) + this.perk('wSpeed', ws) + this.perk('atkSpeed'));
   },
   weaponEldritch() {
     const ws = this.weaponSkill();
@@ -511,7 +544,110 @@ Object.assign(Game, {
 
   // --- Stealth ---
   sneakDice() {
-    return Math.floor(this.level('stealth') / SNEAK_LEVELS_PER_DIE) + this.perk('sneak');
+    const fists = this.weaponSkill() === 'unarmed' ? Math.floor(this.level('unarmed') / UNARMED_SNEAK_LEVELS) : 0;
+    return Math.floor(this.level('stealth') / SNEAK_LEVELS_PER_DIE) + this.perk('sneak') + fists;
+  },
+
+  // --- Blessings, brews and scrolls that last a while ---
+  addBuff(id, def) {
+    const ms = Math.round(def.ms * (1 + this.perk('buffTime')));
+    this.state.buffs[id] = { name: def.name, icon: def.icon, effects: def.effects, left: ms };
+    this.log(`${def.icon} ${def.name} for ${Math.round(ms / 60000 * 10) / 10} minutes: ${this.effectsText(def.effects)}.`, 'good');
+    this.emit('action');
+  },
+  effectsText(effects) {
+    return Object.entries(effects).map(([k, v]) => PERK_EFFECTS[k].text(v)).join(', ');
+  },
+  buffBonus(effect) {
+    let total = 0;
+    for (const b of Object.values(this.state.buffs)) total += b.effects[effect] || 0;
+    return total;
+  },
+  tickBuffs(dt) {
+    const buffs = this.state.buffs;
+    for (const [id, b] of Object.entries(buffs)) {
+      b.left -= dt;
+      if (b.left > 0) continue;
+      delete buffs[id];
+      this.log(`${b.icon} ${b.name} wears off.`);
+      this.state.hp = Math.min(this.state.hp, this.maxHp());
+      this.emit('action');
+    }
+  },
+
+  // --- Scrolls ---
+  scrollPower() {
+    return 1 + this.perk('scrollPower');
+  },
+  readScroll(item) {
+    const def = ITEMS[item];
+    const c = this.state.combat;
+    if (def.damage && (!c || c.respawn > 0)) return this.log('Save it for a fight: there is nothing here to strike.', 'warn');
+    if (def.heal && this.state.hp >= this.maxHp()) return this.log('You are not hurt.', 'warn');
+    this.removeItem(item, 1);
+    if (def.heal) {
+      this.heal(Math.round(def.heal * this.scrollPower()));
+      this.log(`You read the ${def.name}. Your wounds close.`, 'good');
+    }
+    if (def.buff) this.addBuff(item, def.buff);
+    if (def.damage) {
+      const m = MONSTERS[c.monster];
+      const mult = m.eldritch && def.eldritchMult ? def.eldritchMult : 1;
+      const dmg = Math.round(rollDice(def.damage) * mult * this.scrollPower());
+      c.monsterHp -= dmg;
+      this.combatLog(c, `You read the ${def.name}: ${dmg} damage to the ${m.name}.`);
+      if (c.monsterHp <= 0) this.monsterKilled(c, m);
+    }
+    this.emit('action');
+  },
+
+  // --- Trading ---
+  // Better prices in every shop, from Trading levels and perks.
+  haggle() {
+    return Math.min(MAX_HAGGLE, TRADING_PRICE_PER_LEVEL * (this.level('trading') - 1) + this.perk('haggle'));
+  },
+  // What this place pays for an item. Trade goods fetch their market price; everything else its worth.
+  sellPrice(item) {
+    const good = TRADE_GOODS[item];
+    const base = good ? (good.prices[this.state.location] || good.base) : ITEMS[item].sell;
+    return Math.max(1, Math.round(base * (1 + this.haggle())));
+  },
+  // Extra Trading xp for carrying goods to a town that wants them.
+  tradeXp(item) {
+    const good = TRADE_GOODS[item];
+    return good && good.prices[this.state.location] ? good.xp : 0;
+  },
+  // Goods this town makes and sells cheaply.
+  marketGoods() {
+    return Object.keys(TRADE_GOODS).filter(id => TRADE_GOODS[id].origin === this.state.location);
+  },
+  tradeBuyPrice(good) {
+    return Math.max(1, Math.round(TRADE_GOODS[good].base * (1 - this.haggle())));
+  },
+  tradeSupplyMax() {
+    return TRADE_SUPPLY + this.perk('tradeStock');
+  },
+  // Stock refills with game time, so it is counted lazily from when you last bought.
+  tradeSupply(good) {
+    const st = this.state.trade[good];
+    if (!st) return this.tradeSupplyMax();
+    return Math.min(this.tradeSupplyMax(), st.n + Math.floor((this.state.clock - st.t) / TRADE_RESTOCK_MS));
+  },
+  tradeBuy(good, qty) {
+    const g = TRADE_GOODS[good];
+    if (!g || g.origin !== this.state.location) return;
+    if (this.level('trading') < g.level) return this.log(`You need Trading ${g.level} to deal in ${g.name}.`, 'warn');
+    qty = Math.min(qty, this.tradeSupply(good), Math.floor(this.state.gold / this.tradeBuyPrice(good)));
+    if (qty <= 0) return this.log(this.tradeSupply(good) ? 'You cannot afford that.' : 'The market has none left for now.', 'warn');
+    if (!this.addItem(good, qty)) return this.log('Your pack is full.', 'warn');
+    const cost = this.tradeBuyPrice(good) * qty;
+    this.state.gold -= cost;
+    const left = this.tradeSupply(good) - qty;
+    // Keep the part of the restock timer already run down.
+    const st = this.state.trade[good];
+    const since = st && left + qty < this.tradeSupplyMax() ? (this.state.clock - st.t) % TRADE_RESTOCK_MS : 0;
+    this.state.trade[good] = { n: left, t: this.state.clock - since };
+    this.log(`Bought ${qty} × ${g.name} for ${cost} gold.`);
   },
 
   // --- Relic collections ---
