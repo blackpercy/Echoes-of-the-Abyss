@@ -75,6 +75,7 @@ const UI = {
       const id = e.target.dataset && e.target.dataset.section;
       if (!id) return;
       Game.state.settings.sections = Object.assign(Game.state.settings.sections || {}, { [id]: e.target.open });
+      if (id.startsWith('nav-')) this.dirty = true;
     }, true);
     Game.listeners.push((type, payload) => {
       if (type === 'reset') {
@@ -265,19 +266,38 @@ const UI = {
   renderNav() {
     const s = Game.state;
     const here = Game.here();
+    const sections = s.settings.sections || {};
+    const skillsOpen = !!sections['nav-skills'];
     const navBtn = (page, icon, name, extra = '', dim = false) => {
-      const active = this.page === page || (page === 'character' && (SKILLS[this.page] || this.page.startsWith('skill-'))) ? ' active' : '';
-      const busy = (page === 'here' && s.action) || (page === 'combat' && s.combat) || (page === 'map' && s.travel) ? ' busy' : '';
+      // While the skill list is folded away, a skill page counts as Character & Skills.
+      const active = this.page === page || (page === 'character' && !skillsOpen && this.page.startsWith('skill-')) ? ' active' : '';
+      const busy = (page === 'here' && s.action) || (page === 'combat' && s.combat) || (page === 'map' && s.travel)
+        || (s.action && page === `skill-${s.action.skill}`) ? ' busy' : '';
       return `<button class="nav-btn${active}${busy}${dim ? ' dim' : ''}" data-act="nav" data-page="${page}"><span class="nav-icon">${icon}</span><span class="nav-name">${name}</span><span class="nav-extra">${extra}</span></button>`;
     };
     let html = `<div class="nav-group"><div class="nav-title">You are at</div>${navBtn('here', here.icon, esc(here.name))}${navBtn('map', '🗺️', 'World Map')}${navBtn('combat', '⚔️', 'Combat', '', !s.combat && !(here.monsters || []).length)}</div>`;
     html += `<div class="nav-group"><div class="nav-title">Yourself</div>${navBtn('pack', '🎒', 'Pack', `${Game.usedSlots()} / ${Game.capacity()}`)}${navBtn('character', '🧝', 'Character & Skills', Game.totalPendingPerks() ? `<span class="perk-badge">★ ${Game.totalPendingPerks()}</span>` : '')}${navBtn('quests', '📖', 'Quests', Object.values(s.quests).filter(q => q.status === 'active').length || '')}${s.cult ? navBtn('cult', '🛐', 'Your Cult', s.cult.followers) : ''}</div>`;
+    html += this.navSkills(navBtn, sections);
     const services = [];
     if (here.bank) services.push(navBtn('bank', '🏦', 'Bank'));
     if (here.shop) services.push(navBtn('shop', '🛒', esc(SHOPS[here.shop].name)));
     if (services.length) html += `<div class="nav-group"><div class="nav-title">In ${esc(here.name)}</div>${services.join('')}</div>`;
     html += `<div class="nav-group"><div class="nav-title">Other</div>${navBtn('chronicle', '📜', 'Journal')}${navBtn('settings', '⚙️', 'Settings')}</div>`;
-    document.getElementById('nav').innerHTML = html;
+    const nav = document.getElementById('nav');
+    const scroll = nav.scrollTop;
+    nav.innerHTML = html;
+    nav.scrollTop = scroll;
+  },
+  // Every skill, by group, in folds you can open in the menu. What you leave open is remembered.
+  navSkills(navBtn, sections) {
+    const groups = SKILL_GROUPS.map(g => {
+      const id = `nav-group-${g.name}`;
+      const pending = g.skills.reduce((n, sk) => n + Game.pendingPerks(sk), 0);
+      const buttons = g.skills.map(sk => navBtn(`skill-${sk}`, SKILLS[sk].icon, SKILLS[sk].name,
+        `${Game.pendingPerks(sk) ? '<span class="perk-badge">★</span> ' : ''}${Game.level(sk)}`)).join('');
+      return `<details class="nav-fold" data-section="${id}"${sections[id] ? ' open' : ''}><summary class="nav-sub">${esc(g.name)}${pending ? ` <span class="perk-badge">★ ${pending}</span>` : ''}</summary>${buttons}</details>`;
+    }).join('');
+    return `<details class="nav-group nav-skills" data-section="nav-skills"${sections['nav-skills'] ? ' open' : ''}><summary class="nav-title">Skills</summary>${groups}</details>`;
   },
 
   renderLog() {
