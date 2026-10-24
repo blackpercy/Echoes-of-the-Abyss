@@ -4,6 +4,10 @@
 const PERK_EVERY = 5;
 const PERK_RESPEC_GOLD = 100; // per perk forgotten
 const MAX_PERK_SPEED = 0.95;
+// Limits on perks that would otherwise run away once every perk has been taken twice.
+const MIN_CRIT_ROLL = 15;          // critical hits never start below this roll
+const MAX_DOUBLE_STRIKE = 0.5;
+const MAX_SANITY_COST_CUT = 0.8;
 
 // What each kind of perk does. Values add up across every perk you have chosen.
 // Keys marked "skill" only apply to the skill whose tree they are in; the rest apply everywhere.
@@ -64,6 +68,7 @@ const PERK_EFFECTS = {
 const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx', gravedigging: 'saints_knucklebone', tidecombing: 'ambergris' };
 
 // Ten tiers (levels 5, 10 … 50), two options each: [effect, value].
+// Levels 55–100 repeat the same ten choices as second ranks ("… II"), so each perk can be taken twice.
 const PERK_TEMPLATES = {
   gathering: [
     [['speed', 0.15], ['double', 0.05]],
@@ -384,7 +389,9 @@ const PERK_TREES = (() => {
   };
   const trees = {};
   for (const [skill, tiers] of Object.entries(layout)) {
-    trees[skill] = tiers.map((options, t) => options.map(([effect, value], o) => ({ name: PERK_NAMES[skill][t * 2 + o], effect, value })));
+    const first = tiers.map((options, t) => options.map(([effect, value], o) => ({ name: PERK_NAMES[skill][t * 2 + o], effect, value })));
+    const second = first.map(options => options.map(p => Object.assign({}, p, { name: `${p.name} II` })));
+    trees[skill] = first.concat(second).slice(0, MAX_LEVEL / PERK_EVERY);
   }
   return trees;
 })();
@@ -461,6 +468,6 @@ Object.assign(Game, {
   },
   sanityCostOf(skill, action) {
     if (!action.sanityCost) return 0;
-    return Math.max(1, Math.round(action.sanityCost * (1 + this.perk('sanityCost', skill))));
+    return Math.max(1, Math.round(action.sanityCost * (1 + Math.max(-MAX_SANITY_COST_CUT, this.perk('sanityCost', skill)))));
   },
 });

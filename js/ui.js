@@ -663,7 +663,7 @@ const UI = {
       const lvl = Game.level(skill);
       const wielding = Game.weaponSkill() === skill;
       const traits = {
-        blades: `critical hits from ${20 - BLADE_CRIT_LEVELS.filter(l => lvl >= l).length}–20 (wider at level ${BLADE_CRIT_LEVELS.join(' and ')})`,
+        blades: `critical hits from ${20 - BLADE_CRIT_LEVELS.filter(l => lvl >= l).length}–20 (wider at levels ${BLADE_CRIT_LEVELS.join(', ')})`,
         polearms: `ignore ${Math.floor(lvl / POLEARM_PIERCE_LEVELS)} AC (one more every ${POLEARM_PIERCE_LEVELS} levels)`,
         bows: `attack ${Math.round(BOW_SPEED_PER_LEVEL * 100 * (lvl - 1))}% faster`,
         staves: `+${Math.round(STAFF_ELDRITCH_PER_LEVEL * 100 * (lvl - 1))}% damage against eldritch beings and +${Math.floor(lvl / STAFF_WARD_LEVELS)} to sanity saves`,
@@ -735,7 +735,7 @@ const UI = {
     return html;
   },
 
-  // Ten tiers, one every five levels; pick one of two perks in each.
+  // One tier every five levels; pick one of two perks in each.
   skillTree(skill) {
     const lvl = Game.level(skill);
     const pending = Game.pendingPerks(skill);

@@ -846,7 +846,7 @@ const Game = {
         this.playerAttack(c, m);
         if (c.monsterHp <= 0) return this.monsterKilled(c, m);
         // Weapon perks can give a second, free attack.
-        if (Math.random() < this.perk('wDouble', this.weaponSkill())) {
+        if (Math.random() < Math.min(MAX_DOUBLE_STRIKE, this.perk('wDouble', this.weaponSkill()))) {
           this.combatLog(c, 'A second strike!');
           this.playerAttack(c, m);
           if (c.monsterHp <= 0) return this.monsterKilled(c, m);

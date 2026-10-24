@@ -519,7 +519,7 @@ Object.assign(Game, {
   critFrom() {
     const ws = this.weaponSkill();
     const blades = ws === 'blades' ? BLADE_CRIT_LEVELS.filter(l => this.level('blades') >= l).length : 0;
-    return 20 - this.perk('crit') - this.perk('wCrit', ws) - blades;
+    return Math.max(MIN_CRIT_ROLL, 20 - this.perk('crit') - this.perk('wCrit', ws) - blades);
   },
   // Polearms punch through armour.
   pierce() {

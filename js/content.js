@@ -418,6 +418,7 @@ const ACHIEVEMENTS = [
   { id: 'rich', icon: '💰', name: 'Marsh Money', desc: 'Hold 10,000 gold at once.', test: g => g.state.gold >= 10000 },
   { id: 'adept', icon: '⭐', name: 'Adept', desc: 'Reach level 25 in any skill.', test: g => Object.keys(SKILLS).some(s => g.level(s) >= 25) },
   { id: 'master', icon: '🌟', name: 'Master', desc: 'Reach level 50 in any skill.', test: g => Object.keys(SKILLS).some(s => g.level(s) >= 50) },
+  { id: 'grandmaster', icon: '💫', name: 'Grandmaster', desc: 'Reach level 100 in any skill.', test: g => Object.keys(SKILLS).some(s => g.level(s) >= 100) },
   { id: 'expedition', icon: '🏛️', name: 'Delver', desc: 'Complete an expedition.', test: g => Object.keys(g.state.expeditionsDone).length >= 1 },
   { id: 'all_expeditions', icon: '🏆', name: 'Into Every Dark', desc: 'Complete every expedition.', test: g => Object.keys(EXPEDITIONS).every(e => g.state.expeditionsDone[e]) },
   { id: 'companion', icon: '🤝', name: 'Fellow Traveller', desc: 'Hire a companion.', test: g => g.state.companions.length > 0 },

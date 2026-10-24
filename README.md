@@ -23,14 +23,14 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **33 skills, levels 1–50.**
+- **33 skills, levels 1–100.**
   - Weapons: Blades, Polearms, Bows, Staves, Maces, Unarmed. Fighting with a weapon trains its type (50% of each kill's xp). Every 10 levels give +1 to hit and damage, and each type has its own trait:
-    - **Blades:** a wider critical range at levels 25 and 50.
+    - **Blades:** a wider critical range at levels 25, 50, 75 and 100 (critical hits never start below 15).
     - **Polearms:** ignore 1 enemy AC per 15 levels.
     - **Bows:** attack 0.6% faster per level.
     - **Staves:** +1% damage against eldritch beings per level and +1 to sanity saves per 10 levels.
     - **Maces:** +0.5% chance per level that a hit staggers the enemy, so it starts its swing over.
-    - **Unarmed:** your fists roll bigger dice every 10 levels (1d3 up to 2d6) and attack quickly; sneak attacks deal +1d6 per 15 levels. Knuckles keep your fists' dice and add their own bonuses.
+    - **Unarmed:** your fists roll bigger dice every 10 levels (1d3 up to 4d8) and attack quickly; sneak attacks deal +1d6 per 15 levels. Knuckles keep your fists' dice and add their own bonuses.
 
     Each type also has its own perk tree, with second strikes, life-steal and armour piercing. Halberds can be smithed in every metal, and staves are carved at the workbench.
   - General: Wisdom, which gains 10% of the xp from every other skill. Each level gives +0.2% xp in all skills, and every perk choice is between learning faster and something else: gold, pack slots, hitpoints, sanity saves, travel, activity speed or crits.
@@ -67,7 +67,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 10 choices per skill and 330 in all.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 20 choices per skill and 660 in all. Levels 55–100 offer the same ten choices again as second ranks ("… II"), so a perk can be taken twice.
   - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
   - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
   - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.
@@ -120,7 +120,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 | `js/mind.js` | Madness, the Veil, NPC interactions and the quest engine |
 | `js/systems.js` | Logic for time, fog of war, events, companions, the cult, expeditions, world changes and achievements |
 | `js/audio.js` | Generated ambient sound |
-| `js/perks.js` | Skill trees: perk effects, the ten tiers per skill, choosing and unlearning perks |
+| `js/perks.js` | Skill trees: perk effects, the twenty tiers per skill, choosing and unlearning perks |
 | `js/main.js` | Boot, game loop and autosave |
 | `css/style.css` | Styling, including the mobile layout |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Offline support and app installation. Bump `CACHE` in `sw.js` when files change. |

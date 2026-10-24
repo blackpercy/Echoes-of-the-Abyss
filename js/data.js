@@ -1,7 +1,7 @@
 // Game data for Echoes of the Abyss: skills, items, actions, monsters, locations and the world map.
 
 // Shown under Settings so players can tell which build they are running. Bump with CACHE in sw.js.
-const GAME_VERSION = '26';
+const GAME_VERSION = '27';
 
 const SKILLS = {
   woodcutting: { name: 'Woodcutting', icon: '🪓', type: 'gathering', desc: 'Fell the trees of the Blackwood, whose roots drink from old graves.' },
@@ -383,7 +383,7 @@ const ROADS = [
 const START_LOCATION = 'saltmire';
 const BASE_PACK_SLOTS = 12;
 
-const MAX_LEVEL = 50;
+const MAX_LEVEL = 100;
 
 const SLOTS = { weapon: 'Weapon', head: 'Head', body: 'Body', amulet: 'Amulet', back: 'Back' };
 

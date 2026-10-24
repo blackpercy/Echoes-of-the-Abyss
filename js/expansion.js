@@ -215,7 +215,7 @@ ACHIEVEMENTS.push(
 // --- Weapon skills ---
 // Each weapon belongs to a type; fighting with it trains that type's skill.
 Object.assign(SKILLS, {
-  blades: { name: 'Blades', icon: '🗡️', type: 'weapon', desc: 'Daggers and swords. Every level sharpens your aim and your cuts; at 25 and 50 your critical range widens.' },
+  blades: { name: 'Blades', icon: '🗡️', type: 'weapon', desc: 'Daggers and swords. Every level sharpens your aim and your cuts; at 25, 50, 75 and 100 your critical range widens.' },
   polearms: { name: 'Polearms', icon: '🔱', type: 'weapon', desc: 'Spears, tridents and halberds. Reach and weight: every 15 levels you punch through another point of armour.' },
   bows: { name: 'Bows', icon: '🏹', type: 'weapon', desc: 'Shortbows to pale bows. Every level makes you loose arrows a little faster.' },
   staves: { name: 'Staves', icon: '🪄', type: 'weapon', desc: 'Carved staves that channel more than force. Every level adds damage against eldritch beings and steadies your mind.' },
@@ -223,7 +223,7 @@ Object.assign(SKILLS, {
 SKILL_GROUPS.push({ name: 'Weapons', skills: ['blades', 'polearms', 'bows', 'staves'] });
 const WEAPON_XP_SHARE = 0.5;          // share of each kill's xp that goes to the weapon type you used
 const WEAPON_LEVELS_PER_BONUS = 10;   // +1 to hit and +1 damage per this many weapon-skill levels
-const BLADE_CRIT_LEVELS = [25, 50];   // Blades widen the critical range at these levels
+const BLADE_CRIT_LEVELS = [25, 50, 75, 100]; // Blades widen the critical range at these levels
 const POLEARM_PIERCE_LEVELS = 15;     // Polearms ignore 1 AC per this many levels
 const BOW_SPEED_PER_LEVEL = 0.006;    // Bows attack this much faster per level
 const STAFF_ELDRITCH_PER_LEVEL = 0.01; // Staves add this much damage vs eldritch per level

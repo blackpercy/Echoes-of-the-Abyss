@@ -316,7 +316,7 @@ SKILL_GROUPS.find(g => g.name === 'Weapons').skills.push('maces', 'unarmed');
 const MACE_STUN_PER_LEVEL = 0.005;  // chance per Maces level that a hit staggers the enemy
 const MAX_STUN = 0.5;
 const UNARMED_SPEED = 1600;         // fists are quick
-const FIST_DICE = [[1, '1d3'], [10, '1d4'], [20, '1d6'], [30, '1d8'], [40, '1d10'], [50, '2d6']];
+const FIST_DICE = [[1, '1d3'], [10, '1d4'], [20, '1d6'], [30, '1d8'], [40, '1d10'], [50, '2d6'], [60, '2d8'], [70, '2d10'], [80, '3d8'], [90, '3d10'], [100, '4d8']];
 const UNARMED_SNEAK_LEVELS = 15;    // +1d6 sneak attack per this many Unarmed levels, while unarmed
 
 const MACE_DICE = { iron: '1d8', silver: '1d8', blackiron: '1d10', adamantine: '2d6', starmetal: '2d8' };
