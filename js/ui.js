@@ -8,6 +8,28 @@ function itemChip(id, qty, cls = '') {
   return `<span class="chip ${cls}" title="${esc(ITEMS[id].desc)}">${ITEMS[id].icon} ${qty} × ${esc(ITEMS[id].name)}</span>`;
 }
 
+// Tabs that filter the pack and the bank. An item goes in the first category that claims it.
+const HERBS = ['grave_moss', 'pale_wort', 'nightshade', 'dream_poppy', 'star_rose', 'ghost_lily', 'hops', 'kelp', 'barley'];
+const CLOTH = ['linen', 'kelp_cloth', 'celephais_silk'];
+const OCCULT = ['whispering_fragment', 'cultist_text', 'necronomicon_page', 'eldritch_insight', 'veil_pearl', 'dream_dust', 'cat_whisker', 'leng_onyx',
+  'kadath_star', 'old_bones', 'saints_knucklebone', 'ancient_bones', 'blessed_ash', 'drowned_idol'];
+const ITEM_CATEGORIES = [
+  ['equipment', '⚔️', 'Equipment', it => it.type === 'equipment'],
+  ['tools', '🧰', 'Tools', it => it.type === 'tool'],
+  ['food', '🍖', 'Food', it => it.type === 'food' || it.id.startsWith('raw_') || it.id === 'deep_egg'],
+  ['potions', '🧪', 'Potions & scrolls', it => it.type === 'potion' || it.type === 'scroll'],
+  ['herbs', '🌿', 'Herbs & plants', it => HERBS.includes(it.id)],
+  ['wood', '🪵', 'Wood', it => it.id.endsWith('_logs')],
+  ['metal', '⛏️', 'Ore & metal', it => /_(ore|bar)$/.test(it.id)],
+  ['hides', '🟫', 'Hides & cloth', it => /_(hide|pelt)$/.test(it.id) || CLOTH.includes(it.id)],
+  ['occult', '👁️', 'Occult', it => it.type === 'tome' || it.type === 'relic' || OCCULT.includes(it.id)],
+  ['trade', '⚖️', 'Trade goods', it => it.type === 'trade'],
+  ['other', '📦', 'Other', () => true],
+];
+function itemCategory(id) {
+  return ITEM_CATEGORIES.find(c => c[3](ITEMS[id]))[0];
+}
+
 function bar(id, cls, pct, label = '') {
   return `<div class="bar ${cls}"><div class="fill" id="${id}" style="width:${pct}%"></div><span class="bar-label" id="${id}-label">${label}</span></div>`;
 }
@@ -198,6 +220,7 @@ const UI = {
       case 'collect': Game.collectCult(); break;
       case 'assign': Game.assignFollower(d.from, d.to); break;
       case 'journal-tab': this.journalTab = d.tab; break;
+      case 'item-tab': Game.state.settings.itemTabs = Object.assign(Game.state.settings.itemTabs || {}, { [d.store]: d.tab }); break;
       case 'phantom': Game.log(pick(['There is nothing there.', 'You reach for it and your hand closes on air.', 'It was never there. Was it?']), 'veil'); break;
       case 'audio':
         Game.state.settings.audio = !Game.state.settings.audio;
@@ -905,6 +928,20 @@ const UI = {
     return `<details class="section ${cls}" data-section="${id}"${open ? ' open' : ''}><summary><h2>${title}</h2></summary>${body}</details>`;
   },
 
+  // Category tabs for a store (pack or bank), showing only categories that hold something.
+  // Returns the tab buttons and the store filtered to the chosen tab.
+  itemTabs(store, key) {
+    const counts = {};
+    for (const id of Object.keys(store)) counts[itemCategory(id)] = (counts[itemCategory(id)] || 0) + 1;
+    const tabs = Game.state.settings.itemTabs || {};
+    const tab = counts[tabs[key]] ? tabs[key] : 'all';
+    const used = ITEM_CATEGORIES.filter(c => counts[c[0]]);
+    const btn = (id, label, n) => `<button class="btn small${tab === id ? ' selected' : ''}" data-act="item-tab" data-store="${key}" data-tab="${id}">${label} <span class="muted">${n}</span></button>`;
+    const html = used.length > 1 ? `<div class="btn-row tabs item-tabs">${btn('all', 'All', Object.keys(store).length)}${used.map(c => btn(c[0], `${c[1]} ${c[2]}`, counts[c[0]])).join('')}</div>` : '';
+    const filtered = tab === 'all' ? store : Object.fromEntries(Object.entries(store).filter(([id]) => itemCategory(id) === tab));
+    return { html, store: filtered };
+  },
+
   itemGrid(store, act, selected) {
     const ids = Object.keys(store);
     if (!ids.length) return '<p class="muted">Empty.</p>';
@@ -918,7 +955,9 @@ const UI = {
     const cap = Game.capacity();
     let html = `<h1>🎒 Pack</h1>${bar('pack-cap', 'xp', (used / cap) * 100, `${used} / ${cap} slots`)}
       <p class="muted small">Each kind of item takes one slot, however many you carry. A bag on your back adds slots.</p>`;
-    let grid = this.itemGrid(s.pack, 'select', this.itemPopup);
+    const tabs = this.itemTabs(s.pack, 'pack');
+    html += tabs.html;
+    let grid = this.itemGrid(tabs.store, 'select', this.itemPopup);
     if (this.hallucinating()) {
       const ph = pick(HALLUCINATIONS.items);
       grid = grid.replace(/<\/div>$/, `<button class="bank-item phantom" data-act="phantom"><span class="bank-icon">${ph.icon}</span><span class="bank-qty">1</span><span class="bank-name">${esc(ph.name)}</span></button></div>`);
@@ -985,7 +1024,8 @@ const UI = {
       html += `<div class="item-detail"><div class="big-icon">${ITEMS[sel].icon}</div><div><h2>${esc(ITEMS[sel].name)} <span class="muted">× ${fmt(s.bank[sel])}</span></h2>
         <div class="btn-row">${[1, 10, 100].map(q => `<button class="btn small" data-act="withdraw" data-item="${sel}" data-qty="${q}">Withdraw ${q}</button>`).join('')}<button class="btn small" data-act="withdraw" data-item="${sel}" data-qty="all">Withdraw all</button></div></div></div>`;
     }
-    return html + this.itemGrid(s.bank, 'select-bank', sel) + '</div></div>';
+    const tabs = this.itemTabs(s.bank, 'bank');
+    return html + tabs.html + this.itemGrid(tabs.store, 'select-bank', sel) + '</div></div>';
   },
 
   pageShop() {

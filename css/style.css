@@ -284,6 +284,7 @@ body.night .map-wrap { filter: brightness(.8) saturate(.8); }
 .beast.got { border-color: var(--gold); }
 .beast p { margin: .3rem 0; }
 .tabs { margin-bottom: 1rem; }
+.item-tabs { flex-wrap: wrap; gap: .3rem; margin: .4rem 0 .8rem; }
 .choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .5rem; margin-bottom: 1rem; }
 .choices.single { grid-template-columns: 1fr; }
 .choice { display: flex; flex-direction: column; gap: .2rem; text-align: left; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: .55rem .7rem; color: var(--text); font: inherit; cursor: pointer; }
