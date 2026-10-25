@@ -117,6 +117,8 @@ Object.assign(Game, {
     const total = qty * (Math.random() < this.perk('double', 'gardening') ? 2 : 1);
     if (!this.addItem(crop, total)) return this.log('Your pack is full.', 'warn');
     this.state.garden.plots[index] = null;
+    // Saved seed: the plot gives back what was sown in it.
+    if (Math.random() < this.perk('reseed', 'gardening')) this.addItem(plot.seed, 1);
     this.state.garden.last = Object.assign(this.state.garden.last || {}, { [index]: plot.seed });
     if (crop === 'star_rose') this.state.flags.starRoseHarvest = true;
     this.addXp('gardening', xp);
