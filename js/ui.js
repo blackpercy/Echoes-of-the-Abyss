@@ -601,6 +601,9 @@ const UI = {
           ${q.objective.type === 'deliver' ? `<button class="btn small" data-act="turnin" data-quest="${qid}"${Game.canTurnIn(qid) ? '' : ' disabled'}>Hand over</button>` : ''}</div>`;
       }
     }
+    // What a companion for hire would bring along.
+    const joining = (npc.interactions || []).map(i => i.gain && i.gain.companion).find(Boolean);
+    if (joining && COMPANIONS[joining].mods) html += `<div class="small mods">${modsText(COMPANIONS[joining])}</div>`;
     const inters = (npc.interactions || []).filter(i => Game.check(i.if));
     if (inters.length) {
       html += `<div class="btn-row">${inters.map(i => {
@@ -697,7 +700,7 @@ const UI = {
       const lvl = Game.level('fellowship');
       html += `<p class="small">🤝 Fellowship grows when a companion fights beside you (${Math.round(FELLOWSHIP_KILL_SHARE * 100)}% of each enemy's xp) and when you travel together. Each level gives your companions +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100)}% hitpoints and +1 sanity; every 10 levels +1 to hit, every 8 levels +1 damage.</p>
         <p class="small"><b>You can lead ${Game.companionCapacity()} companion${Game.companionCapacity() > 1 ? 's' : ''}</b> (one more every ${FELLOWSHIP_LEVELS_PER_COMPANION} Fellowship levels). With you now: ${Game.companions().length}.</p>
-        ${Game.companions().length ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, at the Silent Abbey and, for the touched, in Saltmire. Others may join you once you have helped them.</p>'}
+        ${Game.companions().length ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, Port Ulric, the Blackwood, the graveyard and at the Silent Abbey. Others join you once you have helped them, and some only speak to the touched.</p>'}
         <p class="small muted">Right now: +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100 * (lvl - 1))}% hitpoints, ${withSign(Math.floor(lvl / 10))} to hit, ${withSign(Math.floor(lvl / 8))} damage.</p>`;
     }
     if (skill === 'gravedigging') {
@@ -1110,6 +1113,7 @@ const UI = {
       const st = Game.companionStats(comp);
       return `<div class="companion${comp.downed ? ' downed' : ''}"><b>${def.icon} ${esc(def.name)}</b>${comp.downed ? ` <span class="lack-text">(down: ${Game.perk('rally') ? 'catching their breath' : 'rest at an inn'})</span>` : ''}
         <div class="small">❤️ ${comp.hp} / ${st.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / ${st.sanity} · AC ${st.ac} · ${withSign(st.hit)} to hit, ${Game.companionDamageText(comp)}${st.heals ? ` · heals you ${st.heals}` : ''}</div>
+        ${def.mods ? `<div class="small mods">${modsText(def)}</div>` : ''}
         ${full ? `<div class="small muted">${esc(def.desc)}</div><button class="btn small danger" data-act="dismiss" data-id="${comp.id}">Part ways</button>` : ''}</div>`;
     }).join('');
   },

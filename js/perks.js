@@ -426,7 +426,19 @@ Object.assign(Game, {
     }
     // Completed relic collections, rites, brews and scrolls grant the same kinds of bonus as perks.
     if (PERK_EFFECTS[effect].scope !== 'skill') total += this.relicBonus(effect) + this.buffBonus(effect);
-    return total + this.gearBonus(effect, skill);
+    return total + this.gearBonus(effect, skill) + this.companionBonus(effect, skill);
+  },
+  // Companions with a talent (mods) help while they are with you and on their feet.
+  companionBonus(effect, skill) {
+    const skillBound = PERK_EFFECTS[effect].scope === 'skill';
+    let total = 0;
+    for (const c of this.state.companions) {
+      if (c.downed) continue;
+      for (const [eff, value, sk] of COMPANIONS[c.id].mods || []) {
+        if (eff === effect && (!skillBound || sk === skill)) total += value;
+      }
+    }
+    return total;
   },
   // Modifiers on worn gear, which work like perks (skill-bound ones only for their skill).
   gearBonus(effect, skill) {

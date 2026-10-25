@@ -497,3 +497,63 @@ EXPEDITIONS.sunken_temple.loot.items.push({ item: 'captains_coat', chance: 0.2, 
 EXPEDITIONS.catacomb_depths.loot.items.push({ item: 'vestments_of_dagon', chance: 0.15, qty: [1, 1] });
 EXPEDITIONS.crater_heart.loot.items.push({ item: 'brainkeeper_crown', chance: 0.25, qty: [1, 1] }, { item: 'star_alloy_band', chance: 0.25, qty: [1, 1] }, { item: 'migo_lens', chance: 0.2, qty: [1, 1] });
 EXPEDITIONS.chained_stacks.loot.items.push({ item: 'archivists_satchel', chance: 0.25, qty: [1, 1] }, { item: 'librarian_staff', chance: 0.15, qty: [1, 1] }, { item: 'librarian_gloves', chance: 0.2, qty: [1, 1] });
+
+// --- More companions ---
+// mods work like perks while the companion is with you and on their feet.
+Object.assign(COMPANIONS, {
+  hesper: { name: 'Hesper Vane', icon: '🎩', desc: 'A one-eyed factor of the Ulric Bazaar. She fights like a clerk, but nobody cheats you while she watches.', hp: 40, ac: 12, hit: 3, dmg: '1d6', speed: 2800, wits: 2, home: 'port_ulric', mods: [['haggle', 0.05], ['gold', 0.1]] },
+  marrow: { name: 'Old Marrow', icon: '⚓', desc: 'A sailor with salt in his beard and a cutlass he calls Mother. Knows every current in the bay.', hp: 65, ac: 13, hit: 5, dmg: '1d8+2', speed: 2600, wits: 1, home: 'port_ulric', mods: [['speed', 0.2, 'sailing'], ['travel', 0.1]] },
+  thrain: { name: 'Thrain Deepdelver', icon: '⛏️', desc: 'A dwarven miner who went back down after the shaft was sealed again. He swings a pick in a fight, too.', hp: 80, ac: 16, hit: 5, dmg: '1d10+1', speed: 2900, wits: 1, home: 'ironhold', mods: [['speed', 0.2, 'mining'], ['double', 0.05, 'mining']] },
+  maud: { name: 'Sister Maud', icon: '📚', desc: 'Keeper of the Forbidden Library. She reads aloud to steady you. She will not follow a mind that is Dream-Kissed or worse.', hp: 35, ac: 11, hit: 2, dmg: '1d4', speed: 3000, wits: 8, maxMadness: 3, home: 'silent_abbey', aura: { ward: 1 }, mods: [['sanityCost', -0.2, 'lore'], ['xp', 0.1, 'lore']] },
+  silas: { name: 'Silas Crane', icon: '⚰️', desc: 'The sexton of the Blackwood Graveyard. He knows which graves are worth opening, and hits hard with a spade.', hp: 60, ac: 13, hit: 5, dmg: '1d8+1', speed: 2700, wits: 2, home: 'graveyard', mods: [['speed', 0.2, 'gravedigging'], ['rare', 0.02, 'gravedigging']] },
+  ilse: { name: 'Ilse Hammerfoam', icon: '🍺', desc: 'Brewer of the Anvil & Ale. She keeps a flask for you in every fight (heals you 3 each turn).', hp: 55, ac: 12, hit: 4, dmg: '1d6+1', speed: 2800, wits: 1, heals: 3, home: 'ironhold', mods: [['speed', 0.2, 'brewing'], ['potency', 0.1]] },
+  shuck: { name: 'Shuck', icon: '🐕‍🦺', desc: 'A black dog the size of a calf, with eyes like coals. Fast, and it always finds the trail.', hp: 45, ac: 14, hit: 6, dmg: '1d6+2', speed: 1800, wits: 3, home: 'blackwood', mods: [['speed', 0.15, 'hunting'], ['scout', 1]] },
+  drowned_girl: { name: 'The Drowned Girl', icon: '👧', desc: 'She walks a little behind you and leaves wet footprints. Madness cannot touch her, and the things from beyond fear her.', hp: 60, ac: 15, hit: 7, dmg: '2d6', speed: 2600, wits: 99, mad: true, home: 'lighthouse', mods: [['eldritch', 0.15], ['veil', 10]] },
+  cylinder: { name: 'The Voice in the Cylinder', icon: '🧠', desc: 'A brain in a Mi-Go canister, carried on your back. It cannot fight much, but it has read the libraries of Yuggoth and loves to explain.', hp: 30, ac: 18, hit: 2, dmg: '1d4', speed: 3000, wits: 10, home: 'crater', mods: [['allXp', 0.05], ['scrollPower', 0.1]] },
+});
+Object.assign(NPCS, {
+  hesper_npc: {
+    name: 'Hesper Vane', icon: '🎩', title: 'factor of the Ulric Bazaar', location: 'port_ulric', if: { noCompanion: 'hesper' },
+    lines: [{ text: '"Six hundred gold, and I will come and make sure the rest of your gold stays yours. A bargain, you will find."' }],
+    interactions: [{ id: 'hire', label: 'Hire Hesper', cost: { gold: 600 }, gain: { companion: 'hesper' }, result: '"Splendid. I shall keep the ledger."' }],
+  },
+  marrow_npc: {
+    name: 'Old Marrow', icon: '⚓', title: 'between ships', location: 'port_ulric', if: { noCompanion: 'marrow' },
+    lines: [{ text: '"Mother and I have sailed every water in the bay. For four hundred and fifty, we\'ll sail yours."' }],
+    interactions: [{ id: 'hire', label: 'Sign on Old Marrow', cost: { gold: 450 }, gain: { companion: 'marrow' }, result: 'He pats his cutlass. "Mother approves."' }],
+  },
+  thrain_npc: {
+    name: 'Thrain Deepdelver', icon: '⛏️', title: 'miner, back from below', location: 'deep_mines', if: { noCompanion: 'thrain', quests: { brunhild_below: 'done' } },
+    lines: [{ text: '"You quieted the deep. Now there is ore down here no dwarf has touched in a hundred years. Five hundred gold and I will show you where."' }],
+    interactions: [{ id: 'hire', label: 'Hire Thrain', cost: { gold: 500 }, gain: { companion: 'thrain' }, result: '"Mind your head. Mind everything, really."' }],
+  },
+  silas_npc: {
+    name: 'Silas Crane', icon: '⚰️', title: 'sexton of the graveyard', location: 'graveyard', if: { noCompanion: 'silas' },
+    lines: [{ text: 'A gaunt man leans on a spade. "Everyone in this ground owes me something. Three hundred gold and I\'ll collect for you."' }],
+    interactions: [{ id: 'hire', label: 'Hire Silas', cost: { gold: 300 }, gain: { companion: 'silas' }, result: '"Bring a lantern. And a strong stomach."' }],
+  },
+  ilse_npc: {
+    name: 'Ilse Hammerfoam', icon: '🍺', title: 'brewer of the Anvil & Ale', location: 'ironhold', if: { noCompanion: 'ilse' },
+    lines: [{ text: '"I brew the best ale under the mountain and I fight better drunk than most do sober. Three hundred and fifty, and the first round is on me."' }],
+    interactions: [{ id: 'hire', label: 'Hire Ilse', cost: { gold: 350 }, gain: { companion: 'ilse' }, result: 'She shoulders a keg. "Lead on."' }],
+  },
+  shuck_npc: {
+    name: 'A Black Dog', icon: '🐕‍🦺', title: 'watching from the trees', location: 'blackwood', if: { noCompanion: 'shuck' },
+    lines: [{ text: 'A huge black dog sits at the edge of the path, watching you with eyes like coals. It looks hungry, and it looks at your pack.' }],
+    interactions: [{ id: 'hire', label: 'Offer it venison', cost: { items: { raw_venison: 5 } }, gain: { companion: 'shuck' }, result: 'It eats, licks your hand once, and falls in at your heel.' }],
+  },
+  drowned_girl_npc: {
+    name: 'The Drowned Girl', icon: '👧', title: 'at the foot of the black lamp', location: 'lighthouse', if: { noCompanion: 'drowned_girl', minMadness: 3 },
+    lines: [{ text: 'A small girl in a soaked nightdress looks up at you. "You can see me. Nobody can see me. Can I come? I will bring you pearls."' }],
+    interactions: [{ id: 'hire', label: 'Give her three Veil Pearls back', cost: { items: { veil_pearl: 3 } }, gain: { companion: 'drowned_girl' }, result: 'She takes your hand. Hers is very cold.' }],
+  },
+  cylinder_npc: {
+    name: 'A Voice from a Canister', icon: '🧠', title: 'among the Mi-Go wreckage', location: 'crater', if: { noCompanion: 'cylinder', minMadness: 1 },
+    lines: [{ text: 'One of the metal canisters in the grass is talking. "You. Yes, you. Carry me away from here and I will teach you everything they taught me. Bring me a working cylinder; this one is leaking."' }],
+    interactions: [{ id: 'hire', label: 'Move it into a Mi-Go Cylinder', cost: { items: { mi_go_cylinder: 1 } }, gain: { companion: 'cylinder' }, result: '"Ahh. Much better. Now, about the nature of time…"' }],
+  },
+});
+// Sister Maud already keeps the library; she can now be asked along (and is away from it while she travels).
+NPCS.maud.if = { noCompanion: 'maud' };
+NPCS.maud.interactions.push({ id: 'hire', label: 'Ask Sister Maud to come', if: { maxMadness: 3 }, cost: { gold: 600 }, gain: { companion: 'maud' }, result: '"Someone ought to read to you while you read those books. I shall bring the small ones. The large ones bite."' });
+ACHIEVEMENTS.find(a => a.id === 'company').name = 'The Whole Company';
