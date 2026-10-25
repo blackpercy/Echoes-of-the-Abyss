@@ -678,6 +678,7 @@ const UI = {
       <div class="card-name">${esc(a.name)}</div>
       ${a.desc ? `<div class="muted small">${esc(a.desc)}</div>` : ''}
       ${a.when ? `<div class="small sanity-text">${a.when === 'night' ? '🌙 Only at night' : '🌊 Only at low tide'}</div>` : ''}
+      ${a.nightBest ? `<div class="small ${Game.isNight() ? 'good-text' : 'muted'}">${Game.isNight() ? '🌙 Night: full speed' : '☀️ Daylight: half speed'}</div>` : ''}
       <div class="small">${secs(Game.actionTime(skill, a))} · ${a.xp} xp${a.sanityCost ? ` · <span class="sanity-text">−${Game.sanityCostOf(skill, a)} sanity</span>` : ''}${a.station ? ` · ${STATIONS[a.station].icon} ${STATIONS[a.station].name}` : ''}</div>
       ${a.input ? `<div class="small">Uses: ${Object.entries(a.input).map(([id, q]) => `<span class="chip ${Game.count(id) >= q ? '' : 'lack'}">${ITEMS[id].icon} ${q} ${esc(ITEMS[id].name)} <span class="muted">(${fmt(Game.count(id))})</span></span>`).join(' ')}</div>` : ''}
       <div class="small">Makes: ${makes}${outItem.id ? ` <span class="muted">(carrying ${fmt(Game.count(outItem.id))})</span>` : ''}</div>
@@ -738,7 +739,7 @@ const UI = {
     if (skill === 'astronomy') {
       const lvl = Game.level('astronomy');
       const days = (STARS_RIGHT_EVERY - 1 - Game.dayIndex() % STARS_RIGHT_EVERY);
-      html += `<p class="small">🔭 The sky can only be read at night (${Game.isNight() ? '<b>it is night now</b>' : 'it is day now'}). Every level gives +${(ASTRONOMY_ELDRITCH_PER_LEVEL * 100).toFixed(1)}% damage against eldritch beings (now +${Math.round(ASTRONOMY_ELDRITCH_PER_LEVEL * 100 * (lvl - 1))}%).
+      html += `<p class="small">🔭 The sky is best read at night; by day you can still work, at half speed (${Game.isNight() ? '<b>it is night now</b>' : 'it is day now'}). Every level gives +${(ASTRONOMY_ELDRITCH_PER_LEVEL * 100).toFixed(1)}% damage against eldritch beings (now +${Math.round(ASTRONOMY_ELDRITCH_PER_LEVEL * 100 * (lvl - 1))}%).
         ${lvl >= ASTRONOMY_FORECAST_LEVEL ? `<br>🌌 ${Game.starsRight() ? '<b>The stars are right tonight.</b>' : `The stars will be right on the night of ${days === 0 ? 'today' : `day ${Game.dayIndex() + 1 + days}`}.`}` : `<br>At level ${ASTRONOMY_FORECAST_LEVEL} you will know when the stars will be right.`}</p>`;
     }
     if (skill === 'jewelcrafting') {

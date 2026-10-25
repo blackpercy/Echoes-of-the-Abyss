@@ -464,7 +464,8 @@ const Game = {
     const tier = TOOLS[skill] ? Math.max(0, this.toolTier(skill)) : 0;
     const stars = TOOLS[skill] && this.hasDerangement('star_touched') ? 0.85 : 1;
     const practised = 1 - Math.min(MAX_PERK_SPEED, this.perk('speed', skill) + this.perk('speedAll') + (skill === 'archaeology' ? this.companionAura('dig') : 0));
-    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars * this.raceSpeed(skill) * practised);
+    const daylight = action.nightBest && !this.isNight() ? DAYLIGHT_SLOWDOWN : 1;
+    return Math.round(action.time * (1 - TOOL_SPEEDUP[tier]) * stars * this.raceSpeed(skill) * practised * daylight);
   },
   availableHere(skill, action) {
     if (action.veil && !this.veilSight()) return false;

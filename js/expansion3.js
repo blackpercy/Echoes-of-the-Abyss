@@ -72,12 +72,13 @@ addItem('star_chart', { name: 'Star Chart', icon: '🗺️', sell: 60, desc: 'A 
 addItem('star_shard', { name: 'Star-Shard', icon: '💫', sell: 90, desc: 'A sliver of something that fell, still faintly warm. Jewellers and tinkers want it.' });
 const ASTRONOMY_ELDRITCH_PER_LEVEL = 0.004;  // damage against eldritch beings per level
 const ASTRONOMY_FORECAST_LEVEL = 10;          // from here you know when the stars will be right
+const DAYLIGHT_SLOWDOWN = 2;                  // the sky is half as readable by day: activities take twice as long
 ACTIONS.astronomy = [
-  { id: 'stargaze', name: 'Stargaze', icon: '🌌', level: 1, xp: 12, time: 4000, anywhere: true, when: 'night', output: { star_notes: 1 } },
-  { id: 'constellations', name: 'Chart the Constellations', level: 8, xp: 40, time: 5000, when: 'night', input: { star_notes: 3 }, output: { star_chart: 1 } },
-  { id: 'comet', name: 'Follow the Comet\'s Fall', level: 18, xp: 70, time: 6000, when: 'night', output: { star_shard: 1 } },
-  { id: 'wandering_stars', name: 'Track the Wandering Stars', level: 28, xp: 100, time: 6500, when: 'night', output: { star_chart: 2 }, bonus: [{ item: 'kadath_star', chance: 0.005, qty: 1 }] },
-  { id: 'dark_star', name: 'Watch the Dark Star', level: 40, xp: 180, time: 8000, when: 'night', sanityCost: 6, output: { eldritch_insight: 3, star_shard: 1 }, desc: 'From the gallery of the lamp that is not there, you can see a star that is not there either.' },
+  { id: 'stargaze', name: 'Stargaze', icon: '🌌', level: 1, xp: 12, time: 4000, anywhere: true, nightBest: true, output: { star_notes: 1 } },
+  { id: 'constellations', name: 'Chart the Constellations', level: 8, xp: 40, time: 5000, nightBest: true, input: { star_notes: 3 }, output: { star_chart: 1 } },
+  { id: 'comet', name: 'Follow the Comet\'s Fall', level: 18, xp: 70, time: 6000, nightBest: true, output: { star_shard: 1 } },
+  { id: 'wandering_stars', name: 'Track the Wandering Stars', level: 28, xp: 100, time: 6500, nightBest: true, output: { star_chart: 2 }, bonus: [{ item: 'kadath_star', chance: 0.005, qty: 1 }] },
+  { id: 'dark_star', name: 'Watch the Dark Star', level: 40, xp: 180, time: 8000, nightBest: true, sanityCost: 6, output: { eldritch_insight: 3, star_shard: 1 }, desc: 'From the gallery of the lamp that is not there, you can see a star that is not there either.' },
 ];
 LOCATIONS.standing_stones.gather.astronomy = ['constellations', 'wandering_stars'];
 LOCATIONS.port_ulric.gather.astronomy = ['constellations'];

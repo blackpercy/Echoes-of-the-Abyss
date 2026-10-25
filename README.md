@@ -48,7 +48,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - A **rowboat**: no ferry fee, and the only way to the new **Drowned Isle**.
 - **Stealth.** Pick pockets and burgle for gold, at the risk of being caught and fined. Your first blow on each enemy is a sneak attack (+1d6 per 10 levels). After an expedition you may find a hidden vault that doubles the treasure. Some road events now have stealthy choices.
 - **Gardening.** Sow seeds in garden plots in Hollowfen or at home. They grow in real time, even while you are away, into barley, hops and herbs up to the Star Rose.
-- **Astronomy.** Read the night sky for star charts, star-shards and eldritch insight. Each level adds damage against eldritch beings, and from level 10 you know when the stars will be right.
+- **Astronomy.** Read the sky, at full speed by night and half speed by day, for star charts, star-shards and eldritch insight. Each level adds damage against eldritch beings, and from level 10 you know when the stars will be right.
 - **Jewelcrafting.** Set sea glass, amber, pearls, ambergris, onyx and star-shards into rings, pendants and a circlet with modifiers.
 - **Tinkering.** Build gadgets (a spring trap, a chronometer, a diving bell, a Mi-Go compass, an aether engine) that help just by being carried.
 - **Construction.** Take building jobs in town, then build a house in any town and add rooms: bedroom, strongroom (a bank at home), kitchen garden, workshop, library, shrine, music room, trophy hall and observatory.
