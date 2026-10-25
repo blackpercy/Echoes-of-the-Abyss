@@ -131,6 +131,12 @@ const UI = {
       this.dirty = true;
       return;
     }
+    // On phones, a tap outside the open menu closes it (and does nothing else).
+    if (document.body.classList.contains('nav-open') && !e.target.closest('#nav, .menu-btn')) {
+      e.preventDefault();
+      document.body.classList.remove('nav-open');
+      return;
+    }
     const el = e.target.closest('[data-act]');
     if (!el) return;
     e.preventDefault();
