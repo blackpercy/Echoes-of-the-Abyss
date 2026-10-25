@@ -72,6 +72,7 @@ Object.assign(Game, {
         this.log('You patch up your companions. They are ready to go on.', 'good');
         return false;
       case 'tame': return this.tryTame(skill, action);
+      case 'tend': return this.tendGarden();
       case 'build': return this.buildRoom(action.room);
     }
     return true;
@@ -116,6 +117,7 @@ Object.assign(Game, {
     const total = qty * (Math.random() < this.perk('double', 'gardening') ? 2 : 1);
     if (!this.addItem(crop, total)) return this.log('Your pack is full.', 'warn');
     this.state.garden.plots[index] = null;
+    this.state.garden.last = Object.assign(this.state.garden.last || {}, { [index]: plot.seed });
     if (crop === 'star_rose') this.state.flags.starRoseHarvest = true;
     this.addXp('gardening', xp);
     this.log(`You harvest ${total} × ${ITEMS[crop].name}.`, 'good');
@@ -123,6 +125,26 @@ Object.assign(Game, {
   },
   harvestAll() {
     this.plots().forEach((p, i) => { if (this.plotReady(p)) this.harvest(i); });
+  },
+  // One round of tending: harvest, sow every empty plot again, and weed so the rest grows faster.
+  tendGarden() {
+    const g = this.state.garden;
+    this.harvestAll();
+    const plots = this.plots();
+    const plantable = seed => this.count(seed) > 0 && this.level('gardening') >= CROPS[seed][3];
+    // The best seed you carry: the one that needs the highest Gardening level.
+    const best = () => Object.keys(CROPS).filter(plantable).sort((a, b) => CROPS[b][3] - CROPS[a][3])[0];
+    plots.forEach((p, i) => {
+      if (p) return;
+      const last = (g.last || {})[i];
+      const seed = last && plantable(last) ? last : best();
+      if (!seed) return;
+      this.removeItem(seed, 1);
+      g.plots[i] = { seed, planted: Date.now() };
+      this.addXp('gardening', CROPS[seed][4] * PLANT_XP_SHARE);
+    });
+    for (const p of g.plots) if (p && !this.plotReady(p)) p.planted -= TEND_BOOST_MS;
+    return true;
   },
 
   // --- Your house ---

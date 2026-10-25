@@ -48,7 +48,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Shrine idols that give your cult room for more followers.
   - A **rowboat**: no ferry fee, and the only way to the new **Drowned Isle**.
 - **Stealth.** Pick pockets and burgle for gold, at the risk of being caught and fined. Your first blow on each enemy is a sneak attack (+1d6 per 10 levels). After an expedition you may find a hidden vault that doubles the treasure. Some road events now have stealthy choices.
-- **Gardening.** Sow seeds in garden plots in Hollowfen or at home. They grow in real time, even while you are away, into barley, hops and herbs up to the Star Rose.
+- **Gardening.** Sow seeds in garden plots in Hollowfen or at home. They grow in real time, even while you are away, into flax, barley, hops and herbs up to the Star Rose. **Tend the Garden** is a repeatable activity that harvests, sows again and weeds, so the plots grow faster while you work them. Flax is spun into linen on a loom (Tailoring).
 - **Astronomy.** Read the sky, at full speed by night and half speed by day, for star charts, star-shards and eldritch insight. Each level adds damage against eldritch beings, and from level 10 you know when the stars will be right.
 - **Jewelcrafting.** Set sea glass, amber, pearls, ambergris, onyx and star-shards into rings, pendants and a circlet with modifiers.
 - **Tinkering.** Build gadgets (a spring trap, a chronometer, a diving bell, a Mi-Go compass, an aether engine) that help just by being carried.

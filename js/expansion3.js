@@ -42,8 +42,10 @@ ACTIONS.carpentry.sort((a, b) => a.level - b.level);
 
 // --- Gardening: plots that grow in real time ---
 // seed: [crop, harvest, minutes to grow, Gardening level, xp on harvest]
+addItem('flax', { name: 'Flax', icon: '🌾', sell: 2, desc: 'Long, tough stems. Spun on a loom, they become linen.' });
 const CROPS = {
   barley_seed: ['barley', 6, 2, 1, 8],
+  flax_seed: ['flax', 5, 3, 3, 10],
   hop_seed: ['hops', 4, 3, 5, 14],
   moss_spores: ['grave_moss', 5, 4, 8, 18],
   wort_seed: ['pale_wort', 4, 6, 14, 30],
@@ -52,7 +54,7 @@ const CROPS = {
   myrtle_seed: ['bog_myrtle', 3, 20, 34, 110],
   star_rose_seed: ['star_rose', 2, 30, 42, 180],
 };
-const SEED_NAMES = { barley_seed: 'Barley Seed', hop_seed: 'Hop Seedlings', moss_spores: 'Grave-Moss Spores', wort_seed: 'Pale Wort Seed', nightshade_seed: 'Nightshade Seed', poppy_seed: 'Dream Poppy Seed', myrtle_seed: 'Bog Myrtle Cuttings', star_rose_seed: 'Star Rose Seed' };
+const SEED_NAMES = { flax_seed: 'Flax Seed', barley_seed: 'Barley Seed', hop_seed: 'Hop Seedlings', moss_spores: 'Grave-Moss Spores', wort_seed: 'Pale Wort Seed', nightshade_seed: 'Nightshade Seed', poppy_seed: 'Dream Poppy Seed', myrtle_seed: 'Bog Myrtle Cuttings', star_rose_seed: 'Star Rose Seed' };
 for (const [id, [crop, , , level]] of Object.entries(CROPS)) {
   addItem(id, { name: SEED_NAMES[id], icon: '🌰', type: 'seed', sell: Math.max(1, Math.round(ITEMS[crop].sell / 2)), desc: `Plant it in a garden plot (Gardening ${level}) to grow ${ITEMS[crop].name}.` });
 }
@@ -60,6 +62,11 @@ const GARDEN_BASE_PLOTS = 3;
 const GARDEN_LEVELS_PER_PLOT = 10;
 const MAX_PLOTS = 15;
 const PLANT_XP_SHARE = 0.25;     // share of the harvest xp you get for planting
+const TEND_BOOST_MS = 20000;     // each round of tending brings every growing plot this much closer to harvest
+// Tending the garden is an activity like any other: it harvests what is ready, sows again and weeds.
+ACTIONS.gardening = [
+  { id: 'tend_garden', name: 'Tend the Garden', icon: '🧑‍🌾', level: 1, xp: 4, time: 5000, station: 'garden', effect: 'tend', output: {}, desc: 'Harvest what is ready, sow the empty plots again (the same crop, or the best seed you carry) and weed, so everything grows a little faster.' },
+];
 // Foraging now and then turns up seeds.
 for (const [action, seed, chance] of [['grave_moss', 'moss_spores', 0.05], ['pale_wort', 'wort_seed', 0.04], ['nightshade', 'nightshade_seed', 0.03], ['dream_poppy', 'poppy_seed', 0.03], ['bog_myrtle', 'myrtle_seed', 0.03], ['star_rose', 'star_rose_seed', 0.02], ['wild_hops', 'hop_seed', 0.05]]) {
   const a = ACTIONS.foraging.find(x => x.id === action);
@@ -226,8 +233,8 @@ for (const [id, r] of Object.entries(HOUSE_ROOMS)) {
 ACTIONS.construction.sort((a, b) => a.level - b.level);
 
 // --- Shops ---
-SHOPS.fen_store.stock.push({ item: 'barley_seed', price: 2 }, { item: 'hop_seed', price: 4 }, { item: 'moss_spores', price: 5 }, { item: 'wort_seed', price: 12 }, { item: 'linen', price: 8 });
-SHOPS.general_store.stock.push({ item: 'barley_seed', price: 3 }, { item: 'hop_seed', price: 5 }, { item: 'lute', price: 120 }, { item: 'bandage', price: 10 });
+SHOPS.fen_store.stock.push({ item: 'flax_seed', price: 3 }, { item: 'barley_seed', price: 2 }, { item: 'hop_seed', price: 4 }, { item: 'moss_spores', price: 5 }, { item: 'wort_seed', price: 12 }, { item: 'linen', price: 8 });
+SHOPS.general_store.stock.push({ item: 'flax_seed', price: 4 }, { item: 'barley_seed', price: 3 }, { item: 'hop_seed', price: 5 }, { item: 'lute', price: 120 }, { item: 'bandage', price: 10 });
 SHOPS.apothecary.stock.push({ item: 'wort_seed', price: 15 }, { item: 'nightshade_seed', price: 30 }, { item: 'bandage', price: 8 }, { item: 'smelling_salts', price: 40 });
 SHOPS.smithy.stock.push({ item: 'jewellers_loupe', price: 600 }, { item: 'stone_block', price: 10 });
 SHOPS.ulric_bazaar.stock.push({ item: 'poppy_seed', price: 80 }, { item: 'myrtle_seed', price: 120 }, { item: 'lute', price: 100 }, { item: 'jewellers_loupe', price: 500 });
@@ -272,3 +279,7 @@ const ATTRIBUTE_BONUSES = {
   intelligence: [['potency', 0.005], ['scrollPower', 0.005], ['ward', 1, 20]],
   charisma: [['haggle', 0.002], ['compHit', 1, 20], ['compAc', 1, 20]],
 };
+
+// Linen from flax, on the loom.
+ACTIONS.tailoring.push({ id: 'spin_linen', name: 'Spin Linen', level: 1, xp: 8, time: 3000, station: 'loom', input: { flax: 3 }, output: { linen: 2 } });
+ACTIONS.tailoring.sort((a, b) => a.level - b.level);
