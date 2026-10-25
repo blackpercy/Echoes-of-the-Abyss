@@ -99,6 +99,7 @@ const UI = {
   init() {
     document.body.addEventListener('click', e => this.onClick(e));
     document.body.addEventListener('change', e => this.onChange(e));
+    document.addEventListener('keydown', e => this.onKey(e));
     // "toggle" does not bubble, so listen in the capture phase for any section being folded or opened.
     document.addEventListener('toggle', e => {
       const id = e.target.dataset && e.target.dataset.section;
@@ -257,6 +258,19 @@ const UI = {
       Game.setFood(e.target.value);
       e.target.blur();
     }
+    if (e.target.id === 'skill-select') {
+      this.page = 'skill-' + e.target.value;
+      e.target.blur();
+      this.dirty = true;
+    }
+  },
+  // ← and → step between skill pages (not while typing or choosing in a list).
+  onKey(e) {
+    if (!this.page.startsWith('skill-') || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName)) return;
+    if (document.getElementById('modal').innerHTML) return;
+    if (e.key === 'ArrowLeft') this.stepSkill(-1);
+    else if (e.key === 'ArrowRight') this.stepSkill(1);
   },
 
   // --- Rendering ---
@@ -690,8 +704,42 @@ const UI = {
     </div>`;
   },
 
+  // Every skill in menu order, for stepping through them.
+  skillOrder() {
+    return SKILL_GROUPS.flatMap(g => g.skills);
+  },
+  // Go to the previous (-1) or next (+1) skill page.
+  stepSkill(dir) {
+    const order = this.skillOrder();
+    const cur = this.page.startsWith('skill-') ? this.page.slice(6) : null;
+    if (!cur) return;
+    const i = order.indexOf(cur);
+    this.page = 'skill-' + order[(i + dir + order.length) % order.length];
+    this.dirty = true;
+  },
+  // At the top of every skill page: step to the neighbours, pick any skill, or jump within this group.
+  skillSwitcher(skill) {
+    const order = this.skillOrder();
+    const i = order.indexOf(skill);
+    const prev = order[(i - 1 + order.length) % order.length];
+    const next = order[(i + 1) % order.length];
+    const group = SKILL_GROUPS.find(g => g.skills.includes(skill));
+    const options = SKILL_GROUPS.map(g => `<optgroup label="${esc(g.name)}">${g.skills.map(sk => `<option value="${sk}"${sk === skill ? ' selected' : ''}>${SKILLS[sk].icon} ${esc(SKILLS[sk].name)} (${Game.level(sk)})${Game.pendingPerks(sk) ? ' ★' : ''}</option>`).join('')}</optgroup>`).join('');
+    const strip = group.skills.map(sk => {
+      const pending = Game.pendingPerks(sk);
+      const busy = Game.state.action && Game.state.action.skill === sk;
+      return `<button class="skill-chip${sk === skill ? ' current' : ''}${busy ? ' busy' : ''}" data-act="nav" data-page="skill-${sk}" title="${esc(SKILLS[sk].name)}"><span>${SKILLS[sk].icon}</span><span class="chip-level">${Game.level(sk)}</span>${pending ? '<span class="chip-star">★</span>' : ''}</button>`;
+    }).join('');
+    return `<div class="skill-switcher">
+      <button class="btn small" data-act="nav" data-page="skill-${prev}" title="${esc(SKILLS[prev].name)} (←)">◀ ${SKILLS[prev].icon}</button>
+      <select id="skill-select" aria-label="Go to skill">${options}</select>
+      <button class="btn small" data-act="nav" data-page="skill-${next}" title="${esc(SKILLS[next].name)} (→)">${SKILLS[next].icon} ▶</button>
+    </div>
+    <div class="skill-strip"><span class="small muted">${esc(group.name)}</span>${strip}</div>`;
+  },
+
   pageSkill(skill) {
-    let html = this.skillHeader(skill);
+    let html = this.skillSwitcher(skill) + this.skillHeader(skill);
     if (TOOLS[skill]) {
       const tier = Game.toolTier(skill);
       html += `<p class="muted small">Tool: ${tier < 0 ? `<span class="lack-text">none, so you need a ${ITEMS[TOOLS[skill][0]].name} in your pack</span>` : `<b>${ITEMS[TOOLS[skill][tier]].name}</b>${TOOL_SPEEDUP[tier] ? ` (−${TOOL_SPEEDUP[tier] * 100}% time)` : ''}`}. Better tools are sold in the shops.</p>`;

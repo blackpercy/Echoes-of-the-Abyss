@@ -143,6 +143,17 @@ p { line-height: 1.45; }
 
 /* --- Skill pages --- */
 .skill-header { margin-bottom: 1rem; }
+.skill-switcher { display: flex; align-items: center; gap: .4rem; margin-bottom: .4rem; }
+.skill-switcher select { flex: 1; min-width: 0; max-width: 320px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font: inherit; padding: .15rem .3rem; }
+.skill-strip { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin-bottom: .8rem; }
+.skill-strip > .small { margin-right: .2rem; }
+.skill-chip { position: relative; display: inline-flex; align-items: center; gap: .2rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font: inherit; padding: .1rem .4rem; cursor: pointer; }
+.skill-chip:hover { border-color: var(--accent-dim); }
+.skill-chip.current { border-color: var(--accent); background: var(--accent-dim); }
+.skill-chip.busy .chip-level::after { content: ' •'; color: var(--accent); }
+.chip-level { font-size: .75rem; color: var(--muted); }
+.skill-chip.current .chip-level { color: var(--text); }
+.chip-star { position: absolute; top: -6px; right: -4px; font-size: .65rem; color: var(--gold); }
 .skill-title { display: flex; gap: 1rem; align-items: center; }
 .skill-title p { margin: 0; }
 .big-icon { font-size: 2.6rem; }
