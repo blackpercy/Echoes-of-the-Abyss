@@ -85,7 +85,7 @@ const Game = {
       skills,
       pack: { bread: 10, hatchet: 1, fishing_rod: 1 },
       bank: {},
-      equipment: { weapon: 'rusty_dagger', head: null, body: null, amulet: null, back: null },
+      equipment: { weapon: 'rusty_dagger', head: null, body: null, amulet: null, back: null, hands: null, ring: null },
       food: 'bread',
       hp: 28,
       sanity: 100,

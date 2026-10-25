@@ -372,3 +372,49 @@ ACHIEVEMENTS.push(
   { id: 'merchant', icon: '⚖️', name: 'Merchant Prince', desc: 'Reach level 30 in Trading.', test: g => g.level('trading') >= 30 },
   { id: 'bare_knuckle', icon: '👊', name: 'Bare-Knuckle Theology', desc: 'Slay an eldritch being with your bare hands.', test: g => !!g.state.flags.bareKnuckle },
 );
+
+// --- Dungeon gear with skill modifiers ---
+// mods: [effect, value, skill?]. They work like perks while the item is worn; skill-bound effects need the skill named.
+Object.assign(SLOTS, { hands: 'Hands', ring: 'Ring' });
+const DUNGEON_GEAR = [
+  // [id, name, icon, slot, stats, mods, combat req, sell, desc]
+  ['work_gloves', 'Work Gloves', '🧤', 'hands', {}, [['speedAll', 0.03]], 1, 20, 'Thick leather, worn soft at the fingers.'],
+  ['silver_ring', 'Silver Ring', '💍', 'ring', { ward: 1 }, [], 5, 60, 'Plain silver. The dead dislike it.'],
+  ['fishscale_gloves', 'Fishscale Gloves', '🧤', 'hands', { ac: 1 }, [['speed', 0.15, 'fishing'], ['double', 0.05, 'fishing']], 15, 400, 'Cut from a deepling. The scales still flex when they touch water.'],
+  ['drowned_signet', 'Drowned Signet', '💍', 'ring', { ward: 1 }, [['sanityCost', -0.15, 'occultism'], ['xp', 0.1, 'occultism']], 15, 500, 'The seal of a priest of Dagon. It leaves wet prints.'],
+  ['ichor_ring', 'Ring of Living Ichor', '💍', 'ring', {}, [['hp', 20], ['killHeal', 3]], 18, 700, 'A bead of shoggoth, sealed in glass. It moves.'],
+  ['mitre_of_dagon', 'Mitre of the High Priest', '🎩', 'head', { ac: 2, ward: 3 }, [['sanityCost', -0.2, 'ritualism'], ['buffTime', 0.15]], 20, 1200, 'Tall, scaled and smelling of the sea.'],
+  ['duergar_gauntlets', 'Duergar Mining Gauntlets', '🧤', 'hands', { ac: 1 }, [['speed', 0.2, 'mining'], ['rare', 0.02, 'mining']], 15, 600, 'Grey iron, made for breaking stone in the dark.'],
+  ['stoneheart_ring', 'Stoneheart Ring', '💍', 'ring', { ac: 2 }, [['double', 0.07, 'smithing'], ['save', 0.05, 'smithing']], 20, 900, 'A chip of the Stone Horror, still warm as a forge.'],
+  ['wormtooth_necklace', 'Wormtooth Necklace', '🦷', 'amulet', { dmg: 2, ward: 2 }, [['speed', 0.2, 'gravedigging'], ['speed', 0.2, 'archaeology']], 22, 1500, 'One tooth from the Thing Below. It still wants to dig.'],
+  ['librarian_gloves', "Librarian's Gloves", '🧤', 'hands', {}, [['speed', 0.2, 'lore'], ['speed', 0.2, 'inscription'], ['scrollPower', 0.1]], 25, 1400, 'White cotton, stained at the fingertips with ink that is not ink.'],
+  ['ring_of_the_bound', 'Ring of the Bound', '💍', 'ring', { ward: 2 }, [['sanityCost', -0.25, 'lore'], ['xp', 0.15, 'lore']], 25, 1600, 'A link of the chain that held the Bound Horror.'],
+  ['leviathan_grips', 'Leviathan Grips', '🧤', 'hands', { hit: 2 }, [['wDmg', 2, 'polearms'], ['speed', 0.15, 'fishing']], 35, 3000, 'Gloves of star-spawn hide. Spears and lines never slip.'],
+  ['ring_of_rlyeh', "Ring of R'lyeh", '💍', 'ring', { ward: 3 }, [['eldritch', 0.1], ['allXp', 0.05]], 38, 5000, 'Green stone, carved with angles that are not right.'],
+  ['crown_of_dagon', 'Crown of Father Dagon', '👑', 'head', { ac: 3, ward: 3 }, [['double', 0.1, 'fishing'], ['travel', 0.15], ['gold', 0.1]], 40, 9000, 'Coral and gold from the throne of the deep.'],
+];
+for (const [id, name, icon, slot, stats, mods, req, sell, desc] of DUNGEON_GEAR) {
+  addItem(id, { name, icon, type: 'equipment', slot, stats, mods, req: { combat: req }, sell, desc });
+}
+// The plain pieces can be made; the rest are found in the dark places.
+ACTIONS.hunting.push({ id: 'work_gloves', name: 'Stitch Work Gloves', level: 4, xp: 20, time: 3000, station: 'tannery', input: { deer_hide: 2 }, output: { work_gloves: 1 } });
+ACTIONS.hunting.sort((a, b) => a.level - b.level);
+ACTIONS.smithing.push({ id: 'silver_ring', name: 'Forge a Silver Ring', level: 10, xp: 40, time: 3000, station: 'forge', input: { silver_bar: 1 }, output: { silver_ring: 1 } });
+ACTIONS.smithing.sort((a, b) => a.level - b.level);
+SHOPS.general_store.stock.push({ item: 'work_gloves', price: 80 });
+const gearDrops = {
+  deepling: [['fishscale_gloves', 0.03]],
+  cultist_priest: [['drowned_signet', 0.02]],
+  shoggoth_larva: [['ichor_ring', 0.02]],
+  high_priest: [['mitre_of_dagon', 0.1], ['drowned_signet', 0.1]],
+  duergar: [['duergar_gauntlets', 0.02]],
+  stone_horror: [['stoneheart_ring', 0.05]],
+  thing_below: [['wormtooth_necklace', 0.15]],
+  bound_horror: [['librarian_gloves', 0.03], ['ring_of_the_bound', 0.02]],
+  star_spawn: [['leviathan_grips', 0.02], ['ring_of_rlyeh', 0.01]],
+  dagon: [['crown_of_dagon', 0.08], ['ring_of_rlyeh', 0.1]],
+};
+for (const [m, drops] of Object.entries(gearDrops)) for (const [item, chance] of drops) MONSTERS[m].drops.push({ item, chance, qty: [1, 1] });
+EXPEDITIONS.catacomb_depths.loot.items.push({ item: 'mitre_of_dagon', chance: 0.1, qty: [1, 1] }, { item: 'fishscale_gloves', chance: 0.15, qty: [1, 1] });
+EXPEDITIONS.sealed_shaft.loot.items.push({ item: 'duergar_gauntlets', chance: 0.2, qty: [1, 1] }, { item: 'stoneheart_ring', chance: 0.15, qty: [1, 1] });
+EXPEDITIONS.sunken_temple.loot.items.push({ item: 'crown_of_dagon', chance: 0.15, qty: [1, 1] }, { item: 'ring_of_rlyeh', chance: 0.15, qty: [1, 1] });

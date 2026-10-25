@@ -426,6 +426,17 @@ Object.assign(Game, {
     }
     // Completed relic collections, rites, brews and scrolls grant the same kinds of bonus as perks.
     if (PERK_EFFECTS[effect].scope !== 'skill') total += this.relicBonus(effect) + this.buffBonus(effect);
+    return total + this.gearBonus(effect, skill);
+  },
+  // Modifiers on worn gear, which work like perks (skill-bound ones only for their skill).
+  gearBonus(effect, skill) {
+    const skillBound = PERK_EFFECTS[effect].scope === 'skill';
+    let total = 0;
+    for (const id of Object.values(this.state.equipment)) {
+      for (const [eff, value, sk] of (id && ITEMS[id].mods) || []) {
+        if (eff === effect && (!skillBound || sk === skill)) total += value;
+      }
+    }
     return total;
   },
   pendingPerks(skill) {

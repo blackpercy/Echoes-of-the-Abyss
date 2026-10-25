@@ -38,7 +38,13 @@ function statLine(item) {
   const names = { hit: 'to hit', dmg: 'damage', ac: 'AC', ward: 'to sanity saves', slots: 'pack slots' };
   const parts = item.dice ? [`${item.dice} damage`] : [];
   for (const [k, v] of Object.entries(item.stats || {})) parts.push(`${withSign(v)} ${names[k]}`);
-  return parts.join(', ');
+  const mods = modsText(item);
+  return parts.join(', ') + (mods ? `${parts.length ? '<br>' : ''}<span class="mods">${mods}</span>` : '');
+}
+
+// Gear modifiers, e.g. "Mining: 20% faster".
+function modsText(item) {
+  return (item.mods || []).map(([effect, value, skill]) => `✦ ${skill ? `${SKILLS[skill].name}: ` : ''}${esc(PERK_EFFECTS[effect].text(value, skill))}`).join('<br>');
 }
 
 function reqLine(req) {
@@ -1051,7 +1057,7 @@ const UI = {
       const it = ITEMS[item];
       const stackable = it.type === 'food' || it.type === 'potion';
       html += `<div class="card"><div class="card-icon">${it.icon}</div><div class="card-name">${esc(it.name)}</div>
-        <div class="muted small">${esc(it.desc || statLine(it))}</div>${it.req ? `<div class="small">Requires ${reqLine(it.req)}</div>` : ''}
+        ${it.desc ? `<div class="muted small">${esc(it.desc)}</div>` : ''}${it.type === 'equipment' ? `<div class="small">${statLine(it)}</div>` : ''}${it.req ? `<div class="small">Requires ${reqLine(it.req)}</div>` : ''}
         <div class="small">${cur ? ITEMS[cur].icon : '💰'} ${fmt(price)} ${esc(curName)}${Game.carries(item) ? ' · <span class="good-text">carried</span>' : ''}</div>
         <div class="btn-row"><button class="btn small" data-act="buy" data-item="${item}" data-qty="1"${funds < price ? ' disabled' : ''}>Buy 1</button>${stackable ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="10"${funds < price * 10 ? ' disabled' : ''}>Buy 10</button>` : ''}</div></div>`;
     }
