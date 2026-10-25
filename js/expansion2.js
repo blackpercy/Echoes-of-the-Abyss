@@ -418,3 +418,82 @@ for (const [m, drops] of Object.entries(gearDrops)) for (const [item, chance] of
 EXPEDITIONS.catacomb_depths.loot.items.push({ item: 'mitre_of_dagon', chance: 0.1, qty: [1, 1] }, { item: 'fishscale_gloves', chance: 0.15, qty: [1, 1] });
 EXPEDITIONS.sealed_shaft.loot.items.push({ item: 'duergar_gauntlets', chance: 0.2, qty: [1, 1] }, { item: 'stoneheart_ring', chance: 0.15, qty: [1, 1] });
 EXPEDITIONS.sunken_temple.loot.items.push({ item: 'crown_of_dagon', chance: 0.15, qty: [1, 1] }, { item: 'ring_of_rlyeh', chance: 0.15, qty: [1, 1] });
+
+// --- More gear with modifiers, from the wild places and two new expeditions ---
+MONSTERS.brain_keeper = { name: 'The Brain-Keeper', icon: '🧠', boss: true, eldritch: { dc: 16, loss: 7 }, hp: 520, ac: 18, hit: 12, dmg: '3d6+3', speed: 2600, xp: 600, gold: [400, 800], drops: [{ item: 'starmetal_ore', chance: 1, qty: [3, 6] }, { item: 'mi_go_cylinder', chance: 0.1, qty: [1, 1] }] };
+MONSTERS.librarian = { name: 'The Librarian', icon: '📚', boss: true, eldritch: { dc: 16, loss: 6 }, hp: 480, ac: 17, hit: 11, dmg: '3d6+2', speed: 2500, xp: 550, gold: [300, 700], drops: [{ item: 'eldritch_insight', chance: 1, qty: [3, 6] }, { item: 'necronomicon_page', chance: 0.5, qty: [1, 2] }] };
+Object.assign(EXPEDITIONS, {
+  crater_heart: {
+    name: "The Crater's Heart", location: 'crater', level: 30,
+    desc: 'Climb down into the glowing pit where the Mi-Go keep their cylinders, to the thing that keeps the keepers.',
+    rooms: ['mi_go', 'colour', 'byakhee', 'mi_go', 'brain_keeper'],
+    loot: { gold: [800, 1500], items: [{ item: 'starmetal_bar', chance: 1, qty: [2, 5] }, { item: 'mi_go_cylinder', chance: 0.2, qty: [1, 1] }] },
+  },
+  chained_stacks: {
+    name: 'The Chained Stacks', location: 'third_cellar', level: 28,
+    desc: 'Follow the broken chains between the shelves to whoever has been reading down here all these years.',
+    rooms: ['bound_horror', 'bound_horror', 'bound_horror', 'librarian'],
+    loot: { gold: [600, 1200], items: [{ item: 'unaussprechlichen', chance: 0.15, qty: [1, 1] }, { item: 'eldritch_insight', chance: 1, qty: [4, 8] }] },
+  },
+});
+Object.assign(BESTIARY, {
+  brain_keeper: { sane: 'An elder Mi-Go, swollen and slow, that tends the canisters in the heart of the crater.', mad: 'It has kept thousands of minds. It talks to them at night. They talk back.' },
+  librarian: { sane: 'A robed figure among the chained shelves. The monks say it was the first abbot.', mad: 'It has a card for you. It has always had a card for you. Your book is overdue.' },
+});
+
+const MORE_GEAR = [
+  // [id, name, icon, slot, stats, mods, combat req, sell, desc, extra]
+  ['crabshell_gloves', 'Crabshell Gloves', '🦀', 'hands', { ac: 1 }, [['speed', 0.1, 'fishing'], ['speed', 0.1, 'cooking']], 1, 40, 'Pincer-plated. Good for gutting fish.'],
+  ['spawn_eye_charm', 'Spawn-Eye Charm', '👁️', 'amulet', { ward: 1 }, [['speed', 0.15, 'tidecombing'], ['double', 0.05, 'tidecombing']], 3, 80, 'A deepling spawn\'s eye in a cage of wire. It still looks for the sea.'],
+  ['smugglers_gloves', "Smuggler's Gloves", '🧤', 'hands', {}, [['speed', 0.15, 'stealth'], ['safe', 0.25, 'stealth']], 5, 120, 'Thin, black and very quiet.'],
+  ['factors_signet', "Factor's Signet", '💍', 'ring', {}, [['haggle', 0.05], ['tradeStock', 5]], 5, 300, 'The seal of a trading house that no longer exists. Merchants still respect it.'],
+  ['wolfhunter_bracers', 'Wolfhunter Bracers', '🧤', 'hands', { hit: 1 }, [['wSpeed', 0.05, 'bows'], ['speed', 0.15, 'hunting']], 8, 200, 'Bracers of dire-wolf hide, scratched by bowstrings.'],
+  ['wolfpelt_mantle', 'Wolfpelt Mantle', '🐺', 'back', { slots: 4 }, [['speed', 0.15, 'foraging'], ['speed', 0.15, 'woodcutting']], 8, 250, '+4 pack slots. Warm, heavy and full of pockets.'],
+  ['gravediggers_gloves', "Gravedigger's Gloves", '🧤', 'hands', { ac: 1 }, [['speed', 0.15, 'gravedigging'], ['rare', 0.02, 'gravedigging']], 10, 300, 'Stiff with old earth.'],
+  ['ghoul_tooth_ring', 'Ghoul-Tooth Ring', '💍', 'ring', {}, [['heal', 0.15], ['speed', 0.15, 'brewing'], ['speed', 0.15, 'cooking']], 10, 280, 'It is always a little hungry, and so are you.'],
+  ['novice_cowl', "Novice's Cowl", '🧕', 'head', { ac: 1, ward: 1 }, [['xp', 0.1, 'ritualism'], ['sanityCost', -0.1, 'occultism']], 8, 220, 'Green wool, embroidered with fish.'],
+  ['tailors_thimble', "Tailor's Thimble", '💍', 'ring', {}, [['speed', 0.2, 'tailoring'], ['save', 0.1, 'tailoring']], 8, 250, 'Silver, worn on a finger that is not quite the right shape.'],
+  ['skullcrusher_gauntlets', 'Skullcrusher Gauntlets', '🧤', 'hands', { ac: 1 }, [['wStun', 0.1, 'maces'], ['wDmg', 2, 'maces']], 20, 900, 'Stone-knuckled. Anything you hit stays hit.'],
+  ['vestments_of_dagon', 'Vestments of Dagon', '👘', 'body', { ac: 3, ward: 4 }, [['speed', 0.2, 'ritualism'], ['buffTime', 0.1]], 20, 1500, 'Sea-green silk, stiff with salt.'],
+  ['echo_mirror', 'Hand Mirror of the Echo', '🪞', 'amulet', { ward: 3 }, [['xp', 0.2, 'wisdom'], ['allXp', 0.03]], 20, 1200, 'Your reflection in it is always a moment ahead of you.'],
+  ['mirror_blade', 'Mirror Blade', '🗡️', 'weapon', { hit: 4, dmg: 3 }, [['wCrit', 1, 'blades'], ['wLeech', 2, 'blades']], 22, 1800, 'A sliver of the Echo\'s lamp, sharpened.', { speed: 2000, dice: '2d6', wtype: 'blades' }],
+  ['migo_lens', 'Mi-Go Lens', '🥽', 'head', { ac: 2, ward: 2 }, [['speed', 0.15, 'mining'], ['speed', 0.15, 'alchemy']], 25, 2000, 'It sees the seams in rock and the seams in things.'],
+  ['colour_vial_ring', 'Ring of the Captured Colour', '💍', 'ring', {}, [['eldritch', 0.1], ['potency', 0.15]], 28, 2500, 'The stone is a colour you cannot name.'],
+  ['byakhee_wingcloak', 'Byakhee Wingcloak', '🦇', 'back', { slots: 8 }, [['travel', 0.25], ['speed', 0.15, 'sailing']], 28, 3000, '+8 pack slots. It still tries to fly.'],
+  ['byakhee_bone_bow', 'Byakhee-Bone Bow', '🏹', 'weapon', { hit: 5, dmg: 3 }, [['wDouble', 0.1, 'bows'], ['travel', 0.1]], 30, 3500, 'Strung with something that hums between the stars.', { speed: 1900, dice: '2d8', wtype: 'bows' }],
+  ['nightgaunt_wraps', 'Nightgaunt Wraps', '🧤', 'hands', { hit: 2 }, [['sneak', 1], ['wDouble', 0.1, 'unarmed'], ['speed', 0.2, 'stealth']], 32, 3200, 'Rubbery, faceless and silent.'],
+  ['dreamwood_circlet', 'Dreamwood Circlet', '🌿', 'head', { ac: 2, ward: 3 }, [['dreamRest', 2, 'dreaming'], ['speed', 0.2, 'dreaming'], ['speed', 0.15, 'woodcutting']], 32, 3500, 'A twist of living branch. You sleep well in it, and wake somewhere else.'],
+  ['banner_of_ironhold', 'Banner of Ironhold', '🚩', 'back', { slots: 6 }, [['compHit', 1], ['compAc', 1], ['compHp', 20]], 20, 2500, '+6 pack slots. Your companions stand straighter beneath it.'],
+  ['captains_coat', "Captain's Coat", '🧥', 'body', { ac: 5, ward: 3 }, [['travel', 0.15], ['speed', 0.2, 'sailing'], ['xp', 0.2, 'sailing']], 38, 6000, 'Salt-stained blue, with brass buttons shaped like octopi.'],
+  ['brainkeeper_crown', "Brain-Keeper's Crown", '🧠', 'head', { ac: 3, ward: 5 }, [['xp', 0.15, 'lore'], ['allXp', 0.05], ['scrollPower', 0.15]], 30, 5000, 'A ring of metal that once held a mind. It holds yours, gently.'],
+  ['star_alloy_band', 'Band of Star-Alloy', '💍', 'ring', { dmg: 1 }, [['speed', 0.2, 'smithing'], ['double', 0.08, 'smithing'], ['speed', 0.15, 'carpentry']], 30, 4500, 'Mi-Go metal, folded a thousand times.'],
+  ['archivists_satchel', "Archivist's Satchel", '👜', 'back', { slots: 10 }, [['speed', 0.15, 'inscription'], ['xp', 0.15, 'inscription']], 28, 4000, '+10 pack slots. Every pocket holds a different century.'],
+  ['librarian_staff', "The Librarian's Staff", '🪄', 'weapon', { hit: 5, dmg: 4, ward: 3 }, [['scrollPower', 0.2], ['wEldritch', 0.1, 'staves']], 36, 6000, 'A reading-staff of black oak, chained at the top.', { speed: 2400, dice: '2d8', wtype: 'staves' }],
+];
+for (const [id, name, icon, slot, stats, mods, req, sell, desc, extra] of MORE_GEAR) {
+  addItem(id, Object.assign({ name, icon, type: 'equipment', slot, stats, mods, req: { combat: req }, sell, desc }, extra || {}));
+}
+const moreDrops = {
+  giant_crab: [['crabshell_gloves', 0.03]],
+  deepling_spawn: [['spawn_eye_charm', 0.02]],
+  smuggler: [['smugglers_gloves', 0.02], ['factors_signet', 0.005]],
+  dire_wolf: [['wolfhunter_bracers', 0.02], ['wolfpelt_mantle', 0.01]],
+  skeleton: [['gravediggers_gloves', 0.02]],
+  ghoul: [['ghoul_tooth_ring', 0.02]],
+  cultist_novice: [['novice_cowl', 0.03], ['tailors_thimble', 0.01]],
+  stone_horror: [['skullcrusher_gauntlets', 0.03]],
+  cultist_priest: [['vestments_of_dagon', 0.01]],
+  echo: [['echo_mirror', 0.03], ['mirror_blade', 0.01]],
+  mi_go: [['migo_lens', 0.02]],
+  colour: [['colour_vial_ring', 0.02]],
+  byakhee: [['byakhee_wingcloak', 0.01], ['byakhee_bone_bow', 0.01]],
+  nightgaunt: [['nightgaunt_wraps', 0.02], ['dreamwood_circlet', 0.01]],
+  brain_keeper: [['brainkeeper_crown', 0.15], ['star_alloy_band', 0.15]],
+  librarian: [['archivists_satchel', 0.15], ['librarian_staff', 0.1]],
+};
+for (const [m, drops] of Object.entries(moreDrops)) for (const [item, chance] of drops) MONSTERS[m].drops.push({ item, chance, qty: [1, 1] });
+EXPEDITIONS.sealed_shaft.loot.items.push({ item: 'banner_of_ironhold', chance: 0.2, qty: [1, 1] }, { item: 'skullcrusher_gauntlets', chance: 0.15, qty: [1, 1] });
+EXPEDITIONS.sunken_temple.loot.items.push({ item: 'captains_coat', chance: 0.2, qty: [1, 1] });
+EXPEDITIONS.catacomb_depths.loot.items.push({ item: 'vestments_of_dagon', chance: 0.15, qty: [1, 1] });
+EXPEDITIONS.crater_heart.loot.items.push({ item: 'brainkeeper_crown', chance: 0.25, qty: [1, 1] }, { item: 'star_alloy_band', chance: 0.25, qty: [1, 1] }, { item: 'migo_lens', chance: 0.2, qty: [1, 1] });
+EXPEDITIONS.chained_stacks.loot.items.push({ item: 'archivists_satchel', chance: 0.25, qty: [1, 1] }, { item: 'librarian_staff', chance: 0.15, qty: [1, 1] }, { item: 'librarian_gloves', chance: 0.2, qty: [1, 1] });

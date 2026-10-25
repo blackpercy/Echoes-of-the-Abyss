@@ -104,7 +104,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 - **Installable app.** A web manifest and a service worker let you install the game and play offline when it is served over http(s).
 - **20 enemies**, from giant crabs on Saltmire Shore to Father Dagon in the Abyss.
 - **Gear** in five metal tiers (iron → starmetal), rare drops, occult amulets and bags (up to a Bag of Holding).
-- **Dungeon gear with modifiers.** Gloves, rings, crowns and necklaces dropped by the creatures of the dungeons and expeditions (the Catacombs, the Sealed Shaft, the Third Cellar, the Abyss). Besides armour and wards they carry skill modifiers that work like perks while worn, such as "Mining: 20% faster", "Fishing: 10% chance of a double yield" or "+5% experience in every skill". Two new slots hold them: Hands and Ring. Work gloves and a silver ring can be made.
+- **Dungeon gear with modifiers.** Gloves, rings, crowns and necklaces dropped by the creatures of the dungeons and expeditions (the Catacombs, the Sealed Shaft, the Third Cellar, the Abyss). Besides armour and wards they carry skill modifiers that work like perks while worn, such as "Mining: 20% faster", "Fishing: 10% chance of a double yield" or "+5% experience in every skill". Two new slots hold them: Hands and Ring. Work gloves and a silver ring can be made. Nearly every creature in the wild drops a rare piece too, covering most skills, and two more expeditions hold the best: **The Crater's Heart** (the Brain-Keeper) and **The Chained Stacks** beneath the Abbey (the Librarian).
 - **Offline progress** for up to 24 hours (including travel), autosave, and save export/import.
 
 ## Code layout
