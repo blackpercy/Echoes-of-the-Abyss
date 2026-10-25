@@ -208,7 +208,7 @@ for (const a of ACTIONS.faith) a.maxMadness = FAITH_MAX_MADNESS;
 LOCATIONS.graveyard.gather.faith = ['exorcism'];
 LOCATIONS.drowned_catacombs.gather.faith = ['consecrate'];
 
-// --- Ritualism: one rite at a time, each a blessing that lasts a while ---
+// --- Ritualism: rites repeat like any activity, each one renewing a blessing that lasts a while ---
 const RITES = [
   // [id, name, icon, level, xp, input, extra, buff]
   ['salt_circle', 'Circle of Salt', '🧂', 1, 20, { grave_moss: 3 }, {}, { effects: { ward: 1, ac: 1 }, ms: 600000 }],
@@ -221,7 +221,7 @@ const RITES = [
   ['great_old_rite', 'Rite of the Great Old Ones', '🌌', 45, 500, { eldritch_insight: 8, ancient_bones: 1, star_rose: 2 }, { sanityCost: 20, minMadness: 1 }, { effects: { hit: 3, dmg: 4, ac: 2, ward: 3, hp: 30 }, ms: 900000 }],
 ];
 ACTIONS.ritualism = RITES.map(([id, name, icon, level, xp, input, extra, buff]) => Object.assign({
-  id, name, icon, level, xp, time: 5000 + level * 100, station: 'circle', once: true, input: Object.keys(input).length ? input : undefined, output: {},
+  id, name, icon, level, xp, time: 5000 + level * 100, station: 'circle', input: Object.keys(input).length ? input : undefined, output: {},
   buff: Object.assign({ name, icon }, buff),
 }, extra));
 

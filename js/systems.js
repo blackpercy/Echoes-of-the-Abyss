@@ -551,8 +551,10 @@ Object.assign(Game, {
   // --- Blessings, brews and scrolls that last a while ---
   addBuff(id, def) {
     const ms = Math.round(def.ms * (1 + this.perk('buffTime')));
+    // Renewing a blessing that is still running (a repeating rite, say) refreshes it quietly.
+    const renewed = !!this.state.buffs[id];
     this.state.buffs[id] = { name: def.name, icon: def.icon, effects: def.effects, left: ms };
-    this.log(`${def.icon} ${def.name} for ${Math.round(ms / 60000 * 10) / 10} minutes: ${this.effectsText(def.effects)}.`, 'good');
+    if (!renewed) this.log(`${def.icon} ${def.name} for ${Math.round(ms / 60000 * 10) / 10} minutes: ${this.effectsText(def.effects)}.`, 'good');
     this.emit('action');
   },
   effectsText(effects) {

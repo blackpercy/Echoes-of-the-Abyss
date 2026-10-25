@@ -741,7 +741,7 @@ const UI = {
         ${lvl >= THIRD_CELLAR_LORE ? 'You know where the stair beneath the Silent Abbey leads.' : `At level ${THIRD_CELLAR_LORE} you will understand what the brothers of the Silent Abbey will not talk about.`}</p>`;
     }
     if (skill === 'ritualism') {
-      html += `<p class="small">🔯 Each rite is performed once and blesses you for a while; perform it again to renew the blessing. Draw a circle in the graveyard, at the crater, in the grove or the lighthouse, or anywhere with ritual chalk.</p>${this.buffList()}`;
+      html += `<p class="small">🔯 Rites repeat like any other activity, as long as you have the offerings. Each one renews its blessing, which lasts a while after you stop. Draw a circle in the graveyard, at the crater, in the grove or the lighthouse, or anywhere with ritual chalk.</p>${this.buffList()}`;
     }
     if (skill === 'occultism') {
       html += '<p class="warning">👁️ Occult study costs sanity, and your sanity does not recover while you study. Every Occultism level beyond the first grants +1% damage against beings from beyond, and every five levels add +1 to your sanity saves.</p>';

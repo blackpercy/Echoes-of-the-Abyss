@@ -576,12 +576,6 @@ const Game = {
       }
       this.log(result);
     }
-    // A rite is performed once; start it again when you want its blessing renewed.
-    if (action.once) {
-      this.state.action = null;
-      this.emit('action');
-      return false;
-    }
     return true;
   },
 
