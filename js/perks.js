@@ -62,10 +62,14 @@ const PERK_EFFECTS = {
   tradeStock: { text: v => `Markets hold ${v} more of each good for you` },
   scrollPower: { text: v => `Scrolls are ${Math.round(v * 100)}% stronger` },
   buffTime: { text: v => `Rites, brews and scrolls last ${Math.round(v * 100)}% longer` },
+  plots: { text: v => `+${v} garden plot${v > 1 ? 's' : ''}` },
+  tameChance: { text: v => `+${Math.round(v * 100)}% chance to tame a beast` },
+  slayDmg: { text: v => `+${v} damage against your quarry` },
+  thrallTime: { text: v => `Thralls last ${Math.round(v * 100)}% longer` },
 };
 
 // What the "rare" perks turn up while gathering.
-const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx', gravedigging: 'saints_knucklebone', tidecombing: 'ambergris' };
+const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx', gravedigging: 'saints_knucklebone', tidecombing: 'ambergris', astronomy: 'star_shard' };
 
 // Ten tiers (levels 5, 10 … 50), two options each: [effect, value].
 // Levels 55–100 repeat the same ten choices as second ranks ("… II"), so each perk can be taken twice.
@@ -299,6 +303,66 @@ const PERK_TEMPLATES = {
     [['save', 0.12], ['buffTime', 0.25]],
     [['buffTime', 0.3], ['sanityCost', -0.25]],
   ],
+  gardening: [
+    [['speed', 0.15], ['double', 0.05]],
+    [['xp', 0.1], ['plots', 1]],
+    [['speed', 0.15], ['double', 0.05]],
+    [['plots', 1], ['xp', 0.1]],
+    [['speed', 0.15], ['double', 0.07]],
+    [['plots', 1], ['heal', 0.1]],
+    [['speed', 0.15], ['xp', 0.15]],
+    [['double', 0.08], ['plots', 1]],
+    [['speed', 0.15], ['potency', 0.1]],
+    [['double', 0.12], ['plots', 2]],
+  ],
+  taming: [
+    [['tameChance', 0.05], ['speed', 0.15]],
+    [['xp', 0.1], ['carry', 1]],
+    [['tameChance', 0.05], ['scout', 1]],
+    [['speed', 0.15], ['save', 0.1]],
+    [['tameChance', 0.07], ['xp', 0.15]],
+    [['travel', 0.15], ['speed', 0.15]],
+    [['tameChance', 0.08], ['save', 0.15]],
+    [['xp', 0.15], ['scout', 1]],
+    [['speed', 0.15], ['tameChance', 0.1]],
+    [['travel', 0.15], ['allXp', 0.03]],
+  ],
+  slaying: [
+    [['slayDmg', 1], ['hit', 1]],
+    [['xp', 0.1], ['gold', 0.05]],
+    [['slayDmg', 1], ['killHeal', 2]],
+    [['crit', 1], ['xp', 0.1]],
+    [['slayDmg', 2], ['hp', 15]],
+    [['gold', 0.05], ['dmg', 1]],
+    [['slayDmg', 2], ['xp', 0.15]],
+    [['killHeal', 4], ['ac', 1]],
+    [['slayDmg', 3], ['gold', 0.1]],
+    [['crit', 1], ['slayDmg', 4]],
+  ],
+  bardic: [
+    [['speed', 0.15], ['buffTime', 0.1]],
+    [['double', 0.05], ['xp', 0.1]],
+    [['compHit', 1], ['speed', 0.15]],
+    [['buffTime', 0.15], ['gold', 0.05]],
+    [['compDmg', 1], ['double', 0.07]],
+    [['speed', 0.15], ['xp', 0.15]],
+    [['buffTime', 0.15], ['compAc', 1]],
+    [['double', 0.08], ['compDmg', 1]],
+    [['speed', 0.15], ['buffTime', 0.2]],
+    [['gold', 0.1], ['double', 0.12]],
+  ],
+  necromancy: [
+    [['thrallTime', 0.15], ['sanityCost', -0.15]],
+    [['xp', 0.1], ['save', 0.05]],
+    [['compHit', 1], ['thrallTime', 0.15]],
+    [['sanityCost', -0.15], ['compDmg', 1]],
+    [['thrallTime', 0.2], ['xp', 0.15]],
+    [['compHp', 20], ['save', 0.07]],
+    [['sanityCost', -0.2], ['thrallTime', 0.2]],
+    [['compDmg', 2], ['eldritch', 0.05]],
+    [['thrallTime', 0.25], ['compAc', 2]],
+    [['sanityCost', -0.25], ['compDmg', 3]],
+  ],
   combat: [
     [['hit', 1], ['ac', 1]],
     [['hp', 10], ['dmg', 1]],
@@ -347,6 +411,16 @@ const PERK_NAMES = {
   ritualism: ['Spare Offerings', 'Lingering Blessing', 'Steady Rites', 'Novice of the Circle', 'Quick Chalk', 'Long Echo', 'Thrifty Altar', 'Salt Ward', 'Enduring Rites', 'Steady Mind', 'Adept of the Circle', 'Second Offering', 'Long Blessing', 'Swift Rites', 'Iron Will', 'Bane of the Outsiders', 'Nothing Wasted', 'Eternal Rite', 'Echoes of Power', 'Unbroken Circle'],
   maces: ['Stunning Blow', 'Heavy Head', 'Steady Grip', 'Braced', 'Crushing Weight', 'Ringing Blow', 'Firm Footing', 'Thick Skin', 'Concussive Force', 'Bone-Breaker', 'Flail of Blows', 'Iron Guard', 'Skull-Cracker', 'Daze', 'Sure Swing', 'Hardened Body', 'Earthshaker', 'Twin Blows', 'Hammer of Doom', 'The Last Bell'],
   unarmed: ['Quick Fists', 'Steady Jab', 'Sucker Punch', 'Heavy Hands', 'Flurry', 'Pressure Points', 'True Strike', 'Bloodied Knuckles', 'Lightning Jab', 'Ambusher', 'Iron Fists', 'Combination', 'Nerve Strike', 'Blinding Speed', 'Death from the Shadows', 'Bloody Hands', 'Thousand Fists', 'Fists of Iron', 'One-Inch Punch', 'The Silent Hand'],
+  gardening: ['Green Fingers', 'Thick Rows', 'Almanac', 'New Bed', 'Quick Sprouts', 'Bumper Crop', 'Another Bed', 'Gardener\'s Lore', 'Forcing Frames', 'Heavy Harvest', 'Raised Beds', 'Fresh Greens', 'Hothouse', 'Master Gardener', 'Rich Soil', 'Walled Garden', 'Night Bloom', 'Physic Garden', 'Endless Spring', 'The Great Allotment'],
+  astronomy: ['Night Eyes', 'Twin Sightings', 'Star Almanac', 'Chart Case', 'Quick Sextant', 'Falling Star', 'Long Watches', 'Second Reading', 'Clear Skies', 'Telescope Bag', 'Meteor Shower', 'Star-Shard Sense', 'Swift Reckoning', 'Lore of the Spheres', 'Double Star', 'Observatory Cart', 'Comet Chaser', 'Heaven\'s Gifts', 'Lord of the Night Sky', 'Every Star Named'],
+  jewelcrafting: ['Steady Setting', 'Saved Silver', 'Lapidary Notes', 'Twin Settings', 'Fine Tools', 'Recut Stones', 'Warding Facets', 'Gemmer\'s Lore', 'Quick Polish', 'Matched Pair', 'Careful Cuts', 'Eldritch Facets', 'Master\'s Pace', 'Crown-Jeweller', 'Double Setting', 'Nothing Chipped', 'Lightning Bezel', 'Sigil Stones', 'Master Jeweller', 'Not a Grain Lost'],
+  tinkering: ['Oiled Gears', 'Spare Parts', 'Tinker\'s Notes', 'Twin Builds', 'Steady Spanner', 'Scrap Saver', 'Clockwork Habit', 'Engineer\'s Lore', 'Quick Rivets', 'Matched Gears', 'Salvage', 'Tool Belt', 'Master\'s Pace', 'Grand Designs', 'Production Line', 'Nothing Wasted', 'Lightning Spanner', 'Perpetual Motion', 'Master Tinker', 'Not a Cog Lost'],
+  construction: ['Strong Arms', 'Measure Twice', 'Builder\'s Notes', 'Two Walls', 'Steady Trowel', 'Saved Mortar', 'Scaffold Pack', 'Mason\'s Lore', 'Quick Courses', 'Double Shift', 'Careful Work', 'Hardy Labourer', 'Master\'s Pace', 'Architect', 'Gang of Builders', 'Reclaimed Stone', 'Lightning Hod', 'Builder\'s Cart', 'Master Builder', 'Not a Brick Wasted'],
+  taming: ['Gentle Hands', 'Patient Stalk', 'Animal Lore', 'Feed Bag', 'Soft Voice', 'Bird\'s-Eye View', 'Quiet Approach', 'Spare Bait', 'Trusted', 'Beast Lore', 'Wanderer', 'Swift Paws', 'Beast-Speaker', 'Thrifty Bait', 'Pack Leader', 'Eyes of the Wild', 'Quick Trust', 'Kindred Spirit', 'Far Ranger', 'Lord of Beasts'],
+  slaying: ['Marked Quarry', 'Hunter\'s Aim', 'Bounty Notes', 'Bounty Purse', 'Study the Prey', 'Trophy Feast', 'Weak Spot', 'Tracker\'s Lore', 'Killer\'s Instinct', 'Thick Hide', 'Rich Bounties', 'Heavy Hand', 'Hunter\'s Fury', 'Seasoned Slayer', 'Feast of Victory', 'Hardened Hunter', 'Executioner', 'Golden Bounties', 'Death Mark', 'The Last Hunt'],
+  bardic: ['Quick Fingers', 'Lingering Tune', 'Encore', 'Song Book', 'Rally the Company', 'Fast Tempo', 'Haunting Refrain', 'Full Hat', 'Battle Hymn', 'Second Encore', 'Quick Medley', 'Songmaster', 'Echoing Chorus', 'Shield Song', 'Standing Ovation', 'War Drums', 'Lightning Fingers', 'Unending Song', 'Golden Voice', 'Bring the House Down'],
+  medicine: ['Steady Hands', 'Clean Linen', 'Physician\'s Notes', 'Double Dose', 'Quick Stitch', 'Saved Supplies', 'Good Bedside Manner', 'Apothecary\'s Lore', 'Field Surgeon', 'Two Patients', 'Sterile Tools', 'Strong Remedies', 'Master\'s Pace', 'Doctor of Aldmark', 'Ward Rounds', 'Nothing Wasted', 'Lightning Scalpel', 'Battlefield Medic', 'Master Physician', 'First, Do No Harm'],
+  necromancy: ['Lasting Bones', 'Cold Heart', 'Grave Notes', 'Spare Bones', 'Drilled Dead', 'Strong Bindings', 'Hardened Mind', 'Bone Fists', 'Long Unlife', 'Deathless Study', 'Iron Sinew', 'Thrifty Rites', 'Steeled Soul', 'Endless Night', 'Grave Fury', 'Bane of the Living', 'Eternal Servants', 'Bone Armour', 'Lich\'s Will', 'Army of the Dead'],
   combat: ['Weapon Training', 'Shield Drill', 'Toughness', 'Heavy Blows', 'Keen Edge', 'Second Wind', 'Battle Focus', 'Iron Skin', 'Brutal Strikes', 'Unyielding', 'Deadly Precision', 'Steel Nerves', "Veteran's Eye", 'Fortress', 'Executioner', 'Bloodthirst', 'Colossus', 'Monster Hunter', 'Legend of Aldmark', 'The Last Wall'],
 };
 
@@ -386,6 +460,16 @@ const PERK_TREES = (() => {
     ritualism: PERK_TEMPLATES.ritualism,
     maces: PERK_TEMPLATES.maces,
     unarmed: PERK_TEMPLATES.unarmed,
+    gardening: PERK_TEMPLATES.gardening,
+    astronomy: PERK_TEMPLATES.gathering,
+    jewelcrafting: PERK_TEMPLATES.production([['ward', 1], ['eldritch', 0.05], ['ward', 2]]),
+    tinkering: PERK_TEMPLATES.production([['speedAll', 0.03], ['carry', 1], ['speedAll', 0.05]]),
+    construction: PERK_TEMPLATES.production([['carry', 1], ['hp', 15], ['carry', 2]]),
+    taming: PERK_TEMPLATES.taming,
+    slaying: PERK_TEMPLATES.slaying,
+    bardic: PERK_TEMPLATES.bardic,
+    medicine: PERK_TEMPLATES.production([['heal', 0.1], ['potency', 0.1], ['compHeal', 2]]),
+    necromancy: PERK_TEMPLATES.necromancy,
   };
   const trees = {};
   for (const [skill, tiers] of Object.entries(layout)) {
@@ -426,7 +510,7 @@ Object.assign(Game, {
     }
     // Completed relic collections, rites, brews and scrolls grant the same kinds of bonus as perks.
     if (PERK_EFFECTS[effect].scope !== 'skill') total += this.relicBonus(effect) + this.buffBonus(effect);
-    return total + this.gearBonus(effect, skill) + this.companionBonus(effect, skill);
+    return total + this.gearBonus(effect, skill) + this.companionBonus(effect, skill) + this.extraBonus(effect, skill);
   },
   // Companions with a talent (mods) help while they are with you and on their feet.
   companionBonus(effect, skill) {

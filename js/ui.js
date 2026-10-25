@@ -18,7 +18,7 @@ const ITEM_CATEGORIES = [
   ['tools', '🧰', 'Tools', it => it.type === 'tool'],
   ['food', '🍖', 'Food', it => it.type === 'food' || it.id.startsWith('raw_') || it.id === 'deep_egg'],
   ['potions', '🧪', 'Potions & scrolls', it => it.type === 'potion' || it.type === 'scroll'],
-  ['herbs', '🌿', 'Herbs & plants', it => HERBS.includes(it.id)],
+  ['herbs', '🌿', 'Herbs & plants', it => HERBS.includes(it.id) || it.type === 'seed'],
   ['wood', '🪵', 'Wood', it => it.id.endsWith('_logs')],
   ['metal', '⛏️', 'Ore & metal', it => /_(ore|bar)$/.test(it.id)],
   ['hides', '🟫', 'Hides & cloth', it => /_(hide|pelt)$/.test(it.id) || CLOTH.includes(it.id)],
@@ -92,6 +92,7 @@ const UI = {
   creation: { race: 'human', background: 'fisher' },
   nextHallucination: 0,
   nextSound: 0,
+  nextGardenDraw: 0,
   dirty: true,
   lastRender: 0,
 
@@ -175,6 +176,12 @@ const UI = {
       case 'withdraw': Game.withdraw(d.item, d.qty === 'all' ? Game.bankCount(d.item) : +d.qty); break;
       case 'buy': Game.buy(d.item, +d.qty); break;
       case 'trade-buy': Game.tradeBuy(d.item, +d.qty); break;
+      case 'plant': Game.plantAll(d.seed); break;
+      case 'harvest': Game.harvest(+d.plot); break;
+      case 'harvest-all': Game.harvestAll(); break;
+      case 'pet': Game.setPet(d.id); break;
+      case 'bounty': Game.newBounty(false); break;
+      case 'bounty-reroll': if (confirm(`Give up this bounty and take another for ${SLAYER_REROLL_GOLD} gold?`)) Game.newBounty(true); break;
       case 'map-select':
         this.mapSelected = d.loc;
         this.page = 'map';
@@ -282,6 +289,11 @@ const UI = {
         this.lastRender = now;
         this.renderAll();
       }
+    }
+    // Garden plots ripen with real time, so redraw them now and then while they are on screen.
+    if (now > this.nextGardenDraw && (this.page === 'skill-gardening' || (this.page === 'here' && Game.hasStation('garden')))) {
+      this.nextGardenDraw = now + 1000;
+      this.dirty = true;
     }
     this.updateMeters();
     if (now > this.nextSound) {
@@ -542,6 +554,10 @@ const UI = {
     }
     const expeditions = Object.keys(EXPEDITIONS).filter(e => EXPEDITIONS[e].location === id);
     if (expeditions.length) html += this.section('here-expeditions', 'Expeditions', `<div class="cards">${expeditions.map(e => this.expeditionCard(e)).join('')}</div>`);
+    if (Game.atHome()) {
+      html += this.section('here-house', '🏠 Your house', `<p class="small">${Game.builtRooms().map(r => `${HOUSE_ROOMS[r].icon} ${esc(HOUSE_ROOMS[r].name)}`).join(' · ')}</p>${Game.builtRooms().flatMap(r => HOUSE_ROOMS[r].mods).length ? `<div class="small mods">${modsText({ mods: Game.builtRooms().flatMap(r => HOUSE_ROOMS[r].mods) })}</div>` : ''}<p class="small muted"><a href="#" class="loc-link" data-act="nav" data-page="skill-construction">Build more rooms</a></p>`);
+    }
+    if (Game.hasStation('garden')) html += this.section('here-garden', '🌱 Your garden', this.gardenBlock());
     if (s.cult && id === CULT_SHRINE) {
       html += `<h2>🛐 Your Hidden Shrine</h2><p class="small">${s.cult.followers} followers. Their offerings: ${s.cult.gold} gold${Object.entries(s.cult.stash).map(([it, q]) => `, ${q} × ${ITEMS[it].name}`).join('')}.</p>
         <div class="btn-row"><button class="btn" data-act="collect">Collect offerings</button><button class="btn" data-act="nav" data-page="cult">Tend your flock</button></div>`;
@@ -644,7 +660,12 @@ const UI = {
       a.sanityGain ? `<span class="good-text">+${a.sanityGain + Game.perk('dreamRest', skill)} sanity</span>` : '',
       a.risk ? `<span class="lack-text">${Math.round(a.risk * (1 - Math.min(0.9, Game.perk('safe', skill))) * 100)}% risk of being caught</span>` : '',
       a.minMadness ? `<span class="sanity-text">needs madness: ${MADNESS_STAGES[a.minMadness]}</span>` : '',
-      a.anywhere ? '<span class="muted">anywhere</span>' : '',
+      a.anywhere && a.effect !== 'build' ? '<span class="muted">anywhere</span>' : '',
+      a.goldCost ? `<span class="${Game.state.gold >= a.goldCost ? 'muted' : 'lack-text'}">costs ${fmt(a.goldCost)} gold</span>` : '',
+      a.effect === 'raise' ? `<span class="sanity-text">raises a ${esc(COMPANIONS[a.id].name)} for ${Math.round(COMPANIONS[a.id].lasts / 60000)} min</span>` : '',
+      a.effect === 'tame' ? (Game.state.pets.owned[a.id] ? '<span class="good-text">tamed ✓</span>' : `<span class="muted">${Math.round(Game.tameChance() * 100)}% chance to tame the ${esc(PETS[a.id].name)}</span>`) : '',
+      a.effect === 'build' && Game.state.house && Game.state.house.rooms[a.room] ? '<span class="good-text">built ✓</span>' : '',
+      a.effect === 'cure' ? '<span class="good-text">−1 madness</span>' : '',
     ].filter(Boolean).join(' · ');
     let where = '';
     if (!active && !Game.availableHere(skill, a)) {
@@ -708,6 +729,52 @@ const UI = {
         <p class="small"><b>You can lead ${Game.companionCapacity()} companion${Game.companionCapacity() > 1 ? 's' : ''}</b> (one more every ${FELLOWSHIP_LEVELS_PER_COMPANION} Fellowship levels). With you now: ${Game.companions().length}.</p>
         ${Game.companions().length ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, Port Ulric, the Blackwood, the graveyard and at the Silent Abbey. Others join you once you have helped them, and some only speak to the touched.</p>'}
         <p class="small muted">Right now: +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100 * (lvl - 1))}% hitpoints, ${withSign(Math.floor(lvl / 10))} to hit, ${withSign(Math.floor(lvl / 8))} damage.</p>`;
+    }
+    if (skill === 'gardening') {
+      html += `<p class="small">🌱 Sow seeds in garden plots in Hollowfen, or in the kitchen garden of your own house. They grow in real time, even while you are away. You have <b>${Game.gardenPlots()} plots</b> (one more every ${GARDEN_LEVELS_PER_PLOT} levels). Seeds are sold in Hollowfen and found while foraging.</p>
+        ${Game.hasStation('garden') ? this.gardenBlock() : `<p class="small muted">Your plots: ${Game.plots().map(p => p ? `${ITEMS[CROPS[p.seed][0]].icon}${Game.plotReady(p) ? '✓' : ''}` : '·').join(' ')}. Travel to ${locLink('hollowfen')}${Game.state.house && Game.state.house.rooms.garden ? ` or ${locLink(Game.state.house.location)}` : ''} to tend them.</p>`}
+        <table class="stats">${Object.entries(CROPS).map(([seed, [crop, qty, mins, level, xp]]) => `<tr><td>${ITEMS[crop].icon} ${esc(ITEMS[crop].name)}</td><td class="${Game.level('gardening') >= level ? '' : 'lack-text'}">level ${level}</td><td class="muted">${qty} per plot · ${Math.round(Game.growTime(seed) / 60000)} min · ${xp} xp</td></tr>`).join('')}</table>`;
+    }
+    if (skill === 'astronomy') {
+      const lvl = Game.level('astronomy');
+      const days = (STARS_RIGHT_EVERY - 1 - Game.dayIndex() % STARS_RIGHT_EVERY);
+      html += `<p class="small">🔭 The sky can only be read at night (${Game.isNight() ? '<b>it is night now</b>' : 'it is day now'}). Every level gives +${(ASTRONOMY_ELDRITCH_PER_LEVEL * 100).toFixed(1)}% damage against eldritch beings (now +${Math.round(ASTRONOMY_ELDRITCH_PER_LEVEL * 100 * (lvl - 1))}%).
+        ${lvl >= ASTRONOMY_FORECAST_LEVEL ? `<br>🌌 ${Game.starsRight() ? '<b>The stars are right tonight.</b>' : `The stars will be right on the night of ${days === 0 ? 'today' : `day ${Game.dayIndex() + 1 + days}`}.`}` : `<br>At level ${ASTRONOMY_FORECAST_LEVEL} you will know when the stars will be right.`}</p>`;
+    }
+    if (skill === 'jewelcrafting') {
+      html += '<p class="small">💎 Work at a jeweller\'s bench in Ironhold or Port Ulric, or anywhere with a loupe. Each piece carries its own power, like the gear from the dungeons.</p>';
+    }
+    if (skill === 'tinkering') {
+      html += '<p class="small">⚙️ Build at a workbench. A gadget helps you just by being in your pack; one of each kind counts.</p>';
+    }
+    if (skill === 'construction') {
+      const h = Game.state.house;
+      html += `<p class="small">🏗️ Take building jobs in town to learn the trade. Then build a house in any town (500 gold and materials) and add rooms to it. Rooms give your home their workplaces and bonuses; the bonuses for a skill work only at home. Stone is quarried in Ironhold, the Deep Mines and Dunwich.</p>
+        ${h ? `<p class="small">🏠 Your house stands in <b>${locLink(h.location)}</b>. Rooms: ${Game.builtRooms().map(r => `${HOUSE_ROOMS[r].icon} ${esc(HOUSE_ROOMS[r].name)}`).join(', ')}.</p>` : '<p class="small muted">You have no house yet.</p>'}`;
+    }
+    if (skill === 'taming') {
+      const pets = Game.state.pets;
+      html += `<p class="small">🐾 Leave bait where a beast can find it and wait. Each attempt has a <b>${Math.round(Game.tameChance() * 100)}%</b> chance; once tamed, keep training on it for xp. One pet travels with you at a time.</p>
+        <div class="cards">${Object.entries(PETS).map(([id, p]) => `<div class="card${pets.active === id ? ' active' : ''}${pets.owned[id] ? '' : ' locked'}"><div class="card-icon">${pets.owned[id] ? p.icon : '❔'}</div><div class="card-name">${esc(p.name)}</div>
+          <div class="small muted">${esc(p.desc)}</div><div class="small mods">${modsText(p)}</div>
+          ${pets.owned[id] ? `<button class="btn small" data-act="pet" data-id="${pets.active === id ? '' : id}">${pets.active === id ? 'Leave at home' : 'Take along'}</button>` : '<div class="small muted">Not yet tamed</div>'}</div>`).join('')}</div>`;
+    }
+    if (skill === 'slaying') {
+      const t = Game.state.slayer.task;
+      const town = Game.here().kind === 'town';
+      html += `<p class="small">🎯 Take a bounty from the board in any town and hunt down your quarry. Against it you have ${withSign(Math.floor(Game.level('slaying') / SLAYER_HIT_LEVELS) + 1)} to hit and ${withSign(Math.floor(Game.level('slaying') / SLAYER_DMG_LEVELS) + Game.perk('slayDmg'))} damage. Bounties completed: ${Game.state.slayer.done}.</p>
+        ${t ? `<p>Current bounty: <b>${MONSTERS[t.monster].icon} ${esc(MONSTERS[t.monster].name)}</b> · ${t.done} / ${t.need} slain. <span class="muted small">Found at ${Object.keys(LOCATIONS).filter(l => (LOCATIONS[l].monsters || []).includes(t.monster) && Game.state.known[l]).map(locLink).join(', ')}</span></p>` : '<p class="muted">You have no bounty.</p>'}
+        <div class="btn-row">${t ? `<button class="btn small" data-act="bounty-reroll"${town ? '' : ' disabled'}>Ask for another (${SLAYER_REROLL_GOLD} gold)</button>` : `<button class="btn small" data-act="bounty"${town ? '' : ' disabled'}>Take a bounty</button>`}${town ? '' : ' <span class="small muted">The boards are in towns.</span>'}</div>`;
+    }
+    if (skill === 'bardic') {
+      html += '<p class="small">🎻 Perform on the stage of an inn in Saltmire, Ironhold, Port Ulric, Hollowfen or Dunwich, with a lute in your pack. Every song leaves a mood behind that helps you or your companions.</p>' + this.buffList();
+    }
+    if (skill === 'medicine') {
+      html += `<p class="small">🩺 Every level makes food and potions heal ${Math.round(MEDICINE_HEAL_PER_LEVEL * 100)}% more (now +${Math.round(MEDICINE_HEAL_PER_LEVEL * 100 * (Game.level('medicine') - 1))}%). ${Game.level('medicine') >= MEDICINE_RALLY_LEVEL ? 'Your downed companions get back up after a short rest, without an inn.' : `From level ${MEDICINE_RALLY_LEVEL}, downed companions get back up after a short rest, without an inn.`} At level 30 you can treat a broken mind in a chapel.</p>`;
+    }
+    if (skill === 'necromancy') {
+      html += `<p class="small">💀 Raise thralls in a ritual circle. They fight beside you without taking a companion's place, until they crumble or are torn apart. You can hold <b>${Game.thrallCapacity()}</b> at a time (one more every ${THRALL_LEVELS_PER_SLOT} levels), and you learn while they fight. While a thrall walks with you, Faith is closed to you.</p>
+        ${Game.thralls().length ? this.companionBlock() : ''}`;
     }
     if (skill === 'gravedigging') {
       html += '<p class="small">⚰️ Every grave you open may hold an occupant who objects. If something wakes, you fight it then and there; win and you dig on. Bones feed ink, rites and the market under the hill.</p>';
@@ -909,6 +976,27 @@ const UI = {
         `<table class="stats">${kills.map(([id, n]) => `<tr><td>${MONSTERS[id].icon} ${MONSTERS[id].name}</td><td>${fmt(n)}</td></tr>`).join('')}</table>`, false);
     }
     return html + '</div></div>';
+  },
+
+  // Your garden plots, with what grows in them and the seeds you can sow.
+  gardenBlock() {
+    const plots = Game.plots();
+    const seeds = Object.keys(CROPS).filter(seed => Game.count(seed) > 0);
+    const empty = plots.filter(p => !p).length;
+    const cells = plots.map((p, i) => {
+      if (!p) return '<div class="plot empty"><div class="plot-icon">🟫</div><div class="small muted">Empty</div></div>';
+      const crop = ITEMS[CROPS[p.seed][0]];
+      const left = Game.growTime(p.seed) - (Date.now() - p.planted);
+      return Game.plotReady(p)
+        ? `<button class="plot ready" data-act="harvest" data-plot="${i}"><div class="plot-icon">${crop.icon}</div><div class="small good-text">Harvest</div></button>`
+        : `<div class="plot growing"><div class="plot-icon">🌱</div><div class="small muted">${esc(crop.name)}<br>${left >= 60000 ? `${Math.ceil(left / 60000)} min` : `${Math.ceil(left / 1000)}s`}</div></div>`;
+    }).join('');
+    const sow = seeds.map(seed => {
+      const ok = Game.level('gardening') >= CROPS[seed][3];
+      return `<button class="btn small" data-act="plant" data-seed="${seed}"${ok && empty ? '' : ' disabled'} title="${ok ? '' : `Needs Gardening ${CROPS[seed][3]}`}">${ITEMS[CROPS[seed][0]].icon} Sow ${esc(ITEMS[seed].name)} (${fmt(Game.count(seed))})</button>`;
+    }).join('');
+    return `<div class="plots">${cells}</div>
+      <div class="btn-row">${plots.some(p => Game.plotReady(p)) ? '<button class="btn small" data-act="harvest-all">Harvest everything ready</button>' : ''}${sow || '<span class="small muted">You carry no seeds.</span>'}</div>`;
   },
 
   // Active blessings, brews and scrolls, with the time left on each.
@@ -1118,7 +1206,7 @@ const UI = {
       const def = COMPANIONS[comp.id];
       const st = Game.companionStats(comp);
       return `<div class="companion${comp.downed ? ' downed' : ''}"><b>${def.icon} ${esc(def.name)}</b>${comp.downed ? ` <span class="lack-text">(down: ${Game.perk('rally') ? 'catching their breath' : 'rest at an inn'})</span>` : ''}
-        <div class="small">❤️ ${comp.hp} / ${st.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / ${st.sanity} · AC ${st.ac} · ${withSign(st.hit)} to hit, ${Game.companionDamageText(comp)}${st.heals ? ` · heals you ${st.heals}` : ''}</div>
+        <div class="small">❤️ ${comp.hp} / ${st.hp} · 🧠 ${Math.max(0, Math.round(comp.sanity))} / ${st.sanity} · AC ${st.ac} · ${withSign(st.hit)} to hit, ${Game.companionDamageText(comp)}${st.heals ? ` · heals you ${st.heals}` : ''}${def.thrall ? ` · <span class="sanity-text">crumbles in ${Math.ceil(comp.left / 60000)} min</span>` : ''}</div>
         ${def.mods ? `<div class="small mods">${modsText(def)}</div>` : ''}
         ${full ? `<div class="small muted">${esc(def.desc)}</div><button class="btn small danger" data-act="dismiss" data-id="${comp.id}">Part ways</button>` : ''}</div>`;
     }).join('');

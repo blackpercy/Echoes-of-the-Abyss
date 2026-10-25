@@ -116,6 +116,10 @@ const Game = {
       relics: {},
       buffs: {},
       trade: {},
+      garden: { plots: [] },
+      house: null,
+      pets: { owned: {}, active: null },
+      slayer: { task: null, done: 0 },
       settings: { audio: false },
       achTimer: 0,
       log: [],
@@ -169,7 +173,7 @@ const Game = {
   hasStation(station) {
     const def = STATIONS[station];
     if (station === 'shore' && this.hasDerangement('voices')) return true;
-    return (this.here().stations || []).includes(station) || (def.portable && this.carries(def.portable));
+    return (this.here().stations || []).includes(station) || (def.portable && this.carries(def.portable)) || this.houseStations().includes(station);
   },
 
   // --- Pack (carried items) ---
@@ -362,7 +366,7 @@ const Game = {
     return this.proficiency() + this.playerStats().hit + this.stance().hit - (this.hasDerangement('star_touched') ? 1 : 0) + this.perk('hit') + this.weaponHit();
   },
   attackBonusVs(m) {
-    return this.attackBonus() + (m.eldritch && this.hasDerangement('night_eyes') ? 2 : 0) + (m.eldritch && this.state.race === 'tiefling' ? 1 : 0);
+    return this.attackBonus() + (m.eldritch && this.hasDerangement('night_eyes') ? 2 : 0) + (m.eldritch && this.state.race === 'tiefling' ? 1 : 0) + this.slayerHit(m);
   },
   damageBonus() {
     return this.might() + this.playerStats().dmg + this.stance().dmg + this.perk('dmg') + this.weaponDmg();
@@ -484,6 +488,8 @@ const Game = {
     const missing = (action.needs || []).find(item => !this.carries(item));
     if (missing) return `Needs ${ITEMS[missing].name}`;
     if (action.hpCost && this.state.hp <= action.hpCost) return 'Not enough hitpoints';
+    const special = this.effectBlocker(skill, action);
+    if (special) return special;
     if (!this.hasAll(action.input)) return 'Missing materials';
     if (action.sanityCost && this.state.sanity < this.sanityCostOf(skill, action)) return 'Not enough sanity';
     if (!Object.keys(action.output).every(item => this.canAdd(item))) return 'Your pack is full';
@@ -563,6 +569,11 @@ const Game = {
     }
     this.addXp(skill, action.xp);
     if (action.buff) this.addBuff(`${skill}-${action.id}`, action.buff);
+    if (action.effect && !this.actionEffect(skill, action)) {
+      this.state.action = null;
+      this.emit('action');
+      return false;
+    }
     // Something may climb out of the grave you are digging.
     if (action.ambush && Math.random() < action.ambush.chance) {
       const loc = this.state.location;
@@ -752,7 +763,7 @@ const Game = {
       return;
     }
     const crit = roll >= critFrom;
-    let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus());
+    let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus() + this.slayerDmg(m));
     // Sneak attack: the first blow against each enemy, if it lands, adds d6s from Stealth.
     const sneakDice = c.sneakUsed ? 0 : this.sneakDice();
     c.sneakUsed = true;
@@ -808,6 +819,8 @@ const Game = {
     this.recordBestiary(c.monster);
     if (m.eldritch && this.weaponSkill() === 'unarmed') this.state.flags.bareKnuckle = true;
     if (this.companionActive()) this.addXp('fellowship', Math.round(m.xp * FELLOWSHIP_KILL_SHARE));
+    if (this.thralls().length) this.addXp('necromancy', m.xp * NECROMANCY_KILL_SHARE);
+    this.slayerKill(c.monster, m);
     this.companionsFeed();
     const killHeal = this.perk('killHeal');
     if (killHeal) this.heal(killHeal);
@@ -900,6 +913,7 @@ const Game = {
     s.clock += dt;
     this.tickCult(dt);
     this.tickBuffs(dt);
+    this.tickThralls(dt);
     s.achTimer += dt;
     if (s.achTimer >= ACHIEVEMENT_CHECK_MS) {
       s.achTimer = 0;

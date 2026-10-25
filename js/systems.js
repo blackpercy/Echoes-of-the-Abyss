@@ -216,7 +216,8 @@ Object.assign(Game, {
     return this.state.companions.some(c => c.id === id);
   },
   companionRoom() {
-    return this.state.companions.length < this.companionCapacity();
+    // Thralls do not take a companion's place.
+    return this.state.companions.filter(c => !COMPANIONS[c.id].thrall).length < this.companionCapacity();
   },
   // A companion's numbers: their own, improved by your Fellowship level and perks.
   companionStats(comp) {
@@ -291,6 +292,7 @@ Object.assign(Game, {
     const dmg = Math.max(1, rollDice(m.dmg, roll === 20));
     comp.hp -= dmg;
     this.combatLog(c, `The ${m.name} hits ${def.name} for ${dmg}.`);
+    if (comp.hp <= 0 && def.thrall) return this.crumble(comp, 'is torn apart');
     if (comp.hp <= 0) {
       comp.hp = 0;
       comp.downed = true;
@@ -490,6 +492,7 @@ Object.assign(Game, {
       if (!this.state.endings[ending]) continue;
       for (const [loc, change] of Object.entries(WORLD_CHANGES[ending])) Object.assign(LOCATIONS[loc], JSON.parse(JSON.stringify(change)));
     }
+    this.applyHouse();
   },
 
   // --- Weapon skills ---

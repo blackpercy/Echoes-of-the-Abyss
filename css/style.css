@@ -171,6 +171,12 @@ p { line-height: 1.45; }
 .chip.lack { border-color: var(--danger); color: #e07a74; }
 .buffs { display: flex; flex-wrap: wrap; gap: .3rem; margin: .3rem 0; }
 .mods { color: var(--accent); }
+.plots { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: .4rem; margin: .4rem 0; }
+.plot { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: .4rem; text-align: center; color: var(--text); font: inherit; }
+.plot-icon { font-size: 1.5rem; }
+.plot.ready { border-color: var(--accent); cursor: pointer; }
+.plot.ready:hover { background: var(--accent-dim); }
+.plot.empty { opacity: .6; }
 .chip.buff { border-color: var(--accent-dim); color: var(--accent); }
 .boss { font-size: .7rem; background: var(--danger); padding: 0 .3rem; border-radius: 3px; vertical-align: middle; }
 
