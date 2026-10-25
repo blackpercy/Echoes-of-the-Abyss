@@ -3,7 +3,7 @@
 
 const PERK_EVERY = 5;
 const PERK_RESPEC_GOLD = 100; // per perk forgotten
-const MAX_PERK_SPEED = 0.95;
+const MAX_PERK_SPEED = 0.99;
 // Limits on perks that would otherwise run away once every perk has been taken twice.
 const MIN_CRIT_ROLL = 15;          // critical hits never start below this roll
 const MAX_DOUBLE_STRIKE = 0.5;
