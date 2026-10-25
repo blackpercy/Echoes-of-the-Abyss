@@ -557,3 +557,164 @@ Object.assign(NPCS, {
 NPCS.maud.if = { noCompanion: 'maud' };
 NPCS.maud.interactions.push({ id: 'hire', label: 'Ask Sister Maud to come', if: { maxMadness: 3 }, cost: { gold: 600 }, gain: { companion: 'maud' }, result: '"Someone ought to read to you while you read those books. I shall bring the small ones. The large ones bite."' });
 ACHIEVEMENTS.find(a => a.id === 'company').name = 'The Whole Company';
+
+// --- New places: Hollowfen and Moonmere Marsh in the south, the Standing Stones in the north,
+// and Dunwich and Sentinel Hill in the west ---
+addItem('bog_myrtle', { name: 'Bog Myrtle', icon: '🌿', sell: 25, desc: 'Sweet-smelling and bitter. The fen-folk say it keeps the lights away.' });
+addItem('troll_hide', { name: 'Bog Troll Hide', icon: '🟫', sell: 60, desc: 'Thick, green and still trying to heal.' });
+addItem('marsh_tonic', { name: 'Marsh Tonic', icon: '🧪', type: 'potion', heal: 60, sanity: 15, sell: 60, desc: 'Restores 60 hitpoints and 15 sanity. Tastes of peat.' });
+addItem('trollhide_armour', { name: 'Trollhide Armour', icon: '🧥', type: 'equipment', slot: 'body', stats: { ac: 4, hit: 1 }, mods: [['hp', 15]], req: { combat: 18 }, sell: 500, desc: 'It closes its own cuts.' });
+
+MONSTERS.will_o_wisp = { name: "Will-o'-the-Wisp", icon: '🔆', eldritch: { dc: 12, loss: 3 }, hp: 70, ac: 15, hit: 7, dmg: '1d8+2', speed: 2200, xp: 60, gold: [5, 20], drops: [{ item: 'bog_myrtle', chance: 0.3, qty: [1, 2] }, { item: 'eldritch_insight', chance: 0.1, qty: [1, 1] }] };
+MONSTERS.bog_troll = { name: 'Bog Troll', icon: '👹', hp: 140, ac: 13, hit: 8, dmg: '2d6+2', speed: 3000, xp: 95, gold: [20, 60], drops: [{ item: 'troll_hide', chance: 0.5, qty: [1, 1] }, { item: 'raw_pale_eel', chance: 0.3, qty: [1, 3] }] };
+MONSTERS.barrow_wight = { name: 'Barrow-Wight', icon: '👻', eldritch: { dc: 13, loss: 4 }, hp: 120, ac: 15, hit: 8, dmg: '2d6+1', speed: 2600, xp: 100, gold: [30, 70], drops: [{ item: 'grave_goods', chance: 0.4, qty: [1, 2] }, { item: 'old_bones', chance: 0.5, qty: [1, 3] }] };
+MONSTERS.whateley_cultist = { name: 'Whateley Kin', icon: '🧑‍🌾', eldritch: { dc: 12, loss: 3 }, hp: 90, ac: 13, hit: 7, dmg: '1d10+2', speed: 2600, xp: 70, gold: [15, 45], drops: [{ item: 'cultist_text', chance: 0.25, qty: [1, 1] }, { item: 'pnakotic_fragments', chance: 0.005, qty: [1, 1] }] };
+MONSTERS.spawn_of_yog = { name: 'Invisible Spawn', icon: '🌫️', eldritch: { dc: 15, loss: 6 }, hp: 260, ac: 16, hit: 11, dmg: '3d6+2', speed: 2700, xp: 230, gold: [60, 140], drops: [{ item: 'eldritch_insight', chance: 0.5, qty: [1, 3] }] };
+MONSTERS.dunwich_horror = { name: 'The Dunwich Horror', icon: '🐙', boss: true, eldritch: { dc: 17, loss: 8 }, hp: 700, ac: 18, hit: 13, dmg: '3d8+3', speed: 2800, xp: 800, gold: [600, 1200], drops: [{ item: 'necronomicon_page', chance: 0.6, qty: [1, 2] }, { item: 'eldritch_insight', chance: 1, qty: [4, 8] }] };
+Object.assign(BESTIARY, {
+  will_o_wisp: { sane: 'A floating light over the fen that leads travellers into the deep water.', mad: 'It is lonely. It only wants company down there.' },
+  bog_troll: { sane: 'A long-armed troll that sleeps under the peat and heals almost as fast as you can cut it.', mad: 'It dreams of the star. Everything here does.' },
+  barrow_wight: { sane: 'A dead chieftain who still guards the Standing Stones and the gold buried beneath them.', mad: 'It is not guarding the gold. It is guarding the door under the gold.' },
+  whateley_cultist: { sane: 'Inbred hill-folk of the Whateley clan, who keep strange livestock on Sentinel Hill.', mad: 'The livestock is family.' },
+  spawn_of_yog: { sane: 'Something you cannot see, that leaves tracks the size of barrels and smells of the sea.', mad: 'You can see it now. It has your face, a little.' },
+  dunwich_horror: { sane: 'The twin that was kept in the farmhouse. It has outgrown the farmhouse.', mad: 'It is calling for its father on top of the hill. Its father is answering.' },
+});
+
+// The Old Stones: a fifth relic collection, dug from the Standing Stones.
+RELIC_SETS.old_stones = { name: 'The Old Stones', icon: '🪨', bonus: ['allXp', 0.05], relics: { stone_calendar: 'Calendar Stone', antler_crown: 'Antler Crown', sun_disc: 'Gold Sun-Disc' } };
+for (const [id, name] of Object.entries(RELIC_SETS.old_stones.relics)) addItem(id, { name, icon: '🪨', type: 'relic', sell: 80, desc: 'A relic of The Old Stones. Place it in your collection on the Archaeology page.' });
+
+ACTIONS.foraging.push({ id: 'bog_myrtle', name: 'Bog Myrtle', level: 18, xp: 50, time: 5000, output: { bog_myrtle: 1 } });
+ACTIONS.foraging.sort((a, b) => a.level - b.level);
+ACTIONS.alchemy.push({ id: 'marsh_tonic', name: 'Marsh Tonic', level: 20, xp: 70, time: 4200, station: 'lab', input: { bog_myrtle: 2, raw_pale_eel: 1 }, output: { marsh_tonic: 1 } });
+ACTIONS.alchemy.sort((a, b) => a.level - b.level);
+ACTIONS.hunting.push({ id: 'trollhide_armour', name: 'Tan Trollhide Armour', level: 22, xp: 140, time: 5000, station: 'tannery', input: { troll_hide: 3 }, output: { trollhide_armour: 1 } });
+ACTIONS.hunting.sort((a, b) => a.level - b.level);
+ACTIONS.gravedigging.push({ id: 'bog_bodies', name: 'Raise the Bog Bodies', level: 24, xp: 70, time: 6000, output: { grave_goods: 2, old_bones: 1 }, bonus: [{ item: 'cultes_des_goules', chance: 0.01, qty: 1 }], ambush: { monster: 'bog_troll', chance: 0.04 }, desc: 'They come up brown and perfect, as if asleep.' });
+ACTIONS.gravedigging.sort((a, b) => a.level - b.level);
+ACTIONS.archaeology.push({ id: 'standing_stones', name: 'Dig Beneath the Standing Stones', level: 32, xp: 120, time: 7000, output: { potsherd: 1 }, bonus: relicBonus('old_stones', 0.025), ambush: { monster: 'barrow_wight', chance: 0.03 } });
+ACTIONS.archaeology.sort((a, b) => a.level - b.level);
+ACTIONS.faith.push({ id: 'bless_stones', name: 'Bless the Standing Stones', level: 30, xp: 160, time: 7000, sanityGain: 3, output: { blessed_ash: 2 }, ambush: { monster: 'barrow_wight', chance: 0.05 }, maxMadness: FAITH_MAX_MADNESS });
+ACTIONS.faith.sort((a, b) => a.level - b.level);
+ACTIONS.trading.push(
+  { id: 'fen_market', name: 'Trade at the Fen Market', icon: '🐟', level: 5, xp: 18, time: 3500, gold: [4, 12], output: {} },
+  { id: 'dunwich_barter', name: 'Barter with the Hill-Folk', icon: '🐐', level: 15, xp: 40, time: 4000, gold: [10, 28], output: {} },
+);
+ACTIONS.trading.sort((a, b) => a.level - b.level);
+
+// Trade goods for the new towns, and what they pay for the old ones.
+Object.assign(TRADE_GOODS, {
+  smoked_eels: { name: 'Crate of Smoked Eels', icon: '🐍', origin: 'hollowfen', base: 18, level: 3, xp: 5, prices: { saltmire: 30, ironhold: 34, dunwich: 36, port_ulric: 32 } },
+  hill_wool: { name: 'Bale of Hill Wool', icon: '🐑', origin: 'dunwich', base: 25, level: 8, xp: 7, prices: { saltmire: 45, silent_abbey: 42, port_ulric: 50, hollowfen: 40 } },
+});
+for (const id of ['smoked_eels', 'hill_wool']) addItem(id, { name: TRADE_GOODS[id].name, icon: TRADE_GOODS[id].icon, type: 'trade', sell: TRADE_GOODS[id].base, desc: 'Trade goods: cheap where they are made, worth more in other towns. Each market shows what it pays.' });
+Object.assign(TRADE_GOODS.salted_fish.prices, { hollowfen: 22, dunwich: 26 });
+Object.assign(TRADE_GOODS.abbey_candles.prices, { hollowfen: 21, dunwich: 19 });
+Object.assign(TRADE_GOODS.dwarven_tools.prices, { hollowfen: 50, dunwich: 58 });
+
+SHOPS.fen_store = {
+  name: "Mother Grisby's Stall",
+  keeper: 'A broad woman in waders sells everything off the same plank. "Myrtle keeps the lights off. Salt keeps the trolls off. Nothing keeps the damp off."',
+  stock: [
+    { item: 'bread', price: 5 }, { item: 'barley', price: 3 }, { item: 'healing_draught', price: 55 }, { item: 'calming_tea', price: 35 },
+    { item: 'votive_candle', price: 18 }, { item: 'sickle', price: 25 }, { item: 'spade', price: 25 }, { item: 'tinderbox', price: 30 },
+    { item: 'lantern', price: 110 }, { item: 'bog_myrtle', price: 70 },
+  ],
+};
+SHOPS.osborn_store = {
+  name: "Osborn's General Store",
+  keeper: 'Earl Sawyer Osborn talks too fast and looks at the hill too often. "Whateleys? Never heard of \'em. Buy something or move along."',
+  stock: [
+    { item: 'bread', price: 5 }, { item: 'hatchet', price: 25 }, { item: 'pickaxe', price: 30 }, { item: 'snares', price: 25 },
+    { item: 'hunters_bow', price: 2800 }, { item: 'leather_backpack', price: 240 }, { item: 'ritual_chalk', price: 400 }, { item: 'pnakotic_fragments', price: 1500 },
+  ],
+};
+
+Object.assign(LOCATIONS, {
+  hollowfen: {
+    name: 'Hollowfen', kind: 'town', icon: '🛖', x: 470, y: 605,
+    desc: 'A village of stilt-houses above the black water of the fen. Lamps burn all night on every porch, to keep the other lights away.',
+    shop: 'fen_store', inn: 'the Stilted Eel', stations: ['fire', 'lab', 'cellar', 'chapel', 'bed'],
+    gather: { fishing: ['pale_eel'], foraging: ['grave_moss', 'pale_wort'], trading: ['fen_market'] },
+  },
+  moonmere: {
+    name: 'Moonmere Marsh', kind: 'wild', icon: '🌾', x: 345, y: 632,
+    desc: 'Reeds taller than a man, pools without a bottom, and lights that drift over the water at dusk. Something big breathes under the peat.',
+    gather: { foraging: ['bog_myrtle'], fishing: ['pale_eel', 'deep_cod'], gravedigging: ['bog_bodies'] },
+    monsters: ['will_o_wisp', 'bog_troll'],
+  },
+  standing_stones: {
+    name: 'The Standing Stones', kind: 'wild', icon: '🗿', x: 420, y: 70,
+    desc: 'A ring of grey stones on a bare hill, older than Aldmark. The grass inside the circle is always flattened, as if something dances there.',
+    stations: ['circle'], gather: { archaeology: ['standing_stones'], faith: ['bless_stones'] },
+    monsters: ['barrow_wight'],
+  },
+  dunwich: {
+    name: 'Dunwich', kind: 'town', icon: '🏚️', x: 205, y: 385, labelDx: -10,
+    desc: 'A decaying hill village of sagging gambrel roofs. The whippoorwills here never stop calling, and the people look at strangers the way they look at weather.',
+    shop: 'osborn_store', inn: "the Osborn spare room", stations: ['fire', 'workbench', 'tannery'],
+    gather: { woodcutting: ['twisted_oak', 'grave_pine'], hunting: ['deer'], trading: ['dunwich_barter'] },
+  },
+  sentinel_hill: {
+    name: 'Sentinel Hill', kind: 'wild', icon: '⛰️', x: 80, y: 455,
+    desc: 'A round hill crowned with a table-stone. The grass is burned in long tracks up its side, as if something very heavy was dragged there. Or walked.',
+    stations: ['circle', 'altar'], monsters: ['whateley_cultist', 'spawn_of_yog'],
+  },
+});
+ROADS.push(
+  { a: 'saltmire', b: 'hollowfen', time: 18 },
+  { a: 'ironhold', b: 'hollowfen', time: 22 },
+  { a: 'drowned_catacombs', b: 'hollowfen', time: 14, req: ['lantern'] },
+  { a: 'hollowfen', b: 'moonmere', time: 12 },
+  { a: 'silent_abbey', b: 'standing_stones', time: 14 },
+  { a: 'crater', b: 'standing_stones', time: 18 },
+  { a: 'ironhold', b: 'dunwich', time: 15 },
+  { a: 'dreaming_grove', b: 'dunwich', time: 14 },
+  { a: 'dunwich', b: 'sentinel_hill', time: 10 },
+);
+
+EXPEDITIONS.sentinel_hill = {
+  name: 'The Rite on Sentinel Hill', location: 'sentinel_hill', level: 34,
+  desc: 'Climb the burned tracks to the table-stone before the Whateleys finish calling down what they are calling.',
+  rooms: ['whateley_cultist', 'whateley_cultist', 'spawn_of_yog', 'whateley_cultist', 'dunwich_horror'],
+  loot: { gold: [1200, 2400], items: [{ item: 'necronomicon_page', chance: 0.8, qty: [1, 3] }, { item: 'unaussprechlichen', chance: 0.1, qty: [1, 1] }] },
+};
+
+// Gear from the new places.
+const NEW_PLACE_GEAR = [
+  ['trollhide_gloves', 'Trollhide Gloves', '🧤', 'hands', { ac: 1 }, [['hp', 15], ['killHeal', 2]], 14, 400, 'Your knuckles heal before they bruise.'],
+  ['wisp_lantern', "Wisp in a Jar", '🏮', 'amulet', { ward: 2 }, [['veil', 10], ['speed', 0.15, 'foraging']], 12, 450, 'It drifts against the glass, always toward something you have lost.'],
+  ['wight_ring', "Wight-King's Ring", '💍', 'ring', { ward: 2 }, [['speed', 0.15, 'archaeology'], ['rare', 0.02, 'archaeology']], 22, 1200, 'Cold gold. It still knows where the rest of the hoard is.'],
+  ['whateley_smock', 'Whateley Smock', '🥼', 'body', { ac: 2, ward: 4 }, [['speed', 0.15, 'ritualism'], ['xp', 0.1, 'occultism']], 24, 1300, 'Homespun, stitched with symbols the stitcher could not read.'],
+  ['silver_key', 'The Silver Key', '🗝️', 'amulet', { hit: 2, dmg: 2, ward: 4 }, [['travel', 0.2], ['allXp', 0.05]], 34, 8000, 'A key a hand long, of a silver that tarnishes into stars. It opens more than doors.'],
+];
+for (const [id, name, icon, slot, stats, mods, req, sell, desc] of NEW_PLACE_GEAR) {
+  addItem(id, { name, icon, type: 'equipment', slot, stats, mods, req: { combat: req }, sell, desc });
+}
+MONSTERS.bog_troll.drops.push({ item: 'trollhide_gloves', chance: 0.02, qty: [1, 1] });
+MONSTERS.will_o_wisp.drops.push({ item: 'wisp_lantern', chance: 0.02, qty: [1, 1] });
+MONSTERS.barrow_wight.drops.push({ item: 'wight_ring', chance: 0.02, qty: [1, 1] });
+MONSTERS.whateley_cultist.drops.push({ item: 'whateley_smock', chance: 0.01, qty: [1, 1] });
+MONSTERS.dunwich_horror.drops.push({ item: 'silver_key', chance: 0.1, qty: [1, 1] });
+EXPEDITIONS.sentinel_hill.loot.items.push({ item: 'silver_key', chance: 0.2, qty: [1, 1] }, { item: 'whateley_smock', chance: 0.25, qty: [1, 1] });
+
+// People who point the way.
+Object.assign(NPCS, {
+  grisby: {
+    name: 'Mother Grisby', icon: '👵', title: 'of Hollowfen', location: 'hollowfen',
+    lines: [
+      { if: { night: true }, text: '"Keep your lamp lit and your eyes off the water. The lights are out tonight."' },
+      { text: '"Come for eels? Everyone comes for eels. Nobody stays for eels."' },
+    ],
+    interactions: [{ id: 'rumours', label: 'Ask about the marsh', result: '"South of here is Moonmere. Trolls under the peat, lights over the pools, and the old dead in the bog, perfect as the day they drowned. Folk dig them up for the gold."', gain: { reveal: ['moonmere'] } }],
+  },
+  zebulon: {
+    name: 'Zebulon Whateley', icon: '👴', title: 'of the undecayed branch', location: 'dunwich',
+    lines: [
+      { if: { minMadness: 2 }, text: '"You hear them too. The whippoorwills. They are waiting to catch a soul. Yours, maybe. Mine, soon."' },
+      { text: 'An old man with a Whateley chin, who keeps his distance from his kin. "Don\'t go up the hill. And if you go up the hill, don\'t go at night."' },
+    ],
+    interactions: [{ id: 'rumours', label: 'Ask about the hill', result: '"Sentinel Hill. West of the village. They build fires on the table-stone and something answers from the sky. Something walks back down."', gain: { reveal: ['sentinel_hill'] } }],
+  },
+});
+NPCS.maud.interactions.push({ id: 'stones', label: 'Ask about the old stones', result: '"There is a ring of stones north of the Abbey, older than the Order. We do not go there. You will, of course."', gain: { reveal: ['standing_stones'] } });
