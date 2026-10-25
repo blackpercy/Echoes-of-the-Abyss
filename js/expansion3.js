@@ -243,3 +243,32 @@ ACHIEVEMENTS.push(
   { id: 'bounty_hunter', icon: '🎯', name: 'Bounty Hunter', desc: 'Complete 20 bounties.', test: g => g.state.slayer.done >= 20 },
   { id: 'mind_mended', icon: '🩺', name: 'Physician, Heal Thyself', desc: 'Treat your own broken mind.', test: g => !!g.state.flags.mindMended },
 );
+
+// --- Attributes: general skills like Wisdom, each fed by the skills that use it ---
+Object.assign(SKILLS, {
+  strength: { name: 'Strength', icon: '💪', type: 'general', desc: 'Grows with fighting, chopping, digging, smithing and building. It makes your blows heavier and your back broader.' },
+  dexterity: { name: 'Dexterity', icon: '🤸', type: 'general', desc: 'Grows with bows, stealth, hunting, fishing and fine crafts. It makes you harder to hit and quicker at everything.' },
+  constitution: { name: 'Constitution', icon: '❤️', type: 'general', desc: 'Grows with cooking, brewing, foraging, gardening, the open road and the healer\'s trade. It gives you more hitpoints.' },
+  intelligence: { name: 'Intelligence', icon: '🧠', type: 'general', desc: 'Grows with alchemy, scholarship, the occult and the stars. It makes your potions and scrolls stronger and your mind harder to break.' },
+  charisma: { name: 'Charisma', icon: '🎭', type: 'general', desc: 'Grows with trade, song, faith, leadership and the binding of beasts and the dead. It gets you better prices and makes your companions fight harder.' },
+});
+SKILL_GROUPS.find(g => g.name === 'General').skills = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+// Which attribute each skill trains. Wisdom still learns from everything.
+const ATTRIBUTE_SKILLS = {
+  strength: ['combat', 'blades', 'polearms', 'maces', 'unarmed', 'mining', 'woodcutting', 'smithing', 'construction', 'gravedigging'],
+  dexterity: ['bows', 'stealth', 'hunting', 'fishing', 'tailoring', 'jewelcrafting', 'tinkering', 'carpentry', 'tidecombing'],
+  constitution: ['cooking', 'brewing', 'foraging', 'gardening', 'sailing', 'cartography', 'medicine'],
+  intelligence: ['alchemy', 'inscription', 'lore', 'occultism', 'archaeology', 'astronomy', 'staves', 'dreaming'],
+  charisma: ['trading', 'fellowship', 'bardic', 'taming', 'faith', 'ritualism', 'slaying', 'necromancy'],
+};
+const ATTRIBUTE_OF = {};
+for (const [attr, skills] of Object.entries(ATTRIBUTE_SKILLS)) for (const sk of skills) ATTRIBUTE_OF[sk] = attr;
+const ATTRIBUTE_SHARE = 0.15;   // share of a skill's xp that also goes to its attribute
+// What each attribute level gives: [effect, per level] or [effect, 1, every n levels].
+const ATTRIBUTE_BONUSES = {
+  strength: [['dmg', 1, 10], ['carry', 1, 25]],
+  dexterity: [['ac', 1, 12], ['speedAll', 0.002]],
+  constitution: [['hp', 3]],
+  intelligence: [['potency', 0.005], ['scrollPower', 0.005], ['ward', 1, 20]],
+  charisma: [['haggle', 0.002], ['compHit', 1, 20], ['compAc', 1, 20]],
+};

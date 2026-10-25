@@ -152,6 +152,9 @@ const Game = {
     this.gainXp(skill, gain);
     // A share of everything you learn also becomes Wisdom.
     if (skill !== 'wisdom' && gain > 0) this.gainXp('wisdom', gain * WISDOM_SHARE * (1 + this.perk('xp', 'wisdom')));
+    // And a share goes to the attribute the skill trains.
+    const attr = ATTRIBUTE_OF[skill];
+    if (attr && gain > 0) this.gainXp(attr, gain * ATTRIBUTE_SHARE * (1 + this.perk('xp', attr)));
   },
   gainXp(skill, gain) {
     const s = this.state.skills[skill];
@@ -1006,7 +1009,12 @@ const Game = {
   migrate(saved) {
     // Fill in fields missing from older saves so new content does not break the game.
     const state = Object.assign(this.newState(), saved);
+    const newAttributes = Object.keys(ATTRIBUTE_SKILLS).filter(attr => !state.skills[attr]);
     for (const id in SKILLS) if (!state.skills[id]) state.skills[id] = { xp: 0 };
+    // Attributes added later start from what you have already learned.
+    for (const attr of newAttributes) {
+      state.skills[attr].xp = ATTRIBUTE_SKILLS[attr].reduce((sum, sk) => sum + state.skills[sk].xp, 0) * ATTRIBUTE_SHARE;
+    }
     for (const store of [state.pack, state.bank]) for (const id in store) if (!ITEMS[id]) delete store[id];
     for (const slot in SLOTS) if (!(slot in state.equipment) || (state.equipment[slot] && !ITEMS[state.equipment[slot]])) state.equipment[slot] = null;
     if (!LOCATIONS[state.location]) state.location = START_LOCATION;

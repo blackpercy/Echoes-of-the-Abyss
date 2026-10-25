@@ -23,7 +23,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **43 skills, levels 1–100.**
+- **48 skills, levels 1–100.**
   - Weapons: Blades, Polearms, Bows, Staves, Maces, Unarmed. Fighting with a weapon trains its type (50% of each kill's xp). Every 10 levels give +1 to hit and damage, and each type has its own trait:
     - **Blades:** a wider critical range at levels 25, 50, 75 and 100 (critical hits never start below 15).
     - **Polearms:** ignore 1 enemy AC per 15 levels.
@@ -33,6 +33,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
     - **Unarmed:** your fists roll bigger dice every 10 levels (1d3 up to 4d8) and attack quickly; sneak attacks deal +1d6 per 15 levels. Knuckles keep your fists' dice and add their own bonuses.
 
     Each type also has its own perk tree, with second strikes, life-steal and armour piercing. Halberds can be smithed in every metal, and staves are carved at the workbench.
+  - Attributes: Strength, Dexterity, Constitution, Intelligence and Charisma each gain 15% of the xp from their own skills (Strength from fighting, mining, woodcutting, smithing, building and digging; Dexterity from bows, stealth, hunting, fishing and fine crafts; and so on) and give passive bonuses: Strength +1 damage per 10 levels and pack slots, Dexterity AC and faster activities, Constitution +3 hitpoints per level, Intelligence stronger potions and scrolls and sanity saves, Charisma better prices and stronger companions. Each has its own perk tree. Older saves start them from the xp already earned.
   - General: Wisdom, which gains 10% of the xp from every other skill. Each level gives +0.2% xp in all skills, and every perk choice is between learning faster and something else: gold, pack slots, hitpoints, sanity saves, travel, activity speed or crits.
   - Gathering: Woodcutting, Fishing, Mining, Foraging, Hunting, Archaeology, Dreaming, Grave Digging, Tidecombing, Gardening, Astronomy
   - Crafting: Cooking, Smithing, Alchemy, Occultism, Carpentry, Tailoring, Inscription, Brewing, Jewelcrafting, Tinkering, Construction
@@ -77,7 +78,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 20 choices per skill and 860 in all. Levels 55–100 offer the same ten choices again as second ranks ("… II"), so a perk can be taken twice.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 20 choices per skill and 960 in all. Levels 55–100 offer the same ten choices again as second ranks ("… II"), so a perk can be taken twice.
   - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
   - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
   - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.

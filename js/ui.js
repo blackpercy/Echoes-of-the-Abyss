@@ -712,6 +712,13 @@ const UI = {
       html += `<p class="small">${SKILLS[skill].icon} Trained by fighting with this weapon type (${Math.round(WEAPON_XP_SHARE * 100)}% of each kill's xp). Right now: +${Math.floor(lvl / WEAPON_LEVELS_PER_BONUS)} to hit and damage, ${traits[skill]}.${wielding ? ' <span class="good-text">You are wielding one.</span>' : ''}</p>
         <p class="small muted">Weapons: ${weapons}</p>`;
     }
+    if (ATTRIBUTE_SKILLS[skill]) {
+      const lvl = Game.level(skill);
+      const now = ATTRIBUTE_BONUSES[skill].map(([eff, value, every]) => PERK_EFFECTS[eff].text(every ? value * Math.floor(lvl / every) : Math.round(value * (lvl - 1) * 1000) / 1000)).join(', ');
+      const per = ATTRIBUTE_BONUSES[skill].map(([eff, value, every]) => `${PERK_EFFECTS[eff].text(value)} ${every ? `every ${every} levels` : 'per level'}`).join('; ');
+      html += `<p class="small">${SKILLS[skill].icon} ${SKILLS[skill].name} gains ${Math.round(ATTRIBUTE_SHARE * 100)}% of the experience you earn in: ${ATTRIBUTE_SKILLS[skill].map(sk => `<a href="#" class="loc-link" data-act="nav" data-page="skill-${sk}">${SKILLS[sk].name}</a>`).join(', ')}.</p>
+        <p class="small">It gives ${per}. Right now: <b>${now}</b>.</p>`;
+    }
     if (skill === 'wisdom') {
       html += `<p class="small">🦉 Wisdom gains ${Math.round(WISDOM_SHARE * 100)}% of the experience you earn in every other skill. Each level gives +${(WISDOM_XP_PER_LEVEL * 100).toFixed(1)}% experience in all skills: right now <b>+${(WISDOM_XP_PER_LEVEL * 100 * (Game.level('wisdom') - 1)).toFixed(1)}%</b>${Game.perk('allXp') ? `, plus <b>+${Math.round(Game.perk('allXp') * 100)}%</b> from perks` : ''}.</p>`;
     }

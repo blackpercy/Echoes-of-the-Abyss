@@ -16,6 +16,18 @@ Object.assign(Game, {
     if (effect === 'heal' || effect === 'potency') total += MEDICINE_HEAL_PER_LEVEL * (this.level('medicine') - 1);
     if (effect === 'eldritch') total += ASTRONOMY_ELDRITCH_PER_LEVEL * (this.level('astronomy') - 1);
     if (effect === 'rally' && this.level('medicine') >= MEDICINE_RALLY_LEVEL) total += 1;
+    return total + this.attributeBonus(effect);
+  },
+  // What your attribute levels give, e.g. +1 damage per 10 Strength.
+  attributeBonus(effect) {
+    let total = 0;
+    for (const [attr, bonuses] of Object.entries(ATTRIBUTE_BONUSES)) {
+      for (const [eff, value, every] of bonuses) {
+        if (eff !== effect) continue;
+        const lvl = this.level(attr);
+        total += every ? value * Math.floor(lvl / every) : value * (lvl - 1);
+      }
+    }
     return total;
   },
 
