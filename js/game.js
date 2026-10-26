@@ -549,7 +549,7 @@ const Game = {
       }
     }
     // Thieves can be caught: the attempt fails, you pay a fine and the theft stops.
-    if (action.risk && Math.random() < action.risk * (1 - Math.min(0.9, this.perk('safe', skill)))) {
+    if (action.risk && Math.random() < this.catchChance(skill, action)) {
       const fine = Math.min(this.state.gold, Math.floor(this.state.gold * CAUGHT_FINE) + 5);
       this.state.gold -= fine;
       this.state.hp = Math.max(1, this.state.hp - Math.ceil(this.maxHp() * 0.1));

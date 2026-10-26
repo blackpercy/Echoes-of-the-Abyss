@@ -546,6 +546,11 @@ Object.assign(Game, {
   },
 
   // --- Stealth ---
+  // Chance of being caught: lower the further your level is above the activity's, and with perks.
+  catchChance(skill, action) {
+    const practised = RISK_CUT_PER_LEVEL * Math.max(0, this.level(skill) - action.level);
+    return action.risk * (1 - Math.min(MAX_RISK_CUT, practised + this.perk('safe', skill)));
+  },
   sneakDice() {
     const fists = this.weaponSkill() === 'unarmed' ? Math.floor(this.level('unarmed') / UNARMED_SNEAK_LEVELS) : 0;
     return Math.floor(this.level('stealth') / SNEAK_LEVELS_PER_DIE) + this.perk('sneak') + fists;

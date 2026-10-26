@@ -672,7 +672,7 @@ const UI = {
       a.ambush ? `<span class="lack-text">${Math.round(a.ambush.chance * 100)}% chance a ${esc(MONSTERS[a.ambush.monster].name)} wakes</span>` : '',
       a.maxMadness !== undefined && Game.state.madness > a.maxMadness ? '<span class="sanity-text">the gods do not answer you</span>' : '',
       a.sanityGain ? `<span class="good-text">+${a.sanityGain + Game.perk('dreamRest', skill)} sanity</span>` : '',
-      a.risk ? `<span class="lack-text">${Math.round(a.risk * (1 - Math.min(0.9, Game.perk('safe', skill))) * 100)}% risk of being caught</span>` : '',
+      a.risk ? `<span class="lack-text">${(Game.catchChance(skill, a) * 100).toFixed(1).replace(/\.0$/, '')}% risk of being caught</span>` : '',
       a.minMadness ? `<span class="sanity-text">needs madness: ${MADNESS_STAGES[a.minMadness]}</span>` : '',
       a.anywhere && a.effect !== 'build' ? '<span class="muted">anywhere</span>' : '',
       a.goldCost ? `<span class="${Game.state.gold >= a.goldCost ? 'muted' : 'lack-text'}">costs ${fmt(a.goldCost)} gold</span>` : '',
@@ -771,6 +771,7 @@ const UI = {
       html += `<p class="small">🦉 Wisdom gains ${Math.round(WISDOM_SHARE * 100)}% of the experience you earn in every other skill. Each level gives +${(WISDOM_XP_PER_LEVEL * 100).toFixed(1)}% experience in all skills: right now <b>+${(WISDOM_XP_PER_LEVEL * 100 * (Game.level('wisdom') - 1)).toFixed(1)}%</b>${Game.perk('allXp') ? `, plus <b>+${Math.round(Game.perk('allXp') * 100)}%</b> from perks` : ''}.</p>`;
     }
     if (skill === 'stealth') {
+      html += `<p class="small">🕵️ Every Stealth level above a theft's own makes you ${Math.round(RISK_CUT_PER_LEVEL * 100)}% less likely to be caught (up to ${Math.round(MAX_RISK_CUT * 100)}% with perks).</p>`;
       html += `<p class="small">🗡️ Your first blow against each enemy, if it lands, is a <b>sneak attack</b> for +${Game.sneakDice()}d6 (one die per ${SNEAK_LEVELS_PER_DIE} Stealth levels, plus perks). After an expedition you search for a hidden vault: d20 ${withSign(Math.floor(Game.level('stealth') / 4))} against DC ${VAULT_DC} doubles the treasure.</p>`;
     }
     if (skill === 'cartography') {

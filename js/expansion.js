@@ -174,6 +174,8 @@ LOCATIONS.silent_abbey.gather.stealth = ['burgle_abbey'];
 LOCATIONS.drowned_catacombs.gather = { stealth: ['rob_cult'] };
 LOCATIONS.the_abyss.gather.stealth = ['dagon_hoard'];
 const CAUGHT_FINE = 0.1;            // share of your gold you lose when caught
+const RISK_CUT_PER_LEVEL = 0.02;    // every level above an activity's own makes you 2% less likely to be caught
+const MAX_RISK_CUT = 0.9;
 const VAULT_DC = 15;                // stealth check to find an expedition's hidden vault
 const SNEAK_LEVELS_PER_DIE = 10;    // one d6 of sneak attack per this many Stealth levels
 
