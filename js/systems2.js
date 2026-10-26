@@ -37,6 +37,7 @@ Object.assign(Game, {
     const s = this.state;
     if (skill === 'faith' && this.thralls().length) return 'The gods will not hear you while the dead walk beside you';
     if (action.goldCost && s.gold < action.goldCost) return `Needs ${action.goldCost} gold`;
+    if (action.caseId && this.caseSolved(action.caseId)) return 'Case closed';
     switch (action.effect) {
       case 'raise':
         if (this.thralls().length >= this.thrallCapacity()) return 'You cannot hold more thralls';
@@ -73,6 +74,11 @@ Object.assign(Game, {
         return false;
       case 'tame': return this.tryTame(skill, action);
       case 'tend': return this.tendGarden();
+      case 'solve': return this.solveCase(action.caseId);
+      case 'tarot': return this.drawTarot();
+      case 'scry':
+        this.revealRandom();
+        return true;
       case 'build': return this.buildRoom(action.room);
     }
     return true;

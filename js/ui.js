@@ -17,7 +17,8 @@ const ITEM_CATEGORIES = [
   ['equipment', '⚔️', 'Equipment', it => it.type === 'equipment'],
   ['tools', '🧰', 'Tools', it => it.type === 'tool'],
   ['food', '🍖', 'Food', it => it.type === 'food' || it.id.startsWith('raw_') || it.id === 'deep_egg'],
-  ['potions', '🧪', 'Potions & scrolls', it => it.type === 'potion' || it.type === 'scroll'],
+  ['potions', '🧪', 'Potions & scrolls', it => it.type === 'potion' || it.type === 'scroll' || it.type === 'poison'],
+  ['arrows', '🏹', 'Arrows', it => it.type === 'arrow'],
   ['herbs', '🌿', 'Herbs & plants', it => HERBS.includes(it.id) || it.type === 'seed'],
   ['wood', '🪵', 'Wood', it => it.id.endsWith('_logs')],
   ['metal', '⛏️', 'Ore & metal', it => /_(ore|bar)$/.test(it.id)],
@@ -181,6 +182,8 @@ const UI = {
       case 'harvest': Game.harvest(+d.plot); break;
       case 'harvest-all': Game.harvestAll(); break;
       case 'pet': Game.setPet(d.id); break;
+      case 'delve': Game.startDelve(+d.floor); break;
+      case 'spell': Game.prepareSpell(d.id); break;
       case 'bounty': Game.newBounty(false); break;
       case 'bounty-reroll': if (confirm(`Give up this bounty and take another for ${SLAYER_REROLL_GOLD} gold?`)) Game.newBounty(true); break;
       case 'map-select':
@@ -566,6 +569,7 @@ const UI = {
     if ((loc.monsters || []).length) {
       html += this.section('here-enemies', `Enemies <span class="small muted">${loc.monsters.length}</span>`, `<div class="cards">${loc.monsters.map(m => this.monsterCard(m)).join('')}</div>`);
     }
+    if (id === DELVE_LOCATION) html += this.section('here-delve', '🕳️ The Endless Stair', `<div class="cards">${this.delveCard()}</div>`);
     const expeditions = Object.keys(EXPEDITIONS).filter(e => EXPEDITIONS[e].location === id);
     if (expeditions.length) html += this.section('here-expeditions', 'Expeditions', `<div class="cards">${expeditions.map(e => this.expeditionCard(e)).join('')}</div>`);
     if (Game.atHome()) {
@@ -787,6 +791,54 @@ const UI = {
         ${Game.companions().length ? this.companionBlock() : '<p class="small muted">You travel alone. Companions can be hired in Ironhold, Port Ulric, the Blackwood, the graveyard and at the Silent Abbey. Others join you once you have helped them, and some only speak to the touched.</p>'}
         <p class="small muted">Right now: +${Math.round(FELLOWSHIP_HP_PER_LEVEL * 100 * (lvl - 1))}% hitpoints, ${withSign(Math.floor(lvl / 10))} to hit, ${withSign(Math.floor(lvl / 8))} damage.</p>`;
     }
+    if (skill === 'delving') {
+      html += `<p class="small">🕳️ The Endless Stair goes down from ${locLink(DELVE_LOCATION)}. Each floor holds one creature, stronger than the last; every ${DELVE_CHEST_EVERY}th floor ends in a chest and every ${DELVE_CHECKPOINT}th in a warden. You can start again from any ${DELVE_CHECKPOINT}th floor you have reached. Deepest floor: <b>${Game.state.delve.deepest}</b>.</p>
+        ${Game.state.location === DELVE_LOCATION || (Game.state.combat && Game.state.combat.delve) ? `<div class="cards">${this.delveCard()}</div>` : ''}`;
+    }
+    if (skill === 'thaumaturgy') {
+      const known = Game.knownSpells();
+      html += `<p class="small">✴️ Prepare one spell. In every fight it is cast for you whenever it is ready, paid for in sanity (never when it would bring you within ${SPELL_SANITY_MARGIN} of breaking). Your spells are <b>${Math.round((Game.spellPower() - 1) * 100)}% stronger</b> than a novice's.</p>
+        <div class="cards">${Object.entries(SPELLS).map(([id, sp]) => {
+          const ready = known.includes(id);
+          const on = Game.state.spell === id;
+          return `<div class="card${on ? ' active' : ''}${ready ? '' : ' locked'}"><div class="card-icon">${ready ? sp.icon : '🔒'}</div><div class="card-name">${esc(sp.name)}</div>
+            <div class="small muted">${esc(sp.desc)}${sp.damage ? ` ${sp.damage} damage.` : ''}</div>
+            <div class="small">${ready ? `<span class="sanity-text">−${Game.spellCost(id)} sanity</span> · every ${secs(Game.spellEvery(id))}` : `Requires level ${sp.level}`}</div>
+            ${ready ? `<button class="btn small${on ? ' danger' : ''}" data-act="spell" data-id="${on ? '' : id}">${on ? 'Unprepare' : 'Prepare'}</button>` : ''}</div>`;
+        }).join('')}</div>`;
+    }
+    if (skill === 'shieldcraft') {
+      html += `<p class="small">🛡️ With a shield in your off hand, every blow that would hit you may be blocked: now <b>${Math.round(Game.blockChance() * 100)}%</b>${Game.hasShield() ? '' : ' (you carry no shield)'}. Shieldcraft grows with every block, and a little with every kill while you carry a shield. Shields are smithed in every metal; an oak buckler is carved at a workbench.</p>`;
+    }
+    if (skill === 'toxicology') {
+      html += `<p class="small">☠️ Brew poisons in an alchemy lab, then coat your weapon from your pack or in a fight. Every hit then deals extra poison damage until the coat wears off. Your poisons are ${Math.round(POISON_POWER_PER_LEVEL * 100 * (Game.level('toxicology') - 1) + Game.perk('poisonPower') * 100)}% stronger.${Game.poisonDamage() ? ` Right now: <b>+${Game.poisonDamage()} poison damage</b>.` : ''}</p>`;
+    }
+    if (skill === 'investigation') {
+      html += `<p class="small">🔎 Ask around in towns to learn the trade. Each case has three clues, found in different places; carry all three to where the case is solved.</p>
+        <table class="stats">${Object.entries(CASES).map(([id, c]) => `<tr><td>📁 ${esc(c.name)}</td><td class="${Game.level('investigation') >= c.level ? '' : 'lack-text'}">level ${c.level}</td><td class="small">${Game.caseSolved(id) ? '<span class="good-text">solved ✓</span>' : `${Object.entries(c.clues).map(([clue, [loc, name]]) => `${Game.count(clue) ? '✓' : '·'} ${esc(name)} (${locLink(loc)})`).join(', ')} → solve at ${locLink(c.solveAt)}`}</td></tr>`).join('')}</table>`;
+    }
+    if (skill === 'linguistics') {
+      html += `<p class="small">🗣️ Every tongue you master helps the skills that use it.</p>
+        <table class="stats">${LANGUAGES.map(l => `<tr><td>${l.icon} ${esc(l.name)}</td><td class="${Game.level('linguistics') >= l.level ? 'good-text' : 'muted'}">${Game.level('linguistics') >= l.level ? 'known' : `level ${l.level}`}</td><td class="small mods">${modsText(l)}</td></tr>`).join('')}</table>`;
+    }
+    if (skill === 'divination') {
+      html += `<p class="small">🔮 Omens bless you for a while; the tarot turns up a different card each time. Every ${DIVINATION_SCOUT_LEVELS} levels give +1 to road-event checks (now ${withSign(Math.floor(Game.level('divination') / DIVINATION_SCOUT_LEVELS))}). Scrying shows you a place you have not yet found.</p>${this.buffList()}`;
+    }
+    if (skill === 'meditation') {
+      html += `<p class="small">🧘 Meditation restores sanity anywhere. When your mind breaks, there is a <b>${Math.round(Game.derangementResist() * 100)}%</b> chance it breaks cleanly, without a new derangement (${Math.round(MEDITATION_RESIST_PER_LEVEL * 100)}% per level, up to ${Math.round(MAX_DERANGEMENT_RESIST * 100)}%).</p>`;
+    }
+    if (skill === 'beekeeping') {
+      html += '<p class="small">🐝 Keep bees at the apiary in Hollowfen, or build one at home. Render the comb into honey and wax, and dip the wax into candles.</p>';
+    }
+    if (skill === 'husbandry') {
+      html += '<p class="small">🐑 Work the pastures of Dunwich, or build a barn at home. Wool goes to the loom, eggs and beef to the fire. The Whateleys keep a herd on Sentinel Hill that only the touched can tend.</p>';
+    }
+    if (skill === 'glassblowing') {
+      html += '<p class="small">🫙 Melt sand at a forge. Shovel it on Saltmire Shore or in Port Ulric. The telescope, the stained-glass saint and the Lamp of Alhazred help just by being carried.</p>';
+    }
+    if (skill === 'fletching') {
+      html += `<p class="small">🪶 Fletch arrows at a workbench, ${ARROWS_PER_BATCH} at a time. When you fight with a bow, the best arrows in your pack are shot first, one per shot, adding their damage (now +${Game.perk('arrowDmg')} more from Fletching). Without arrows a bow still works, just without the bonus.</p>`;
+    }
     if (skill === 'gardening') {
       html += `<p class="small">🌱 Sow seeds in garden plots in Hollowfen, or in the kitchen garden of your own house. They grow in real time, even while you are away. Or <b>tend the garden</b> as an activity: it harvests, sows again and weeds, so every plot grows ${TEND_BOOST_MS / 1000}s faster each round. You have <b>${Game.gardenPlots()} plots</b> (one more every ${GARDEN_LEVELS_PER_PLOT} levels). Seeds are sold in Hollowfen and found while foraging.</p>
         ${Game.hasStation('garden') ? this.gardenBlock() : `<p class="small muted">Your plots: ${Game.plots().map(p => p ? `${ITEMS[CROPS[p.seed][0]].icon}${Game.plotReady(p) ? '✓' : ''}` : '·').join(' ')}. Travel to ${locLink('hollowfen')}${Game.state.house && Game.state.house.rooms.garden ? ` or ${locLink(Game.state.house.location)}` : ''} to tend them.</p>`}
@@ -943,6 +995,7 @@ const UI = {
         ${bar('c-patk', 'progress', 0)}
         <div class="small muted">${withSign(Game.attackBonusVs(m))} to hit (${Math.round(chance * 100)}% vs AC ${Game.effectiveAc(m)}) · ${Game.damageText()} · AC ${Game.armourClass()}${m.eldritch ? ` · ${withSign(Game.wits())} sanity saves` : ''}</div>
         <div class="small muted">${SKILLS[Game.weaponSkill()].icon} ${SKILLS[Game.weaponSkill()].name} ${Game.level(Game.weaponSkill())} · crits on ${Game.critFrom() === 20 ? '20' : `${Game.critFrom()}–20`}${Game.pierce() ? ` · ignores ${Game.pierce()} AC` : ''}${Game.stunChance() ? ` · ${Math.round(Game.stunChance() * 100)}% stagger` : ''} · attacks every ${secs(Game.playerStats().speed)}</div>
+        ${this.fightExtras()}
         ${this.buffList()}
         ${this.companionBlock()}
       </div>
@@ -967,6 +1020,7 @@ const UI = {
     if (s.combat && s.combat.expedition) {
       html += `<div class="cards">${this.expeditionCard(s.combat.expedition.id)}</div>`;
     }
+    if (s.combat && s.combat.delve) html += `<div class="cards">${this.delveCard()}</div>`;
     if ((here.monsters || []).length) {
       const phantom = this.hallucinating() ? pick(HALLUCINATIONS.monsters) : null;
       html += `<h2>${here.icon} Enemies at ${esc(here.name)}</h2><div class="cards">${here.monsters.map(m => this.monsterCard(m)).join('')}${phantom ? `<div class="card eldritch phantom"><div class="card-icon">${phantom.icon}</div><div class="card-name">${esc(phantom.name)}</div><div class="small muted">❤️ ?? · 🛡️ AC ?? · ⚔️ ??</div><button class="btn" data-act="phantom">Fight</button></div>` : ''}</div>`;
@@ -1033,6 +1087,32 @@ const UI = {
         `<table class="stats">${kills.map(([id, n]) => `<tr><td>${MONSTERS[id].icon} ${MONSTERS[id].name}</td><td>${fmt(n)}</td></tr>`).join('')}</table>`, false);
     }
     return html + '</div></div>';
+  },
+
+  // Spell, shield, arrows and poison, when you have them, under your line in a fight.
+  fightExtras() {
+    const parts = [];
+    const spell = Game.state.spell;
+    if (spell) parts.push(`${SPELLS[spell].icon} ${SPELLS[spell].name} (−${Game.spellCost(spell)} sanity, every ${secs(Game.spellEvery(spell))})`);
+    if (Game.hasShield()) parts.push(`🛡️ ${Math.round(Game.blockChance() * 100)}% block`);
+    const arrow = Game.bestArrow();
+    if (arrow) parts.push(`🏹 ${ITEMS[arrow].name} ×${fmt(Game.count(arrow))} (+${Game.arrowDamage(ITEMS[arrow], { eldritch: false })})`);
+    if (Game.poisonDamage()) parts.push(`☠️ +${Game.poisonDamage()} poison`);
+    return parts.length ? `<div class="small muted">${parts.join(' · ')}</div>` : '';
+  },
+
+  // The Endless Stair: the fight on your current floor, or where you can start.
+  delveCard() {
+    const s = Game.state;
+    if (s.combat && s.combat.delve) {
+      return `<div class="card eldritch active fighting"><div class="fight-head"><span class="card-icon">🕳️</span><div><div class="card-name">The Endless Stair · floor ${s.delve.floor}</div>
+        <div class="small muted">Deepest: ${s.delve.deepest} · next chest on floor ${Math.ceil(s.delve.floor / DELVE_CHEST_EVERY) * DELVE_CHEST_EVERY}</div></div></div>
+        ${this.fightPanel('Climb back up')}</div>`;
+    }
+    const here = s.location === DELVE_LOCATION;
+    return `<div class="card eldritch"><div class="card-icon">🕳️</div><div class="card-name">The Endless Stair</div>
+      <p class="small">A stair behind the last shelf, going down further than the hill is tall. Deepest floor reached: <b>${s.delve.deepest}</b>.</p>
+      <div class="btn-row">${Game.delveCheckpoints().map(f => `<button class="btn small" data-act="delve" data-floor="${f}"${here && !s.travel ? '' : ' disabled'}>Start at floor ${f}</button>`).join('')}</div></div>`;
   },
 
   // Your garden plots, with what grows in them and the seeds you can sow.
@@ -1148,6 +1228,7 @@ const UI = {
           ${it.type === 'equipment' ? `<button class="btn" data-act="equip" data-item="${sel}">Equip</button>` : ''}
           ${Game.isFood(sel) ? `<button class="btn" data-act="food" data-item="${sel}">${s.food === sel ? 'Chosen food ✓' : 'Choose as food'}</button><button class="btn" data-act="use" data-item="${sel}">Eat (+${Game.foodHeal(sel)})</button>` : ''}
           ${it.type === 'potion' ? `<button class="btn" data-act="use" data-item="${sel}">Drink</button>` : ''}
+          ${it.type === 'poison' ? `<button class="btn" data-act="use" data-item="${sel}">Coat your weapon</button>` : ''}
           ${it.type === 'scroll' ? `<button class="btn" data-act="use" data-item="${sel}"${it.damage && !(s.combat && !s.combat.respawn) ? ' disabled title="Read it in a fight"' : ''}>Read aloud</button>` : ''}
           ${it.type === 'map' ? `<button class="btn" data-act="use" data-item="${sel}">Read the map</button>` : ''}
           ${it.type === 'relic' ? (s.relics[sel] ? '<span class="small muted">Already in your collection</span>' : `<button class="btn" data-act="place-relic" data-item="${sel}">Place in collection</button>`) : ''}

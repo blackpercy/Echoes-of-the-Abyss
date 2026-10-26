@@ -493,6 +493,7 @@ Object.assign(Game, {
       for (const [loc, change] of Object.entries(WORLD_CHANGES[ending])) Object.assign(LOCATIONS[loc], JSON.parse(JSON.stringify(change)));
     }
     this.applyHouse();
+    this.applyDelve();
   },
 
   // --- Weapon skills ---

@@ -1,10 +1,10 @@
 // Service worker: caches the game so it can be installed and played offline.
 // Bump CACHE whenever files change so players get the new version.
-const CACHE = 'echoes-of-the-abyss-v44';
+const CACHE = 'echoes-of-the-abyss-v45';
 const FILES = [
   './', './index.html', './css/style.css', './icon.svg', './manifest.webmanifest',
-  './js/data.js', './js/story.js', './js/content.js', './js/expansion.js', './js/expansion2.js', './js/expansion3.js', './js/game.js', './js/mind.js',
-  './js/systems.js', './js/perks.js', './js/systems2.js', './js/audio.js', './js/ui.js', './js/main.js',
+  './js/data.js', './js/story.js', './js/content.js', './js/expansion.js', './js/expansion2.js', './js/expansion3.js', './js/expansion4.js', './js/game.js', './js/mind.js',
+  './js/systems.js', './js/perks.js', './js/systems2.js', './js/systems3.js', './js/audio.js', './js/ui.js', './js/main.js',
 ];
 
 self.addEventListener('install', e => {

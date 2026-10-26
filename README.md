@@ -23,8 +23,8 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Your pack has limited slots, and banks only exist in some towns.
   - Gathering needs the right tool in your pack, and better tools work faster.
   - A tinderbox or an alchemy kit lets you cook or brew anywhere.
-- **48 skills, levels 1–100.**
-  - Weapons: Blades, Polearms, Bows, Staves, Maces, Unarmed. Fighting with a weapon trains its type (50% of each kill's xp). Every 10 levels give +1 to hit and damage, and each type has its own trait:
+- **60 skills, levels 1–100.**
+  - Weapons: Blades, Polearms, Bows, Staves, Maces, Unarmed, Shieldcraft. Fighting with a weapon trains its type (50% of each kill's xp). Every 10 levels give +1 to hit and damage, and each type has its own trait:
     - **Blades:** a wider critical range at levels 25, 50, 75 and 100 (critical hits never start below 15).
     - **Polearms:** ignore 1 enemy AC per 15 levels.
     - **Bows:** attack 0.6% faster per level.
@@ -35,10 +35,10 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
     Each type also has its own perk tree, with second strikes, life-steal and armour piercing. Halberds can be smithed in every metal, and staves are carved at the workbench.
   - Attributes: Strength, Dexterity, Constitution, Intelligence and Charisma each gain 15% of the xp from their own skills (Strength from fighting, mining, woodcutting, smithing, building and digging; Dexterity from bows, stealth, hunting, fishing and fine crafts; and so on) and give passive bonuses: Strength +1 damage per 10 levels and pack slots, Dexterity AC and faster activities, Constitution +3 hitpoints per level, Intelligence stronger potions and scrolls and sanity saves, Charisma better prices and stronger companions. Each has its own perk tree. Older saves start them from the xp already earned.
   - General: Wisdom, which gains 10% of the xp from every other skill. Each level gives +0.2% xp in all skills, and every perk choice is between learning faster and something else: gold, pack slots, hitpoints, sanity saves, travel, activity speed or crits.
-  - Gathering: Woodcutting, Fishing, Mining, Foraging, Hunting, Archaeology, Dreaming, Grave Digging, Tidecombing, Gardening, Astronomy
-  - Crafting: Cooking, Smithing, Alchemy, Occultism, Carpentry, Tailoring, Inscription, Brewing, Jewelcrafting, Tinkering, Construction
-  - Adventuring: Combat, Fellowship, Stealth, Cartography, Trading, Sailing, Beast Taming, Slaying, Bardic Lore
-  - Mind and Spirit: Faith, Forbidden Lore, Ritualism, Medicine, Necromancy
+  - Gathering: Woodcutting, Fishing, Mining, Foraging, Hunting, Archaeology, Dreaming, Grave Digging, Tidecombing, Gardening, Astronomy, Beekeeping, Animal Husbandry
+  - Crafting: Cooking, Smithing, Alchemy, Occultism, Carpentry, Tailoring, Inscription, Brewing, Jewelcrafting, Tinkering, Construction, Toxicology, Glassblowing, Fletching
+  - Adventuring: Combat, Fellowship, Stealth, Cartography, Trading, Sailing, Beast Taming, Slaying, Bardic Lore, Delving, Investigation
+  - Mind and Spirit: Faith, Forbidden Lore, Ritualism, Medicine, Necromancy, Thaumaturgy, Linguistics, Divination, Meditation
 - **Dreaming.** Sleep at an inn or on a bedroll and descend into the Dreamlands: Ulthar, the Enchanted Wood, Celephaïs, Dylath-Leen. Gentle dreams restore sanity. Leng and Kadath can only be reached by a broken mind.
 - **Hunting.** Hunt game in the wild and tan the hides into light armour. Light armour gives less AC than metal but +1–2 to hit. Venison is cooked into food.
 - **Archaeology.** Dig at five sites for relics. Complete a collection to earn a permanent bonus: +1 AC, +2 pack slots, +1 to sanity saves, +15 hitpoints or +5% damage against eldritch beings. Professor Peaslee digs 15% faster.
@@ -48,6 +48,17 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - Shrine idols that give your cult room for more followers.
   - A **rowboat**: no ferry fee, and the only way to the new **Drowned Isle**.
 - **Stealth.** Pick pockets and burgle for gold, at the risk of being caught and fined. Your first blow on each enemy is a sneak attack (+1d6 per 10 levels). After an expedition you may find a hidden vault that doubles the treasure. Some road events now have stealthy choices.
+- **Delving.** The Endless Stair below the Third Cellar: one creature per floor, each stronger than the last, a chest every 5th floor and a warden every 10th. Start again from any 10th floor you have reached.
+- **Thaumaturgy.** Prepare one spell (Force Bolt, Witch-Fire, Elder Ward, Binding Words, Mend Flesh, Summon Shade, The Unmaking) and it is cast for you in every fight, paid for in sanity.
+- **Shieldcraft.** A new off-hand slot for shields. Every blow that would hit you may be blocked; perks add ripostes.
+- **Toxicology.** Brew poisons and coat your weapon for extra damage on every hit.
+- **Investigation.** Five cases, each with three clues in different places, solved for gold, tomes and once even a step back from madness.
+- **Linguistics.** Dwarven runes, Naacal, Aklo and R'lyehian, each helping the skills that use it.
+- **Divination.** Tea leaves, tarot, entrails, scrying and the Standing Stones: omens that bless you, and a glimpse of places you have not found.
+- **Meditation.** Restore sanity anywhere; every level makes it more likely that a breaking mind keeps no new derangement.
+- **Beekeeping and Animal Husbandry.** Hives in Hollowfen and pastures in Dunwich (or at home): honey, wax, candles, royal jelly, wool, milk, eggs, beef and a Whateley fleece.
+- **Glassblowing.** Sand into vials, lenses, a telescope, a witch bottle, a stained-glass saint and the Lamp of Alhazred.
+- **Fletching.** Arrows that bows use up one per shot, for extra damage; silver, blessed and starmetal arrows hit eldritch beings harder.
 - **Gardening.** Sow seeds in garden plots in Hollowfen or at home. They grow in real time, even while you are away, into flax, barley, hops and herbs up to the Star Rose. **Tend the Garden** is a repeatable activity that harvests, sows again and weeds, so the plots grow faster while you work them. Flax is spun into linen on a loom (Tailoring).
 - **Astronomy.** Read the sky, at full speed by night and half speed by day, for star charts, star-shards and eldritch insight. Each level adds damage against eldritch beings, and from level 10 you know when the stars will be right.
 - **Jewelcrafting.** Set sea glass, amber, pearls, ambergris, onyx and star-shards into rings, pendants and a circlet with modifiers.
@@ -78,7 +89,7 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
   - The Silent Order requires you to stay sane.
   - The Dreamer's Keeper requires you to go mad.
   - Each line has its own ending, and the game continues after both. The Abbey's Rite of Quieting can cure madness if you change your path.
-- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 20 choices per skill and 960 in all. Levels 55–100 offer the same ten choices again as second ranks ("… II"), so a perk can be taken twice.
+- **Skill trees.** Every skill has a tree with a choice every 5 levels: one of two perks, 20 choices per skill and 1,200 in all. Levels 55–100 offer the same ten choices again as second ranks ("… II"), so a perk can be taken twice.
   - Gathering perks make you faster, give double yields, extra experience, pack slots or rare finds.
   - Crafting perks make you faster, let you keep materials or produce double. Cooking gives heartier food, smithing gives combat bonuses and alchemy gives stronger potions.
   - Occultism perks lower sanity costs, improve sanity saves, open the Veil sooner and add damage against eldritch beings.
@@ -128,6 +139,8 @@ The game also runs as-is on GitHub Pages (Settings → Pages → deploy from bra
 | `js/content.js` | The living world: time and tide, road events, races, companions, cult, expeditions, more NPCs and quests, world changes, bestiary, achievements, hallucinations |
 | `js/expansion.js` | Dreaming, Hunting, Archaeology, Carpentry, Stealth and Cartography: their items, activities, workplaces, relic sets, the Drowned Isle and new road-event choices |
 | `js/expansion3.js` | Gardening, Astronomy, Jewelcrafting, Tinkering, Construction, Beast Taming, Slaying, Bardic Lore, Medicine and Necromancy: crops, rooms, pets, thralls, songs and gadgets |
+| `js/expansion4.js` | Delving, Thaumaturgy, Shieldcraft, Toxicology, Investigation, Linguistics, Divination, Meditation, Beekeeping, Animal Husbandry, Glassblowing and Fletching: spells, cases, languages, poisons, arrows and the Endless Stair |
+| `js/systems3.js` | Rules for those skills: delving floors, casting, blocking, poison, arrows, cases and omens |
 | `js/systems2.js` | Rules for those skills: garden plots, your house, pets, bounties, thralls and healing |
 | `js/expansion2.js` | Grave Digging, Tidecombing, Tailoring, Inscription, Brewing, Trading, Faith, Sailing, Forbidden Lore, Ritualism, Maces and Unarmed: their items, activities, workplaces, trade goods, Port Ulric and the Third Cellar |
 | `js/game.js` | Engine: state, tick loop, travel and route finding, pack and bank, combat, sanity, saving, offline simulation |

@@ -44,7 +44,7 @@ const PERK_EFFECTS = {
   offlineXp: { text: v => `+${Math.round(v * 100)}% experience while you are away` },
   gold: { text: v => `+${Math.round(v * 100)}% gold from fights, thefts, treasure, quests and tithes` },
   speedAll: { text: v => `Every activity is ${Math.round(v * 100)}% faster` },
-  dreamRest: { scope: 'skill', text: (v, skill) => skill === 'faith' ? `Prayer restores +${v} more sanity` : `Gentle dreams restore +${v} more sanity` },
+  dreamRest: { scope: 'skill', text: (v, skill) => skill === 'faith' ? `Prayer restores +${v} more sanity` : skill === 'meditation' ? `Meditation restores +${v} more sanity` : `Gentle dreams restore +${v} more sanity` },
   safe: { scope: 'skill', text: v => `${Math.round(v * 100)}% less likely to be caught` },
   sneak: { text: v => `Sneak attacks deal +${v}d6` },
   scout: { text: v => `+${v} to road-event checks` },
@@ -67,10 +67,18 @@ const PERK_EFFECTS = {
   tameChance: { text: v => `+${Math.round(v * 100)}% chance to tame a beast` },
   slayDmg: { text: v => `+${v} damage against your quarry` },
   thrallTime: { text: v => `Thralls last ${Math.round(v * 100)}% longer` },
+  arrowDmg: { text: v => `Arrows deal +${v} damage` },
+  poisonDmg: { text: v => `+${v} poison damage on every hit` },
+  poisonPower: { text: v => `Poisons are ${Math.round(v * 100)}% stronger` },
+  spellPower: { text: v => `Spells are ${Math.round(v * 100)}% stronger` },
+  spellCost: { text: v => `Spells cost ${Math.round(-v * 100)}% less sanity` },
+  spellSpeed: { text: v => `Spells come ${Math.round(v * 100)}% sooner` },
+  block: { text: v => `+${Math.round(v * 100)}% chance to block with a shield` },
+  riposte: { text: v => `${Math.round(v * 100)}% chance to strike back when you block` },
 };
 
 // What the "rare" perks turn up while gathering.
-const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx', gravedigging: 'saints_knucklebone', tidecombing: 'ambergris', astronomy: 'star_shard' };
+const RARE_FINDS = { woodcutting: 'whispering_fragment', fishing: 'veil_pearl', mining: 'starmetal_ore', foraging: 'star_rose', hunting: 'star_hide', archaeology: 'necronomicon_page', dreaming: 'leng_onyx', gravedigging: 'saints_knucklebone', tidecombing: 'ambergris', astronomy: 'star_shard', beekeeping: 'royal_jelly', husbandry: 'whateley_fleece' };
 
 // Ten tiers (levels 5, 10 … 50), two options each: [effect, value].
 // Levels 55–100 repeat the same ten choices as second ranks ("… II"), so each perk can be taken twice.
@@ -304,6 +312,42 @@ const PERK_TEMPLATES = {
     [['save', 0.12], ['buffTime', 0.25]],
     [['buffTime', 0.3], ['sanityCost', -0.25]],
   ],
+  thaumaturgy: [
+    [['spellPower', 0.1], ['spellCost', -0.15]],
+    [['xp', 0.1], ['ward', 1]],
+    [['spellSpeed', 0.1], ['spellPower', 0.1]],
+    [['spellCost', -0.15], ['eldritch', 0.05]],
+    [['spellPower', 0.15], ['xp', 0.15]],
+    [['spellSpeed', 0.1], ['ward', 1]],
+    [['spellCost', -0.2], ['spellPower', 0.15]],
+    [['spellSpeed', 0.15], ['eldritch', 0.08]],
+    [['spellPower', 0.2], ['spellCost', -0.2]],
+    [['spellSpeed', 0.2], ['spellPower', 0.25]],
+  ],
+  shieldcraft: [
+    [['block', 0.03], ['ac', 1]],
+    [['xp', 0.1], ['hp', 15]],
+    [['riposte', 0.15], ['block', 0.03]],
+    [['ac', 1], ['ward', 1]],
+    [['block', 0.04], ['xp', 0.15]],
+    [['riposte', 0.15], ['hp', 25]],
+    [['ac', 1], ['block', 0.05]],
+    [['ward', 2], ['riposte', 0.2]],
+    [['block', 0.05], ['ac', 2]],
+    [['riposte', 0.25], ['block', 0.06]],
+  ],
+  divination: [
+    [['buffTime', 0.1], ['scout', 1]],
+    [['xp', 0.1], ['speed', 0.15]],
+    [['gold', 0.05], ['buffTime', 0.15]],
+    [['scout', 1], ['save', 0.1]],
+    [['speed', 0.15], ['xp', 0.15]],
+    [['buffTime', 0.2], ['veil', 5]],
+    [['gold', 0.05], ['scout', 1]],
+    [['save', 0.15], ['speed', 0.15]],
+    [['buffTime', 0.25], ['allXp', 0.03]],
+    [['scout', 2], ['gold', 0.1]],
+  ],
   strength: [
     [['dmg', 1], ['carry', 1]],
     [['xp', 0.25], ['hp', 15]],
@@ -472,6 +516,18 @@ const PERK_NAMES = {
   ritualism: ['Spare Offerings', 'Lingering Blessing', 'Steady Rites', 'Novice of the Circle', 'Quick Chalk', 'Long Echo', 'Thrifty Altar', 'Salt Ward', 'Enduring Rites', 'Steady Mind', 'Adept of the Circle', 'Second Offering', 'Long Blessing', 'Swift Rites', 'Iron Will', 'Bane of the Outsiders', 'Nothing Wasted', 'Eternal Rite', 'Echoes of Power', 'Unbroken Circle'],
   maces: ['Stunning Blow', 'Heavy Head', 'Steady Grip', 'Braced', 'Crushing Weight', 'Ringing Blow', 'Firm Footing', 'Thick Skin', 'Concussive Force', 'Bone-Breaker', 'Flail of Blows', 'Iron Guard', 'Skull-Cracker', 'Daze', 'Sure Swing', 'Hardened Body', 'Earthshaker', 'Twin Blows', 'Hammer of Doom', 'The Last Bell'],
   unarmed: ['Quick Fists', 'Steady Jab', 'Sucker Punch', 'Heavy Hands', 'Flurry', 'Pressure Points', 'True Strike', 'Bloodied Knuckles', 'Lightning Jab', 'Ambusher', 'Iron Fists', 'Combination', 'Nerve Strike', 'Blinding Speed', 'Death from the Shadows', 'Bloody Hands', 'Thousand Fists', 'Fists of Iron', 'One-Inch Punch', 'The Silent Hand'],
+  delving: ['Stair-Legs', 'Deep Lungs', 'Hardened', 'Into the Dark', 'Keen in the Dark', 'Steady Footing', 'Wary Eyes', 'Iron Skin', 'Brutal Descent', 'Thick-Skinned', 'Deadly in the Deep', 'Unshaken', 'Veteran of the Stair', 'Stone Wall', 'Floor-Breaker', 'Feast in the Dark', 'Endurance', 'Bane of the Below', 'Warden-Slayer', 'Bottomless'],
+  thaumaturgy: ['Focused Will', 'Thrifty Casting', 'Apprentice Notes', 'Warding Habit', 'Quick Gestures', 'Stronger Words', 'Frugal Mind', 'Banishing Tongue', 'Practised Caster', 'Studied Forms', 'Quickened Mind', 'Inner Ward', 'Cheap Miracles', 'Words of Power', 'Rapid Casting', 'Bane of the Outer Dark', 'Mighty Words', 'Effortless', 'Lightning Tongue', 'Archmage'],
+  shieldcraft: ['Shield Wall', 'Braced', 'Shield Drills', 'Hardy', 'Riposte', 'Quick Shield', 'Iron Guard', 'Warded Boss', 'Wall of Oak', 'Shield-Master\'s Lessons', 'Counterstroke', 'Thick Frame', 'Turtle', 'Interpose', 'Warded Mind', 'Punishing Riposte', 'Fortress', 'Impenetrable', 'Retaliation', 'The Unbreached Wall'],
+  toxicology: ['Steady Mortar', 'Careful Measures', 'Poisoner\'s Notes', 'Twin Phials', 'Quick Mix', 'Saved Venom', 'Potent Venom', 'Toxin Lore', 'Fast Reduction', 'Double Dose', 'Nothing Spilt', 'Deadly Venom', 'Master\'s Pace', 'Grand Toxicon', 'Twice the Bane', 'Every Drop', 'Lightning Still', 'Lasting Coat', 'Master Poisoner', 'The Perfect Poison'],
+  investigation: ['Shoe Leather', 'Notebook', 'Read the Room', 'Quick Search', 'Known Faces', 'Second Look', 'Pathfinder', 'Evidence Bag', 'Sharp Eyes', 'Case Files', 'Hunch', 'Duplicate Clues', 'Fast Legs', 'Quick Study', 'Know Every Road', 'Satchel of Files', 'Long Walks', 'Second Opinion', 'Every Road', 'The Great Detective'],
+  linguistics: ['Careful Reading', 'Quick Ear', 'Thin Margins', 'Doubled Notes', 'Fast Reader', 'Hard Head', 'Steady Translator', 'Know the Tongue', 'Polyglot\'s Ear', 'Root Words', 'Dictionary', 'Iron Mind', 'Unafraid of Words', 'Quick Pen', 'Bane-Speech', 'Fluent', 'Warded Tongue', 'Many Copies', 'Untroubled Scholar', 'Speaker of All Tongues'],
+  divination: ['Long Omen', 'Seeing Eye', 'Diviner\'s Notes', 'Quick Reading', 'Lucky Signs', 'Lasting Omen', 'Foreseen Roads', 'Spare Leaves', 'Swift Signs', 'Practised Seer', 'Lingering Fate', 'Thin Veil', 'Fortune\'s Favour', 'Forewarned', 'Thrifty Seer', 'Fast Cards', 'Fate Unbroken', 'Wider Sight', 'All Roads Seen', 'Golden Fate'],
+  meditation: ['Deep Breath', 'Still Centre', 'Practice', 'Quick Calm', 'Clear Thought', 'Calm Breaths', 'Iron Calm', 'Mindful', 'Steady Body', 'Hale', 'Deeper Stillness', 'Unshakeable', 'Inner Fortress', 'Daily Practice', 'Twice Calmed', 'Breath of Peace', 'Untroubled', 'Swift Stillness', 'Mountain Mind', 'Perfect Calm'],
+  beekeeping: ['Gentle Smoke', 'Busy Hives', 'Bee Lore', 'Comb Bag', 'Quick Hands', 'Golden Find', 'Swarm Sense', 'Old Keeper\'s Lore', 'Swift Tending', 'Hive Crates', 'Twin Swarms', 'Royal Find', 'Smoke and Mirrors', 'Bee-Speaker', 'Heavy Combs', 'Honey Cart', 'Swarm Speed', 'Queen\'s Gift', 'Lord of the Hives', 'Endless Summer'],
+  husbandry: ['Calm Hands', 'Healthy Flock', 'Herder\'s Lore', 'Feed Sack', 'Quick Shears', 'Strange Fleece', 'Good Stock', 'Old Shepherd\'s Lore', 'Swift Milking', 'Saddle Bags', 'Twins Every Spring', 'Hill Fleece', 'Fast Hands', 'Stockman', 'Bumper Year', 'Pack Animal', 'Lightning Shears', 'Whateley Stock', 'Lord of the Herd', 'Golden Fleece'],
+  glassblowing: ['Steady Breath', 'Saved Sand', 'Glazier\'s Notes', 'Twin Pieces', 'Quick Pipe', 'Remelted Glass', 'Clear Glass', 'Glassmaker\'s Lore', 'Fast Annealing', 'Paired Pieces', 'No Cracks', 'Packing Straw', 'Master\'s Pace', 'Crystal Lore', 'Double Gather', 'Not a Shard Lost', 'Lightning Pipe', 'Warded Glass', 'Master Glazier', 'Flawless'],
+  fletching: ['Straight Shafts', 'Saved Feathers', 'Fletcher\'s Notes', 'Twin Bundles', 'Quick Fletching', 'Spare Heads', 'Keen Heads', 'Bowyer\'s Lore', 'Fast Hands', 'Double Quiver', 'Waste Not', 'Barbed Heads', 'Master\'s Pace', 'Arrowsmith', 'Bundles of Twenty', 'Not a Feather Lost', 'Lightning Fletching', 'Bodkin Points', 'Master Fletcher', 'The Perfect Arrow'],
   strength: ['Heavy Arm', 'Broad Back', 'Training Regime', 'Thick Neck', 'Brute Force', 'Bloodied', 'Packhorse', 'Iron Grip', 'Crushing Blows', 'Driven', 'Bull of a Body', 'Beast of Burden', 'Bone-Splitter', 'Hearty', 'Victor\'s Feast', 'Endless Drills', 'Titan\'s Swing', 'Mule-Strong', 'Giant-Killer', 'Mountain of a Body'],
   dexterity: ['Light on Your Feet', 'Nimble Hands', 'Practice', 'Quick Draw', 'Steady Aim', 'From the Shadows', 'Deft', 'Dodge', 'Flurry', 'Drills', 'Sidestep', 'True Eye', 'Busy Hands', 'Weak Points', 'Silent Step', 'Snap Shot', 'Untouchable', 'Ceaseless Practice', 'Quicksilver', 'Blur'],
   constitution: ['Hardy', 'Good Appetite', 'Road Training', 'Long Legs', 'Thick Skin', 'Steady Nerves', 'Iron Stomach', 'Second Wind', 'Tireless', 'Endurance', 'Long Strides', 'Strong Blood', 'Ox-Hearted', 'Hide Like Leather', 'Feast', 'Daily Exercise', 'Unbreakable', 'Forced March', 'Undying', 'Hale Forever'],
@@ -528,6 +584,18 @@ const PERK_TREES = (() => {
     unarmed: PERK_TEMPLATES.unarmed,
     gardening: PERK_TEMPLATES.gardening,
     strength: PERK_TEMPLATES.strength,
+    delving: PERK_TEMPLATES.combat,
+    thaumaturgy: PERK_TEMPLATES.thaumaturgy,
+    shieldcraft: PERK_TEMPLATES.shieldcraft,
+    toxicology: PERK_TEMPLATES.production([['poisonPower', 0.15], ['poisonPower', 0.15], ['buffTime', 0.15]]),
+    investigation: PERK_TEMPLATES.cartography,
+    linguistics: PERK_TEMPLATES.lore,
+    divination: PERK_TEMPLATES.divination,
+    meditation: PERK_TEMPLATES.faith,
+    beekeeping: PERK_TEMPLATES.gathering,
+    husbandry: PERK_TEMPLATES.gathering,
+    glassblowing: PERK_TEMPLATES.production([['eldritch', 0.03], ['carry', 1], ['ward', 1]]),
+    fletching: PERK_TEMPLATES.production([['arrowDmg', 1], ['arrowDmg', 1], ['arrowDmg', 2]]),
     dexterity: PERK_TEMPLATES.dexterity,
     constitution: PERK_TEMPLATES.constitution,
     intelligence: PERK_TEMPLATES.intelligence,
@@ -581,7 +649,7 @@ Object.assign(Game, {
     }
     // Completed relic collections, rites, brews and scrolls grant the same kinds of bonus as perks.
     if (PERK_EFFECTS[effect].scope !== 'skill') total += this.relicBonus(effect) + this.buffBonus(effect);
-    return total + this.gearBonus(effect, skill) + this.companionBonus(effect, skill) + this.extraBonus(effect, skill);
+    return total + this.gearBonus(effect, skill) + this.companionBonus(effect, skill) + this.extraBonus(effect, skill) + this.moreBonus(effect, skill);
   },
   // Companions with a talent (mods) help while they are with you and on their feet.
   companionBonus(effect, skill) {

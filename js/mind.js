@@ -25,7 +25,8 @@ Object.assign(Game, {
     if (s.madness < MADNESS_STAGES.length - 1) {
       s.madness++;
       const options = Object.keys(DERANGEMENTS).filter(id => !s.derangements.includes(id));
-      if (options.length) {
+      // A practised, quiet mind can break cleanly.
+      if (options.length && Math.random() >= this.derangementResist()) {
         gained = options[randInt(0, options.length - 1)];
         s.derangements.push(gained);
       }

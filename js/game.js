@@ -85,7 +85,7 @@ const Game = {
       skills,
       pack: { bread: 10, hatchet: 1, fishing_rod: 1 },
       bank: {},
-      equipment: { weapon: 'rusty_dagger', head: null, body: null, amulet: null, back: null, hands: null, ring: null },
+      equipment: { weapon: 'rusty_dagger', head: null, body: null, amulet: null, back: null, hands: null, ring: null, offhand: null },
       food: 'bread',
       hp: 28,
       sanity: 100,
@@ -120,6 +120,8 @@ const Game = {
       house: null,
       pets: { owned: {}, active: null },
       slayer: { task: null, done: 0 },
+      delve: { floor: 1, deepest: 1 },
+      spell: null,
       settings: { audio: false },
       achTimer: 0,
       log: [],
@@ -423,6 +425,8 @@ const Game = {
       if (def.buff) this.addBuff(item, def.buff);
     } else if (def.type === 'scroll') {
       this.readScroll(item);
+    } else if (def.type === 'poison') {
+      this.coatWeapon(item);
     } else if (def.type === 'map') {
       this.removeItem(item, 1);
       if (def.reveal) {
@@ -523,6 +527,7 @@ const Game = {
   stop(quiet) {
     const c = this.state.combat;
     if (c && c.expedition) this.log(`You flee the depths. The expedition is abandoned.`, 'warn');
+    else if (c && c.delve) this.log(`You climb back up from floor ${this.state.delve.floor} of the Endless Stair.`, 'warn');
     else if (c && !quiet) this.log('You withdraw from the fight.');
     this.state.action = null;
     this.state.combat = null;
@@ -752,6 +757,8 @@ const Game = {
     if (c.log.length > COMBAT_LOG_LINES) c.log.length = COMBAT_LOG_LINES;
   },
   playerAttack(c, m) {
+    // A bow takes an arrow from your pack for every shot, hit or miss.
+    const arrow = this.nockArrow();
     let roll = d20();
     if (roll === 1 && this.state.race === 'halfling') {
       roll = d20();
@@ -767,7 +774,7 @@ const Game = {
       return;
     }
     const crit = roll >= critFrom;
-    let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus() + this.slayerDmg(m));
+    let dmg = Math.max(1, rollDice(this.playerStats().dice, crit) + this.damageBonus() + this.slayerDmg(m) + this.arrowDamage(arrow, m) + this.poisonDamage());
     // Sneak attack: the first blow against each enemy, if it lands, adds d6s from Stealth.
     const sneakDice = c.sneakUsed ? 0 : this.sneakDice();
     c.sneakUsed = true;
@@ -796,6 +803,7 @@ const Game = {
       this.combatLog(c, `The ${m.name} rolls ${roll + hit} vs your AC ${ac}: miss.`);
       return;
     }
+    if (this.tryBlock(c, m)) return;
     const crit = roll === 20;
     const dmg = Math.max(1, rollDice(m.dmg, crit));
     this.state.hp -= dmg;
@@ -819,6 +827,7 @@ const Game = {
     const xp = m.eldritch && this.starsRight() ? m.xp * 2 : m.xp;
     this.addXp('combat', xp);
     this.addXp(this.weaponSkill(), xp * WEAPON_XP_SHARE);
+    if (this.hasShield()) this.addXp('shieldcraft', xp * SHIELD_KILL_SHARE);
     this.combatLog(c, `The ${m.name} falls. +${Math.round(xp * this.xpMultiplier())} xp, +${gold} gold.`);
     this.recordBestiary(c.monster);
     if (m.eldritch && this.weaponSkill() === 'unarmed') this.state.flags.bareKnuckle = true;
@@ -848,6 +857,7 @@ const Game = {
     c.monsterTimer = 0;
     c.compTimers = {};
     if (c.expedition) this.advanceExpedition(c);
+    if (c.delve) this.advanceDelve(c);
     this.emit('kill');
   },
   tickCombat(dt) {
@@ -873,6 +883,7 @@ const Game = {
         if (c.monsterHp <= 0) return this.monsterKilled(c, m);
       }
     }
+    if (this.tickSpell(c, m, dt)) return this.monsterKilled(c, m);
     const speed = this.playerStats().speed;
     c.playerTimer += dt;
     c.monsterTimer += dt;
