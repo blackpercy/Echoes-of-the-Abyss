@@ -1291,11 +1291,11 @@ const UI = {
       const price = Game.price(entry);
       const it = ITEMS[item];
       const stackable = ['food', 'potion', 'scroll', 'seed', 'resource'].includes(it.type);
-      const bulk = it.type === 'seed' || it.type === 'resource';
+      const bulk = it.type === 'seed' || it.type === 'resource' || item === 'bread';
       html += `<div class="card"><div class="card-icon">${it.icon}</div><div class="card-name">${esc(it.name)}</div>
         ${it.desc ? `<div class="muted small">${esc(it.desc)}</div>` : ''}${it.type === 'equipment' ? `<div class="small">${statLine(it)}</div>` : ''}${it.req ? `<div class="small">Requires ${reqLine(it.req)}</div>` : ''}
         <div class="small">${cur ? ITEMS[cur].icon : '💰'} ${fmt(price)} ${esc(curName)}${Game.carries(item) ? ' · <span class="good-text">carried</span>' : ''}</div>
-        <div class="btn-row"><button class="btn small" data-act="buy" data-item="${item}" data-qty="1"${funds < price ? ' disabled' : ''}>Buy 1</button>${stackable ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="10"${funds < price * 10 ? ' disabled' : ''}>Buy 10</button>` : ''}${bulk ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="100"${funds < price * 100 ? ' disabled' : ''}>Buy 100</button>` : ''}</div></div>`;
+        <div class="btn-row"><button class="btn small" data-act="buy" data-item="${item}" data-qty="1"${funds < price ? ' disabled' : ''}>Buy 1</button>${stackable ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="10"${funds < price * 10 ? ' disabled' : ''}>Buy 10</button>` : ''}${bulk ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="100"${funds < price * 100 ? ' disabled' : ''}>Buy 100</button>` : ''}${item === 'bread' ? `<button class="btn small" data-act="buy" data-item="${item}" data-qty="1000"${funds < price * 1000 ? ' disabled' : ''}>Buy 1000</button>` : ''}</div></div>`;
     }
     html += '</div>';
     if (shop.buysNothing) return html + '<p class="muted small">The stalls here buy nothing. Not with gold, anyway.</p>';
