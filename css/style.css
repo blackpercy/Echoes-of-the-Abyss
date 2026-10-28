@@ -287,3 +287,28 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--b
   main { padding: .4rem .4rem 3rem; }
   .cards { grid-template-columns: 1fr; }
 }
+
+/* Levels and the skill tree */
+.xp { position: relative; height: 1.3rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin: .3rem 0; }
+.xp-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); }
+.xp-text { position: relative; display: block; font-size: .75rem; padding: 0 .4rem; line-height: 1.3rem; }
+.card.pending { border-color: var(--accent); }
+.btn.glow { animation: glow 1.6s ease-in-out infinite; }
+@keyframes glow { 50% { box-shadow: 0 0 10px var(--accent); } }
+.tab .dot { color: var(--accent); }
+.modal-box.wide { max-width: 760px; }
+.tree { display: flex; flex-direction: column; gap: .45rem; max-height: 62vh; overflow-y: auto; }
+.skill-row { display: flex; gap: .5rem; align-items: stretch; }
+.skill-row.locked { opacity: .5; }
+.skill-lvl { flex: 0 0 4.6rem; font-size: .8rem; color: var(--accent); display: flex; flex-direction: column; justify-content: center; }
+.skill-lvl span { color: var(--muted); font-size: .72rem; }
+.skill-opts { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .4rem; }
+.skill { text-align: left; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: .4rem .5rem; font: inherit; display: flex; flex-direction: column; gap: .15rem; }
+.skill:disabled { cursor: default; }
+.skill:not(.picked):disabled { opacity: .65; }
+.skill.open { cursor: pointer; border-color: var(--accent); background: var(--panel-2); }
+.skill.open:hover { box-shadow: 0 0 8px var(--accent); }
+.skill.picked { border-color: var(--good); background: var(--panel-2); }
+.skill-name { font-weight: bold; font-size: .88rem; }
+.skill-desc { font-size: .75rem; color: var(--muted); }
+@media (max-width: 520px) { .skill-row { flex-direction: column; gap: .2rem; } .skill-lvl { flex: none; flex-direction: row; justify-content: flex-start; gap: .4rem; } }

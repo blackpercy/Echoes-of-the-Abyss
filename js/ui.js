@@ -87,6 +87,11 @@ const UI = {
         this.closeModal();
         break;
       }
+      case 'skills': this.showSkills(+d.id); return;
+      case 'choose':
+        Game.choose(+d.id, d.choice);
+        this.showSkills(+d.id);
+        return;
       case 'close-modal': this.closeModal(); break;
       case 'intro-done':
         Game.state.seenIntro = true;
@@ -250,6 +255,7 @@ const UI = {
   },
   tabs() {
     const tabs = { base: '⛪ Base', people: '👥 Survivors', map: '🗺️ Region', log: '📜 Log' };
+    if (Game.anyPending()) tabs.people += ' <span class="dot">★</span>';
     return `<nav class="tabs">${Object.entries(tabs).map(([id, name]) => `<button class="tab${this.tab === id ? ' on' : ''}" data-act="tab" data-tab="${id}">${name}</button>`).join('')}</nav>
       ${Game.state.lost ? '<div class="banner bad">Everyone on Grace Hill is gone. <button class="btn" data-act="new-game">Start again</button></div>' : ''}`;
   },
@@ -316,8 +322,10 @@ const UI = {
         const kinds = Object.keys(WEAPONS).filter(w => WEAPONS[w].type === (slot === 'gun' ? 'gun' : 'melee') && (s.armory[w] > 0 || w === cur));
         return `<select data-equip="${sv.id}" data-slot="${slot}"><option value="">${slot === 'gun' ? 'No gun' : 'Fists'}</option>${kinds.map(w => `<option value="${w}"${w === cur ? ' selected' : ''}>${WEAPONS[w].icon} ${WEAPONS[w].name}</option>`).join('')}</select>`;
       };
-      const next = RANK_XP[sv.level];
-      html += `<div class="card"><div class="card-head"><span class="big">${spec.icon}</span><div><b>${esc(sv.name)}</b><div class="small muted">${spec.name} · ${RANKS[sv.level - 1]}${next ? ` (${sv.xp}/${next} xp)` : ''}</div></div></div>
+      const pending = Game.pendingChoice(sv) !== null;
+      html += `<div class="card${pending ? ' pending' : ''}"><div class="card-head"><span class="big">${spec.icon}</span><div><b>${esc(sv.name)}</b><div class="small muted">${spec.name} · level ${sv.level} ${LEVEL_NAMES[sv.level - 1]}${this.specLine(sv)}</div></div></div>
+        ${this.xpBar(sv)}
+        <div class="btn-row"><button class="btn small${pending ? ' primary glow' : ''}" data-act="skills" data-id="${sv.id}">${pending ? '★ Choose a skill' : '🌳 Skills'}</button></div>
         <div class="small">❤️ ${sv.hp}/${Game.maxHp(sv)} · 🎯 ${Game.aim(sv)} aim · 👟 ${Game.move(sv)} move · 💀 ${sv.kills} kills · ${sv.missions} missions</div>
         <div class="small">${status}</div><div class="small muted">${spec.desc}</div>
         <div class="equip">${options('gun', sv.gun)}${options('melee', sv.melee)}</div></div>`;
@@ -547,7 +555,7 @@ const UI = {
     const crate = Tactics.adjacentCrate(b, u);
     const downedNear = Tactics.players(b).some(p => p.downed && Tactics.manhattan(p, u) === 1);
     return `<div class="actions">
-      <div class="who">${u.icon} <b>${esc(u.name)}</b> ❤️ ${u.hp}/${u.maxHp} · ${'●'.repeat(u.ap)}${'○'.repeat(2 - u.ap)} actions · ${gun ? `${gun.icon} ${gun.name} ${u.clip}/${gun.clip}` : 'no gun'} · ${Tactics.meleeOf(u).icon} ${Tactics.meleeOf(u).name}</div>
+      <div class="who">${u.icon} <b>${esc(u.name)}</b>${this.skillIcons(u)} ❤️ ${u.hp}/${u.maxHp} · ${'●'.repeat(u.ap)}${'○'.repeat(2 - u.ap)} actions · ${gun ? `${gun.icon} ${gun.name} ${u.clip}/${gun.clip}` : 'no gun'} · ${Tactics.meleeOf(u).icon} ${Tactics.meleeOf(u).name}</div>
       <div class="small muted">${this.mode === 'move' ? 'Tap a blue tile to move (1 action) or a yellow one to run (2). Tap an enemy to attack it.' : this.mode === 'bomb' ? 'Tap where to throw the pipe bomb.' : this.mode === 'flare' ? 'Tap where to throw the flare.' : this.mode === 'heal' ? 'Tap yourself or someone next to you.' : ''}${downedNear ? ' Tap a downed friend next to you to get them up.' : ''}</div>
       ${attack}
       <div class="btn-row">
@@ -567,11 +575,67 @@ const UI = {
       <button class="btn primary" data-act="leave-battle">Back to Grace Hill</button></div>`;
   },
 
+  // --- Levels and the skill tree ---
+  specLine(sv) {
+    if (!sv.path) return '';
+    const path = PATHS[sv.path], branch = sv.branch && path.branches[sv.branch];
+    return ` · ${path.icon}${branch ? `${branch.icon} ${branch.name}` : ` ${path.name}`}`;
+  },
+  xpBar(sv) {
+    const from = LEVEL_XP[sv.level - 1], to = LEVEL_XP[sv.level];
+    if (to === undefined) return '<div class="small muted">⭐ Highest level</div>';
+    const pct = Math.round((sv.xp - from) / (to - from) * 100);
+    return `<div class="xp" title="${sv.xp}/${to} xp"><span class="xp-fill" style="width:${Math.max(0, Math.min(100, pct))}%"></span><span class="xp-text">⭐ ${sv.xp}/${to} xp</span></div>`;
+  },
+  // Path and specialty icons, and the once-a-turn skills still unused, for the battle bar.
+  skillIcons(u) {
+    const sv = Game.survivor(u.svId);
+    if (!sv || !sv.path) return '';
+    const path = PATHS[sv.path], branch = sv.branch && path.branches[sv.branch];
+    const ready = [];
+    if (Tactics.fx(u, 'steady') && !u.moved) ready.push('🎯 steady');
+    if (Tactics.fx(u, 'doubleTap') && !u.tapped) ready.push('➿ double tap');
+    if (Tactics.fx(u, 'secondWind') && !u.rose) ready.push('💪 second wind');
+    return ` <span class="muted" title="${esc(path.name)}${branch ? ` · ${esc(branch.name)}` : ''}">${path.icon}${branch ? branch.icon : ''}</span>${ready.length ? ` <span class="small good">${ready.join(' · ')}</span>` : ''}`;
+  },
+  showSkills(id) {
+    const sv = Game.survivor(id);
+    if (!sv) return this.closeModal();
+    this.skillsFor = id;
+    const pending = Game.pendingChoice(sv);
+    const perks = sv.perks || [];
+    // One row per level: what was picked, what can be picked now, or what is still locked.
+    const option = (choice, icon, name, desc, picked, open) => `<button class="skill${picked ? ' picked' : ''}${open ? ' open' : ''}" ${open ? `data-act="choose" data-id="${sv.id}" data-choice="${choice}"` : 'disabled'}>
+      <span class="skill-name">${icon ? `${icon} ` : ''}${esc(name)}${picked ? ' ✔' : ''}</span><span class="skill-desc">${esc(desc)}</span></button>`;
+    const row = (lvl, label, opts) => `<div class="skill-row${sv.level >= lvl ? '' : ' locked'}"><div class="skill-lvl">Level ${lvl}<span>${label}</span></div><div class="skill-opts">${opts}</div></div>`;
+    let rows = row(PATH_LEVEL, 'Path', Object.entries(PATHS).map(([k, p]) =>
+      option(k, p.icon, p.name, p.desc, sv.path === k, pending === 'path')).join(''));
+    // Before a path is chosen, show both paths' specialties so the player can see where each leads.
+    const paths = sv.path ? [sv.path] : Object.keys(PATHS);
+    rows += row(BRANCH_LEVEL, 'Specialty', paths.flatMap(pk => Object.entries(PATHS[pk].branches).map(([k, br]) =>
+      option(k, br.icon, br.name, br.desc, sv.branch === k, pending === 'branch' && sv.path === pk))).join(''));
+    const branches = sv.branch ? [PATHS[sv.path].branches[sv.branch]] : null;
+    TIER_LEVELS.forEach((lvl, i) => {
+      const opts = branches
+        ? branches[0].tiers[i].map(p => option(p.id, '', p.name, p.desc, perks.includes(p.id), pending === i)).join('')
+        : `<span class="small muted">Choose a specialty first.</span>`;
+      rows += row(lvl, `Skill ${i + 1}`, opts);
+    });
+    const spec = SPECIALTIES[sv.spec];
+    const hint = pending === null
+      ? (LEVEL_XP[sv.level] === undefined ? 'Every skill on this path is learned.' : `Next level at ${LEVEL_XP[sv.level]} xp. Survivors earn xp for kills and missions.`)
+      : '<b class="warn">★ Pick one of the bright options.</b> The choice is permanent.';
+    document.getElementById('modal').innerHTML = `<div class="modal-box wide"><h2>${spec.icon} ${esc(sv.name)} <span class="small muted">level ${sv.level} ${LEVEL_NAMES[sv.level - 1]}${this.specLine(sv)}</span></h2>
+      ${this.xpBar(sv)}<p class="small">${hint}</p><div class="tree">${rows}</div>
+      <div class="btn-row"><button class="btn" data-act="close-modal">Close</button></div></div>`;
+  },
+
   // --- Pop-ups ---
   showModal(html) {
     document.getElementById('modal').innerHTML = `<div class="modal-box">${html}<div class="btn-row"><button class="btn" data-act="close-modal">OK</button></div></div>`;
   },
   closeModal() {
+    this.skillsFor = null;
     document.getElementById('modal').innerHTML = '';
   },
   showIntro() {

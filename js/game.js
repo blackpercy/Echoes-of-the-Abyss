@@ -53,7 +53,7 @@ const Game = {
     const used = new Set(this.state.survivors.map(x => x.name));
     let name;
     do name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`; while (used.has(name));
-    return { id: 0, name, spec: spec || pick(Object.keys(SPECIALTIES)), baseHp: randInt(8, 11), baseAim: randInt(55, 68), xp: 0, level: 1, gun, melee, status: 'ready', injured: 0, infected: 0, kills: 0, missions: 0 };
+    return { id: 0, name, spec: spec || pick(Object.keys(SPECIALTIES)), baseHp: randInt(8, 11), baseAim: randInt(55, 68), xp: 0, level: 1, path: null, branch: null, perks: [], gun, melee, status: 'ready', injured: 0, infected: 0, kills: 0, missions: 0 };
   },
   addSurvivor(sv) {
     sv.id = this.state.nextId++;
@@ -64,13 +64,65 @@ const Game = {
 
   // --- Survivors ---
   maxHp(sv) {
-    return sv.baseHp + (SPECIALTIES[sv.spec].hp || 0) + (sv.level - 1) * RANK_HP;
+    return sv.baseHp + (SPECIALTIES[sv.spec].hp || 0) + (sv.level - 1) * LEVEL_HP + (this.fx(sv).hp || 0);
   },
   aim(sv) {
-    return sv.baseAim + (SPECIALTIES[sv.spec].aim || 0) + (sv.level - 1) * RANK_AIM + this.moraleAim();
+    return sv.baseAim + (SPECIALTIES[sv.spec].aim || 0) + (sv.level - 1) * LEVEL_AIM + (this.fx(sv).aim || 0) + this.moraleAim();
   },
   move(sv) {
-    return 5 + (SPECIALTIES[sv.spec].move || 0);
+    return 5 + (SPECIALTIES[sv.spec].move || 0) + (this.fx(sv).move || 0);
+  },
+
+  // --- The skill tree ---
+  // Everything a survivor's choices add up to: path, specialty and abilities.
+  fx(sv) {
+    const total = {};
+    const add = fx => { for (const [k, v] of Object.entries(fx || {})) total[k] = (total[k] || 0) + v; };
+    const path = sv.path && PATHS[sv.path];
+    if (path) {
+      add(path.fx);
+      const branch = sv.branch && path.branches[sv.branch];
+      if (branch) {
+        add(branch.fx);
+        for (const tier of branch.tiers) for (const perk of tier) if ((sv.perks || []).includes(perk.id)) add(perk.fx);
+      }
+    }
+    return total;
+  },
+  // What a survivor can choose now: 'path', 'branch', a tier index, or null.
+  pendingChoice(sv) {
+    if (sv.level >= PATH_LEVEL && !sv.path) return 'path';
+    if (sv.level >= BRANCH_LEVEL && !sv.branch) return 'branch';
+    const tiers = sv.branch ? PATHS[sv.path].branches[sv.branch].tiers : [];
+    for (let i = 0; i < TIER_LEVELS.length; i++) {
+      if (sv.level >= TIER_LEVELS[i] && !tiers[i].some(p => (sv.perks || []).includes(p.id))) return i;
+    }
+    return null;
+  },
+  choose(id, choice) {
+    const sv = this.survivor(id);
+    if (!sv) return;
+    const pending = this.pendingChoice(sv);
+    const before = this.maxHp(sv);
+    if (pending === 'path' && PATHS[choice]) sv.path = choice;
+    else if (pending === 'branch' && PATHS[sv.path].branches[choice]) sv.branch = choice;
+    else if (typeof pending === 'number' && PATHS[sv.path].branches[sv.branch].tiers[pending].some(p => p.id === choice)) sv.perks = (sv.perks || []).concat(choice);
+    else return;
+    // New hitpoints come at once.
+    sv.hp = Math.max(1, sv.hp + this.maxHp(sv) - before);
+    this.log(`${sv.name} learns ${this.choiceName(sv, choice)}.`, 'good');
+    this.save();
+    this.emit('change');
+  },
+  choiceName(sv, choice) {
+    if (PATHS[choice]) return PATHS[choice].name;
+    const path = PATHS[sv.path];
+    if (path.branches[choice]) return path.branches[choice].name;
+    for (const b of Object.values(path.branches)) for (const t of b.tiers) for (const p of t) if (p.id === choice) return p.name;
+    return choice;
+  },
+  anyPending() {
+    return this.alive().some(sv => this.pendingChoice(sv) !== null);
   },
   moraleAim() {
     return Math.round((this.state.morale - 50) / 5);
@@ -84,13 +136,17 @@ const Game = {
   survivor(id) {
     return this.state.survivors.find(sv => sv.id === id);
   },
+  // Returns how many levels were gained.
   addXp(sv, xp) {
     sv.xp += xp;
-    while (sv.level < RANKS.length && sv.xp >= RANK_XP[sv.level]) {
+    let gained = 0;
+    while (sv.level < LEVEL_XP.length && sv.xp >= LEVEL_XP[sv.level]) {
       sv.level++;
-      sv.hp = Math.min(this.maxHp(sv), sv.hp + RANK_HP);
-      this.log(`${sv.name} is now a ${RANKS[sv.level - 1]}.`, 'good');
+      gained++;
+      sv.hp = Math.min(this.maxHp(sv), sv.hp + LEVEL_HP);
+      this.log(`${sv.name} reaches level ${sv.level}: ${LEVEL_NAMES[sv.level - 1]}.`, 'good');
     }
+    return gained;
   },
   // Swap a weapon between a survivor and the armory. slot: 'gun' or 'melee'.
   equip(id, slot, weapon) {
@@ -306,7 +362,9 @@ const Game = {
       }
       sv.hp = Math.max(1, u.hp);
       sv.kills += u.kills || 0;
-      this.addXp(sv, (u.xp || 0) + 2);
+      const before = sv.level;
+      if (this.addXp(sv, (u.xp || 0) + 2)) report.lines.push(`⭐ ${sv.name} reaches level ${sv.level}${this.pendingChoice(sv) !== null ? ' and can learn something new' : ''}.`);
+      if (sv.level === before && this.pendingChoice(sv) !== null) report.lines.push(`⭐ ${sv.name} still has a skill to choose.`);
       if (u.infected && !sv.infected) {
         sv.infected = INFECTION_DAYS;
         report.lines.push(`🦠 ${sv.name} has the Blood Plague. Cure it at the infirmary within ${INFECTION_DAYS} days.`);
@@ -493,6 +551,7 @@ const Game = {
     if (raw) {
       try {
         this.state = JSON.parse(raw);
+        for (const sv of this.state.survivors) sv.perks = sv.perks || [];
         return true;
       } catch (e) {
         console.warn('Broken save, starting over', e);

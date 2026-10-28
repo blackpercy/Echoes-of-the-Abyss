@@ -1,6 +1,6 @@
 // Holdout: game data. Survivors, weapons, the dead, base facilities and the region around the base.
 
-const GAME_VERSION = '3';
+const GAME_VERSION = '4';
 
 // --- Resources ---
 const RESOURCES = {
@@ -22,11 +22,7 @@ const SPECIALTIES = {
   medic: { name: 'Medic', icon: '🩺', desc: 'Heals for twice as much in the field. At home, injured survivors recover a day faster.', healBonus: true },
   engineer: { name: 'Engineer', icon: '🔧', desc: 'Searches crates for more materials. At home, speeds up building by a day\'s work each day.', builder: true },
 };
-// Levels from kills and missions. Each level after the first: +5 aim and +1 hitpoint.
-const RANKS = ['Rookie', 'Survivor', 'Veteran', 'Hardened', 'Legend'];
-const RANK_XP = [0, 10, 25, 45, 75];
-const RANK_AIM = 5;
-const RANK_HP = 1;
+// Levels and the skill tree are in skills.js.
 
 // --- Weapons ---
 // Firearms: dmg [min, max], clip, aim bonus, best range (tiles) and noise per shot. Melee: dmg, aim, and no noise.

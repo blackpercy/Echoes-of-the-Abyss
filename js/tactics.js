@@ -34,7 +34,7 @@ const Tactics = {
       b.units.push({
         id: b.nextUnit++, side: 'p', svId: sv.id, name: sv.name, icon: SPECIALTIES[sv.spec].icon, spec: sv.spec,
         x: starts[i].x, y: starts[i].y, hp: sv.hp, maxHp: Game.maxHp(sv), ap: 2, aim: Game.aim(sv), move: Game.move(sv),
-        gun: sv.gun, melee: sv.melee, clip: gun ? gun.clip : 0, kills: 0, xp: 0,
+        gun: sv.gun, melee: sv.melee, clip: gun ? gun.clip : 0, kills: 0, xp: 0, fx: Game.fx(sv),
       });
     });
     this.addLog(b, kind === 'defend' ? 'They are coming. Hold the walls.' : this.objective(b));
@@ -315,6 +315,7 @@ const Tactics = {
     u.x = x;
     u.y = y;
     u.ap -= cost;
+    u.moved = true;
     u.overwatch = false;
     this.updateAwareness(b);
     this.checkEnd(b);
@@ -328,16 +329,26 @@ const Tactics = {
   meleeOf(u) {
     return u.melee ? WEAPONS[u.melee] : FISTS;
   },
+  // A survivor's skill-tree effects (enemies have none).
+  fx(u, key) {
+    return (u.fx && u.fx[key]) || 0;
+  },
+  gunRange(u) {
+    const gun = this.gunOf(u);
+    return gun ? gun.range + this.fx(u, 'range') : 0;
+  },
   shotChance(b, u, target, penalty = 0) {
     const gun = this.gunOf(u);
     if (!gun) return 0;
     const d = Math.hypot(u.x - target.x, u.y - target.y);
-    const range = d > gun.range ? (d - gun.range) * RANGE_FALLOFF : 0;
+    const best = this.gunRange(u);
+    const range = d > best ? (d - best) * RANGE_FALLOFF : 0;
     const cover = target.side === 'e' && !ENEMIES[target.type].human ? 0 : this.cover(b, target, u);
-    return Math.max(5, Math.min(95, Math.round(u.aim + gun.aim - range - cover - penalty)));
+    const steady = u.moved ? 0 : this.fx(u, 'steady');
+    return Math.max(5, Math.min(95, Math.round(u.aim + gun.aim + steady - range - cover - penalty)));
   },
   meleeChance(u) {
-    return Math.max(5, Math.min(95, 70 + this.meleeOf(u).aim + Math.round((u.aim - 60) / 2)));
+    return Math.max(5, Math.min(95, 70 + this.meleeOf(u).aim + Math.round((u.aim - 60) / 2) + this.fx(u, 'meleeHit')));
   },
   canShoot(b, u, target) {
     return !!this.gunOf(u) && u.ap > 0 && u.clip > 0 && target.hp > 0 && this.los(b, u, target);
@@ -347,36 +358,80 @@ const Tactics = {
   },
   shoot(b, u, target, overwatch = false) {
     const gun = this.gunOf(u);
-    const shots = gun.burst || 1;
+    const shots = (gun.burst || 1) + this.fx(u, 'burst');
+    const penalty = overwatch && !this.fx(u, 'sentinel') ? OVERWATCH_PENALTY : 0;
+    let fired = 0;
     for (let i = 0; i < shots && target.hp > 0 && u.clip > 0; i++) {
-      u.clip--;
-      const chance = this.shotChance(b, u, target, overwatch ? OVERWATCH_PENALTY : 0);
+      fired++;
+      if (!(Math.random() < this.fx(u, 'thrifty'))) u.clip--;
+      const chance = this.shotChance(b, u, target, penalty);
       if (Math.random() * 100 < chance) {
-        const crit = Math.random() < CRIT_CHANCE;
-        const dmg = Math.round(randInt(gun.dmg[0], gun.dmg[1]) * (crit ? 1.5 : 1));
+        const crit = Math.random() < CRIT_CHANCE + this.fx(u, 'crit');
+        const dmg = Math.round((randInt(gun.dmg[0], gun.dmg[1]) + this.fx(u, 'gunDmg')) * (crit ? (this.fx(u, 'headhunter') ? 2 : 1.5) : 1));
         this.addLog(b, `${u.name.split(' ')[0]} ${overwatch ? '(overwatch) ' : ''}shoots the ${target.name}: ${crit ? 'critical! ' : ''}${dmg} damage (${chance}%).`);
         this.damage(b, target, dmg, u);
+        if (this.fx(u, 'stun') && target.hp > 0 && !ENEMIES[target.type].heart) {
+          target.stunned = true;
+          this.addLog(b, `The ${target.name} reels.`);
+        }
       } else {
         this.addLog(b, `${u.name.split(' ')[0]} ${overwatch ? '(overwatch) ' : ''}shoots at the ${target.name} and misses (${chance}%).`);
       }
     }
-    this.makeNoise(b, u, gun.noise * shots);
-    if (!overwatch) u.ap = 0;   // a shot ends your turn
-    this.checkEnd(b);
-  },
-  melee(b, u, target) {
-    const w = this.meleeOf(u);
-    const chance = this.meleeChance(u);
-    u.ap--;
-    u.overwatch = false;
-    if (Math.random() * 100 < chance) {
-      const dmg = randInt(w.dmg[0], w.dmg[1]) + (SPECIALTIES[u.spec].meleeDmg || 0);
-      this.addLog(b, `${u.name.split(' ')[0]} hits the ${target.name} with ${w === FISTS ? 'bare fists' : `the ${w.name.toLowerCase()}`} for ${dmg} (${chance}%).`);
-      this.damage(b, target, dmg, u);
-    } else {
-      this.addLog(b, `${u.name.split(' ')[0]} swings at the ${target.name} and misses (${chance}%).`);
+    this.makeNoise(b, u, Math.round(gun.noise * fired * (1 - this.fx(u, 'quiet'))));
+    if (!overwatch) {
+      // Double Tap: once a turn, a free second shot.
+      if (this.fx(u, 'doubleTap') && !u.tapped && target.hp > 0 && u.clip > 0) {
+        u.tapped = true;
+        this.addLog(b, 'Double tap!');
+        const ap = u.ap;
+        this.shoot(b, u, target, true);
+        u.ap = ap;
+      }
+      // A shot ends your turn, unless you have learned to run and gun.
+      if (this.fx(u, 'snapshot')) u.ap--;
+      else u.ap = 0;
     }
     this.checkEnd(b);
+  },
+  melee(b, u, target, free = false) {
+    if (!free) u.ap--;
+    u.overwatch = false;
+    const swings = Math.random() < this.fx(u, 'flurry') ? 2 : 1;
+    for (let i = 0; i < swings && target.hp > 0; i++) {
+      if (i) this.addLog(b, 'Flurry!');
+      this.strike(b, u, target);
+    }
+    this.checkEnd(b);
+  },
+  // One melee blow, with everything the skill tree adds to it.
+  strike(b, u, target) {
+    const w = this.meleeOf(u);
+    const chance = this.meleeChance(u);
+    if (Math.random() * 100 >= chance) {
+      this.addLog(b, `${u.name.split(' ')[0]} swings at the ${target.name} and misses (${chance}%).`);
+      return;
+    }
+    let dmg = randInt(w.dmg[0], w.dmg[1]) + (SPECIALTIES[u.spec] ? SPECIALTIES[u.spec].meleeDmg || 0 : 0) + this.fx(u, 'meleeDmg');
+    if (this.fx(u, 'execute') && target.hp < target.maxHp / 2) dmg *= 2;
+    this.addLog(b, `${u.name.split(' ')[0]} hits the ${target.name} with ${w === FISTS ? 'bare fists' : `the ${w.name.toLowerCase()}`} for ${dmg} (${chance}%).`);
+    this.damage(b, target, dmg, u);
+    // Cleave and Whirlwind: the swing carries on into others.
+    const cleave = this.fx(u, 'cleave');
+    if (cleave) {
+      const others = this.enemies(b).filter(e => e !== target && this.manhattan(u, e) === 1);
+      for (const e of cleave >= 1 ? others : others.slice(0, 1)) {
+        const extra = Math.max(1, Math.round(dmg * Math.min(1, cleave)));
+        this.addLog(b, `The swing carries into the ${e.name} (${extra}).`);
+        this.damage(b, e, extra, u);
+      }
+    }
+    // Bloodlust: a kill gives back an action (once a turn, or every time with Reaper).
+    if (target.hp <= 0 && this.fx(u, 'bloodlust') && (!u.bled || this.fx(u, 'reaper'))) {
+      u.bled = true;
+      u.ap = Math.min(2, u.ap + 1);
+      this.addLog(b, `${u.name.split(' ')[0]} is already looking for the next one.`);
+    }
   },
   damage(b, target, dmg, by) {
     if (target.side === 'p') return this.hurt(b, target, dmg, by);
@@ -413,9 +468,15 @@ const Tactics = {
       return;
     }
     u.hp -= dmg;
-    if (by && ENEMIES[by.type] && Math.random() < ENEMIES[by.type].infect) {
+    if (by && ENEMIES[by.type] && !this.fx(u, 'immune') && Math.random() < ENEMIES[by.type].infect) {
       u.infected = true;
       this.addLog(b, `🦠 ${u.name.split(' ')[0]} is bitten. The wound looks wrong.`);
+    }
+    if (u.hp <= 0 && this.fx(u, 'secondWind') && !u.rose) {
+      u.rose = true;
+      u.hp = 5;
+      this.addLog(b, `${u.name.split(' ')[0]} staggers, and does not go down.`);
+      return;
     }
     if (u.hp <= 0) {
       u.hp = 0;
@@ -435,7 +496,8 @@ const Tactics = {
   // --- Other actions ---
   reload(b, u) {
     const gun = this.gunOf(u);
-    if (!gun || u.ap < 1 || u.clip >= gun.clip) return false;
+    const free = this.fx(u, 'freeReload');
+    if (!gun || (u.ap < 1 && !free) || u.clip >= gun.clip) return false;
     if (b.ammo <= 0) {
       this.addLog(b, 'There is no ammo left to reload with.');
       return false;
@@ -444,7 +506,7 @@ const Tactics = {
     const take = Math.min(need, b.ammo);
     b.ammo -= take;
     u.clip += take;
-    u.ap--;
+    if (!free) u.ap--;
     this.addLog(b, `${u.name.split(' ')[0]} reloads.`);
     return true;
   },
@@ -562,7 +624,7 @@ const Tactics = {
       u.downed--;
       if (u.downed <= 0) this.addLog(b, `💀 ${u.name} has bled out.`);
     }
-    for (const u of this.standing(b)) u.ap = 2;
+    for (const u of this.standing(b)) Object.assign(u, { ap: 2, moved: false, tapped: false, bled: false });
     for (const p of this.players(b).filter(p => p.npc && !p.waiting && p.hp > 0)) p.ap = 2;
     if (b.flare && --b.flare.turns <= 0) b.flare = null;
     this.updateAwareness(b);
@@ -642,7 +704,7 @@ const Tactics = {
       if (!e.dormant) continue;
       const sight = ENEMIES[e.type].sight;
       for (const u of this.standing(b)) {
-        const s = sight - (SPECIALTIES[u.spec] && SPECIALTIES[u.spec].stealth ? 2 : 0);
+        const s = sight - (SPECIALTIES[u.spec] && SPECIALTIES[u.spec].stealth ? 2 : 0) - this.fx(u, 'stealth');
         if (Math.hypot(u.x - e.x, u.y - e.y) <= s && this.los(b, e, u)) {
           e.dormant = false;
           break;
@@ -652,6 +714,10 @@ const Tactics = {
   },
   zombieTurn(b, e) {
     if (e.dormant) return;
+    if (e.stunned) {
+      e.stunned = false;
+      return;
+    }
     const def = ENEMIES[e.type];
     // A flare draws every zombie that can see it.
     const goal = b.flare && this.los(b, e, b.flare) ? b.flare : null;
@@ -680,13 +746,19 @@ const Tactics = {
     const victim = victims.find(v => v.downed) || pick(victims);
     for (let i = 0; i < (def.attacks || 1) && this.onMap(victim) && (victim.hp > 0 || victim.downed); i++) {
       const cover = this.cover(b, victim, e) ? 15 : 0;
-      const chance = def.aim - cover;
+      const chance = def.aim - cover - this.fx(victim, 'guard');
       if (victim.downed || Math.random() * 100 < chance) {
         const dmg = randInt(def.dmg[0], def.dmg[1]);
         this.addLog(b, `The ${e.name} ${victim.downed ? 'falls on' : 'bites'} ${victim.name.split(' ')[0]} (${dmg}).`);
         this.hurt(b, victim, dmg, e);
       } else {
         this.addLog(b, `The ${e.name} lunges at ${victim.name.split(' ')[0]} and misses.`);
+        // Counterstrike: a miss is an opening.
+        if (this.fx(victim, 'counter') && victim.hp > 0) {
+          this.addLog(b, `${victim.name.split(' ')[0]} hits back!`);
+          this.strike(b, victim, e);
+          if (e.hp <= 0) return;
+        }
       }
     }
   },
@@ -706,12 +778,14 @@ const Tactics = {
     }
   },
   // Overwatch: the first enemy that moves where a watcher can see it takes a shot.
+  // Sentinel fires twice; Kill Zone keeps watching until the gun is empty.
   triggerOverwatch(b, e) {
     for (const u of this.standing(b).filter(u => u.overwatch)) {
       const gun = this.gunOf(u);
-      if (!gun || u.clip <= 0 || Math.hypot(u.x - e.x, u.y - e.y) > gun.range + 2 || !this.los(b, u, e)) continue;
-      u.overwatch = false;
-      this.shoot(b, u, e, true);
+      if (!gun || u.clip <= 0 || Math.hypot(u.x - e.x, u.y - e.y) > this.gunRange(u) + 2 || !this.los(b, u, e)) continue;
+      if (!this.fx(u, 'killZone')) u.overwatch = false;
+      for (let i = 0; i < (this.fx(u, 'sentinel') ? 2 : 1) && e.hp > 0 && u.clip > 0; i++) this.shoot(b, u, e, true);
+      if (u.clip <= 0) u.overwatch = false;
       if (e.hp <= 0) return;
     }
   },
@@ -746,7 +820,7 @@ const Tactics = {
     const shootable = targets.filter(t => this.los(b, e, t) && Math.hypot(t.x - e.x, t.y - e.y) <= def.range && t.hp > 0);
     if (!shootable.length) return;
     const t = shootable.sort((a, c) => this.cover(b, a, e) - this.cover(b, c, e))[0];
-    const chance = Math.max(5, Math.min(90, def.aim - this.cover(b, t, e)));
+    const chance = Math.max(5, Math.min(90, def.aim - this.cover(b, t, e) - this.fx(t, 'dodge')));
     if (Math.random() * 100 < chance) {
       const dmg = randInt(def.dmg[0], def.dmg[1]);
       this.addLog(b, `The ${e.name} shoots ${t.name.split(' ')[0]} (${dmg}, ${chance}%).`);
