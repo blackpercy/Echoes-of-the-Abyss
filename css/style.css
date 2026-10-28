@@ -327,3 +327,6 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--b
   .fac-grid .small { font-size: .72rem; }
   .fac-grid .btn { align-self: stretch; padding: .3rem .2rem; }
 }
+
+/* Debug tools on the log tab */
+.debug-grid { display: grid; grid-template-columns: auto auto auto; justify-content: start; align-items: center; gap: .3rem .5rem; margin-bottom: .5rem; }

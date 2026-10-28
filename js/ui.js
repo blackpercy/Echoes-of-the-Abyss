@@ -95,6 +95,10 @@ const UI = {
         Game.choose(+d.id, d.choice);
         this.showSkills(+d.id);
         return;
+      case 'debug-add':
+        Game.gain(Object.fromEntries(d.res.split(',').map(p => p.split(':')).map(([r, n]) => [r, +n])));
+        Game.save();
+        break;
       case 'close-modal': this.closeModal(); break;
       case 'intro-done':
         Game.state.seenIntro = true;
@@ -461,7 +465,11 @@ const UI = {
       <button class="btn primary" data-act="launch"${blocker ? ' disabled' : ''}>Go</button> ${blocker ? `<span class="small muted">${esc(blocker)}</span>` : ''}</section>`;
   },
   logView() {
-    return `<section class="panel"><h2>📜 Log</h2>${Game.state.log.map(l => `<div class="logline ${l.kind}"><span class="muted">Day ${l.day}</span> ${esc(l.msg)}</div>`).join('')}
+    const add = (res, label) => `<button class="btn small" data-act="debug-add" data-res="${Object.entries(res).map(([r, n]) => `${r}:${n}`).join(',')}">${label}</button>`;
+    const debug = `<section class="panel debug"><h2>🐞 Debug</h2><div class="debug-grid">
+      ${Object.entries(RESOURCES).map(([r, def]) => `<span>${def.icon} ${def.name}</span>${add({ [r]: 10 }, '+10')}${add({ [r]: 100 }, '+100')}`).join('')}
+      </div><div class="btn-row">${add(Object.fromEntries(Object.keys(RESOURCES).map(r => [r, 100])), '+100 of everything')}</div></section>`;
+    return `${debug}<section class="panel"><h2>📜 Log</h2>${Game.state.log.map(l => `<div class="logline ${l.kind}"><span class="muted">Day ${l.day}</span> ${esc(l.msg)}</div>`).join('')}
       <p><button class="btn small danger" data-act="new-game">Start a new game</button> <span class="small muted">v${GAME_VERSION}</span></p></section>`;
   },
 

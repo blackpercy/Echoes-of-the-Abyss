@@ -1,6 +1,6 @@
 // Holdout: game data. Survivors, weapons, the dead, base facilities and the region around the base.
 
-const GAME_VERSION = '8';
+const GAME_VERSION = '9';
 
 // --- Resources ---
 const RESOURCES = {
