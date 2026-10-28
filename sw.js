@@ -1,6 +1,6 @@
 // Service worker: caches the game so it can be installed and played offline.
 // Bump CACHE whenever files change so players get the new version.
-const CACHE = 'holdout-v6';
+const CACHE = 'holdout-v7';
 const FILES = ['./', './index.html', './css/style.css', './icon.svg', './manifest.webmanifest', './js/data.js', './js/skills.js', './js/game.js', './js/tactics.js', './js/ui.js', './js/main.js'];
 
 self.addEventListener('install', e => {

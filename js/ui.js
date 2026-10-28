@@ -35,7 +35,10 @@ const UI = {
   onClick(e) {
     // Browsers sometimes hand a tap on a tilted grid to the grid itself; work out the tile from where it landed.
     const grid = e.target.classList && e.target.classList.contains('iso') ? e.target : null;
-    const el = grid ? this.tileAtPoint(grid, e.clientX, e.clientY) : e.target.closest('[data-act]');
+    let el = grid ? this.tileAtPoint(grid, e.clientX, e.clientY) : e.target.closest('[data-act]');
+    // A figure stands up out of its tile and can hide behind a wall or another tile;
+    // a tap on any part of a figure picks that figure's tile.
+    if (el && el.dataset.act === 'tile' && el.closest('.grid.iso')) el = this.figureAtPoint(el.closest('.grid.iso'), e.clientX, e.clientY) || el;
     if (!el) return;
     const d = el.dataset;
     const b = Game.state.battle;
@@ -157,6 +160,19 @@ const UI = {
     const x = Math.floor(lx / t), y = Math.floor(ly / t);
     if (x < 0 || y < 0 || x >= cols || y >= rows) return null;
     return grid.children[y * cols + x] || null;
+  },
+
+  // The frontmost figure drawn under a point, as its tile.
+  figureAtPoint(grid, px, py) {
+    let best = null, depth = -Infinity;
+    for (const fig of grid.querySelectorAll('.stand .unit')) {
+      const r = fig.getBoundingClientRect();
+      if (px < r.left || px > r.right || py < r.top || py > r.bottom) continue;
+      const tile = fig.closest('.tile');
+      const d = +tile.dataset.y - +tile.dataset.x;
+      if (d > depth) { best = tile; depth = d; }
+    }
+    return best;
   },
 
   // --- Battle helpers ---
