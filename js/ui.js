@@ -458,6 +458,14 @@ const UI = {
     if (u && this.mode === 'move' && !b.result) reach = Tactics.reach(b, u, u.move * Math.min(2, u.ap));
     const target = this.target ? this.unitById(b, this.target) : null;
     const iso = Game.state.view !== 'flat';
+    // Walls in front of someone (toward the camera, which looks from the south-west) turn see-through.
+    const seeThrough = new Set();
+    if (iso) {
+      for (const unit of b.units) {
+        if (unit.side === 'e' && !vis.has(`${unit.x},${unit.y}`)) continue;
+        for (const [dx, dy] of [[0, 1], [-1, 0], [-1, 1]]) seeThrough.add(`${unit.x + dx},${unit.y + dy}`);
+      }
+    }
     let grid = '';
     for (let y = 0; y < b.h; y++) {
       for (let x = 0; x < b.w; x++) {
@@ -466,6 +474,7 @@ const UI = {
         const seen = vis.has(key);
         const cls = ['tile', { '#': 'wall', c: 'cover', x: 'exit', b: 'barricade', '.': 'floor' }[t]];
         if (!seen) cls.push('fog');
+        if (t === '#' && seeThrough.has(key)) cls.push('see-through');
         const steps = reach.get(key);
         if (steps) cls.push(steps <= u.move ? 'reach1' : 'reach2');
         if ((this.mode === 'bomb' || this.mode === 'flare') && u && Tactics.canThrow(b, u, x, y)) cls.push('throwable');
