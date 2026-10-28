@@ -312,3 +312,17 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--b
 .skill-name { font-weight: bold; font-size: .88rem; }
 .skill-desc { font-size: .75rem; color: var(--muted); }
 @media (max-width: 520px) { .skill-row { flex-direction: column; gap: .2rem; } .skill-lvl { flex: none; flex-direction: row; justify-content: flex-start; gap: .4rem; } }
+
+/* The base's buildings: always three to a row */
+.cards.fac-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fac-grid .card { overflow-wrap: anywhere; }
+.fac-grid .card .btn { margin-top: auto; }
+.fac-grid .card > div.small:has(+ .btn) { margin-bottom: .3rem; }
+@media (max-width: 760px) {
+  .cards.fac-grid { gap: .35rem; }
+  .fac-grid .card { padding: .4rem .45rem; font-size: .8rem; }
+  .fac-grid .card-head { flex-direction: column; align-items: flex-start; gap: .1rem; }
+  .fac-grid .big { font-size: 1.4rem; }
+  .fac-grid .small { font-size: .72rem; }
+  .fac-grid .btn { align-self: stretch; padding: .3rem .2rem; }
+}

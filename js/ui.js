@@ -272,7 +272,7 @@ const UI = {
     const b = s.building;
     html += `<section class="panel" id="facilities"><h2>🏗️ Facilities <span class="muted small">${Game.usedSlots()} / ${FACILITY_SLOTS} spaces</span></h2>
       ${b ? `<p class="small">Building: <b>${FACILITIES[b.id].icon} ${FACILITIES[b.id].name}${b.level > 1 ? ` (level ${b.level})` : ''}</b>, ${b.daysLeft} day${b.daysLeft === 1 ? '' : 's'} of work left. Engineers at home speed it up.</p>` : ''}
-      <div class="cards">${Object.entries(FACILITIES).map(([id, f]) => {
+      <div class="cards fac-grid">${Object.entries(FACILITIES).map(([id, f]) => {
         const lvl = Game.facilityLevel(id);
         const next = f.levels[lvl];
         const blocker = Game.buildBlocker(id);
