@@ -1,0 +1,10 @@
+{
+  "name": "Holdout",
+  "short_name": "Holdout",
+  "description": "Turn-based zombie survival: hold the church, scavenge the town, burn out the Hive.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#121410",
+  "theme_color": "#121410",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
