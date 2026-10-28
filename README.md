@@ -14,6 +14,7 @@ Open `index.html` in a browser, or host the folder on GitHub Pages. Plain HTML, 
 ### The base (one day at a time)
 - The church and its yard are drawn in **2.5D**: the walls rise with every level, buildings grow taller as you upgrade them, scaffolding marks what is being built, and your ready survivors stand in the yard. Tap a building or an empty plot to jump to it.
 - **Survivors** each have a specialty (Fighter, Sharpshooter, Scout, Medic, Engineer), hitpoints, aim, a gun and a melee weapon. They earn xp for kills and missions and rise through ten levels (see below).
+- **Traits:** everyone arrives with a strength (Tough, Former Cop, Athlete, Light Step, Scrounger, Handy, Cheerful, Quick Study, Hardy, Bar Fighter) and often a flaw (Glutton, Shaky Hands, Loud, Frail, Squeamish, Gloomy, Slow Healer). Some matter in battle, some at home.
 - **Resources:** food, materials, medicine, ammo and fuel. Everyone eats every day.
 - **Facilities:** Bunks, Garden, Infirmary, Workshop, Watchtower, Walls and Radio Tower, built and upgraded with materials over several days. Engineers at home build faster.
 - **Workshop:** make ammo, medkits, pipe bombs, flares and weapons.
@@ -38,7 +39,8 @@ Open `index.html` in a browser, or host the folder on GitHub Pages. Plain HTML, 
 - The region is a **map laid on a table**, tilted in 2.5D, with every known place standing up from it on a signpost.
 - A map of Marrow Creek: houses, a diner, a gas station, a farm, a hardware store, a pharmacy, a school, a police station, a warehouse, a hospital and an army checkpoint.
 - One mission a day: **scavenge**, **destroy a Plague Heart**, **rescue** someone who called on the radio, or **destroy the Hive** at the hospital to win.
-- Missions cost fuel by distance. Places run out of supplies. Missions reveal more of the map.
+- Missions cost fuel by distance from the church or the nearest outpost. Places run out of supplies. Missions reveal more of the map.
+- **Outposts:** claim up to three places you have been to (🔩 10 each). Each sends supplies home every day (a farm food, a gas station fuel, the police station ammo, and so on), and missions can set out from it. But the dead attack outposts, more often near a Plague Heart: send a squad within two days to hold the barricades, or lose it.
 
 ### Missions (turn-based)
 - An **isometric 2.5D** battlefield: a 12 × 16 grid with raised walls, cars, crates and barricades, standing figures and fog of war. Zoom in and scroll on small screens, or switch to a flat top-down view.

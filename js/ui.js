@@ -99,6 +99,16 @@ const UI = {
         Game.gain(Object.fromEntries(d.res.split(',').map(p => p.split(':')).map(([r, n]) => [r, +n])));
         Game.save();
         break;
+      case 'claim': Game.claim(d.id); return;
+      case 'go-site':
+        e.preventDefault();
+        this.tab = 'map';
+        this.mapSel = d.id;
+        this.plan = { kind: Game.missionKinds(d.id)[0] || null, squad: [], gear: {} };
+        break;
+      case 'abandon':
+        if (confirm(`Abandon ${SITES[d.id].name}? You will have to claim it again.`)) Game.abandon(d.id);
+        return;
       case 'close-modal': this.closeModal(); break;
       case 'intro-done':
         Game.state.seenIntro = true;
@@ -287,6 +297,10 @@ const UI = {
     let html = `<section class="panel"><h2>⛪ ${BASE_SITE.name}</h2>
       <p class="small">${people.length} survivors · ${Game.beds()} beds · ${Game.ready().length} ready to go out${s.missionToday ? ' · <span class="muted">someone has already been out today</span>' : ''}</p>
       <p class="small">Morale ${s.morale}: ${Game.moraleAim() >= 0 ? '+' : ''}${Game.moraleAim()} aim. The horde grows by ${Game.threatPerDay()} each day${Game.facilityLevel('watchtower') ? `; the lookout expects it in about <b>${Game.hordeEta()} days</b>` : ''}.</p></section>`;
+    const outposts = Game.outposts();
+    if (outposts.length) {
+      html = html.replace(/<\/section>$/, `<p class="small">🚩 Outposts: ${outposts.map(id => `<a href="#" data-act="go-site" data-id="${id}">${esc(SITES[id].name)}</a>${s.sites[id].siege ? ' <span class="bad">⚔️ under attack</span>' : ` (${Game.costText(Game.outpostYield(id))} a day)`}`).join(' · ')}</p></section>`);
+    }
     html += this.baseScene();
     // Facilities.
     const b = s.building;
@@ -344,7 +358,7 @@ const UI = {
       };
       const pending = Game.pendingChoice(sv) !== null;
       html += `<div class="card${pending ? ' pending' : ''}"><div class="card-head"><span class="big">${spec.icon}</span><div><b>${esc(sv.name)}</b><div class="small muted">${spec.name} · level ${sv.level} ${LEVEL_NAMES[sv.level - 1]}${this.specLine(sv)}</div></div></div>
-        ${this.xpBar(sv)}
+        ${this.xpBar(sv)}${this.traitChips(sv)}
         <div class="btn-row"><button class="btn small${pending ? ' primary glow' : ''}" data-act="skills" data-id="${sv.id}">${pending ? '★ Choose a skill' : '🌳 Skills'}</button></div>
         <div class="small">❤️ ${sv.hp}/${Game.maxHp(sv)} · 🎯 ${Game.aim(sv)} aim · 👟 ${Game.move(sv)} move · 💀 ${sv.kills} kills · ${sv.missions} missions</div>
         <div class="small">${status}</div><div class="small muted">${spec.desc}</div>
@@ -367,8 +381,8 @@ const UI = {
       const st = s.sites[id];
       if (!st.known) continue;
       const type = SITE_TYPES[site.type];
-      const cls = ['site', this.mapSel === id ? 'sel' : '', st.infested ? 'infested' : '', !st.stock ? 'empty' : ''].join(' ');
-      const marks = `${st.infested ? '<span class="mark">🫀</span>' : ''}${s.contacts.some(c => c.site === id) ? '<span class="mark">📻</span>' : ''}`;
+      const cls = ['site', this.mapSel === id ? 'sel' : '', st.infested ? 'infested' : '', !st.stock && !st.outpost ? 'empty' : '', st.outpost ? 'outpost' : '', st.siege ? 'under-siege' : ''].join(' ');
+      const marks = `${st.outpost ? '<span class="mark">🚩</span>' : ''}${st.siege ? '<span class="mark">⚔️</span>' : ''}${st.infested ? '<span class="mark">🫀</span>' : ''}${s.contacts.some(c => c.site === id) ? '<span class="mark">📻</span>' : ''}`;
       pins += pin(site.x, site.y, cls, `<span class="plot"></span><span class="sign" data-act="site" data-id="${id}"><span class="sign-icon">${type.icon}${marks}</span><span class="sign-name">${esc(site.name)}</span><span class="danger">${stars(type.danger + (st.infested ? 1 : 0))}</span></span>`);
     }
     pins += pin(BASE_SITE.x, BASE_SITE.y, 'site base', `<span class="plot"></span><span class="sign"><span class="sign-icon">${BASE_SITE.icon}</span><span class="sign-name">${BASE_SITE.name}</span></span>`);
@@ -450,19 +464,35 @@ const UI = {
     const st = s.sites[id];
     const type = SITE_TYPES[site.type];
     const kinds = Game.missionKinds(id);
-    const names = { scavenge: '📦 Scavenge', clear: '🫀 Destroy the Plague Heart', rescue: '📻 Rescue', hive: '🔥 Destroy the Hive' };
+    const names = { scavenge: '📦 Scavenge', clear: '🫀 Destroy the Plague Heart', rescue: '📻 Rescue', hive: '🔥 Destroy the Hive', hold: '⚔️ Defend the outpost' };
     if (!kinds.includes(this.plan.kind)) this.plan.kind = kinds[0] || null;
     const squad = this.plan.squad.map(i => Game.survivor(i)).filter(Boolean);
     const blocker = this.plan.kind ? Game.missionBlocker(id, this.plan.kind, squad) : 'Nothing to do there';
     return `<section class="panel"><h2>${type.icon} ${esc(site.name)}</h2>
-      <p class="small">${type.name} · danger <span class="bad">${stars(type.danger + (st.infested ? 1 : 0))}</span> · ${st.stock ? `${st.stock} more scavenging run${st.stock > 1 ? 's' : ''} worth of supplies` : 'picked clean'} · ⛽ ${Game.fuelCost(id)} fuel</p>
+      <p class="small">${type.name} · danger <span class="bad">${stars(type.danger + (st.infested ? 1 : 0))}</span> · ${st.outpost ? '🚩 your outpost' : st.stock ? `${st.stock} more scavenging run${st.stock > 1 ? 's' : ''} worth of supplies` : 'picked clean'} · ⛽ ${Game.fuelCost(id)} fuel</p>
       <p class="small muted">Might hold: ${Object.keys(type.loot).map(r => RESOURCES[r].icon).join(' ')}${type.weapons.length ? ` and weapons` : ''}.${type.raiders ? ' Raiders have been seen here.' : ''}${st.infested ? ' <span class="bad">A Plague Heart has taken root here.</span>' : ''}</p>
+      ${this.outpostPanel(id)}
       ${kinds.length ? `<div class="btn-row">${kinds.map(k => `<button class="btn small${this.plan.kind === k ? ' on' : ''}" data-act="kind" data-kind="${k}">${names[k]}</button>`).join('')}</div>` : '<p class="small muted">Nothing left to do here.</p>'}
       <h3>Squad <span class="muted small">${squad.length} / ${SQUAD_SIZE}</span></h3>
       <div class="pick">${Game.ready().map(sv => `<button class="chip${this.plan.squad.includes(sv.id) ? ' on' : ''}" data-act="squad" data-id="${sv.id}">${SPECIALTIES[sv.spec].icon} ${esc(sv.name.split(' ')[0])} <span class="muted">❤️${sv.hp} ${sv.gun ? WEAPONS[sv.gun].icon : ''}${WEAPONS[sv.melee] ? WEAPONS[sv.melee].icon : '✊'}</span></button>`).join('') || '<span class="small muted">Nobody is fit to go.</span>'}</div>
       <h3>Gear</h3><div class="pick">${Object.entries(GEAR).map(([g, def]) => `<span class="chip">${def.icon} ${def.name} <button class="mini" data-act="gear" data-gear="${g}" data-step="-1">−</button> ${this.plan.gear[g] || 0} / ${s.gear[g] || 0} <button class="mini" data-act="gear" data-gear="${g}" data-step="1">+</button></span>`).join('')}</div>
       <p class="small muted">The squad shares the base's ammo (${s.resources.ammo}) for reloads.</p>
       <button class="btn primary" data-act="launch"${blocker ? ' disabled' : ''}>Go</button> ${blocker ? `<span class="small muted">${esc(blocker)}</span>` : ''}</section>`;
+  },
+  // Claim a place as an outpost, or see how it is doing.
+  outpostPanel(id) {
+    const st = Game.state.sites[id];
+    const yieldText = Game.costText(Game.outpostYield(id));
+    const risk = Math.round(Game.outpostRisk(id) * 100);
+    if (st.outpost) {
+      return `<div class="outpost-box${st.siege ? ' siege' : ''}"><b>🚩 Outpost</b> · sends ${yieldText} home every day · ${risk}% chance a day of being attacked
+        ${st.siege ? `<div class="bad">⚔️ Under attack! Defend it ${st.siege > 1 ? `within ${st.siege} days` : 'today'}, or it falls. No supplies come home until then.</div>` : ''}
+        <div class="btn-row"><button class="btn small danger" data-act="abandon" data-id="${id}">Abandon</button></div></div>`;
+    }
+    if (id === HIVE_SITE) return '';
+    const blocker = Game.claimBlocker(id);
+    return `<div class="outpost-box"><b>🚩 Make it an outpost</b> · ${Game.costText(OUTPOST_COST)} · would send ${yieldText} home every day, and missions can set out from here (less fuel). ${risk}% chance a day the dead attack it; send a squad within ${OUTPOST_SIEGE_DAYS} days or lose it. Ends scavenging here.
+      <div class="btn-row"><button class="btn small" data-act="claim" data-id="${id}"${blocker ? ' disabled' : ''}>Claim (${Game.outposts().length} / ${OUTPOST_MAX})</button>${blocker ? ` <span class="small muted">${esc(blocker)}</span>` : ''}</div></div>`;
   },
   logView() {
     const add = (res, label) => `<button class="btn small" data-act="debug-add" data-res="${Object.entries(res).map(([r, n]) => `${r}:${n}`).join(',')}">${label}</button>`;
@@ -477,7 +507,7 @@ const UI = {
   battleView(b) {
     const u = this.unit(b);
     const vis = Tactics.visible(b);
-    const title = b.kind === 'defend' ? `⛪ The siege of ${BASE_SITE.name}` : `${SITE_TYPES[SITES[b.siteId].type].icon} ${SITES[b.siteId].name}`;
+    const title = b.kind === 'defend' ? `⛪ The siege of ${BASE_SITE.name}` : b.kind === 'hold' ? `🚩 The defence of ${SITES[b.siteId].name}` : `${SITE_TYPES[SITES[b.siteId].type].icon} ${SITES[b.siteId].name}`;
     let reach = new Map();
     if (u && this.mode === 'move' && !b.result) reach = Tactics.reach(b, u, u.move * Math.min(2, u.ap));
     const target = this.target ? this.unitById(b, this.target) : null;
@@ -598,14 +628,19 @@ const UI = {
         ${mode('heal', `🩹 Heal (${b.gear.medkit || 0})`, b.gear.medkit > 0)}
         ${mode('bomb', `💣 Bomb (${b.gear.pipe_bomb || 0})`, b.gear.pipe_bomb > 0)}
         ${mode('flare', `🎆 Flare (${b.gear.flare || 0})`, b.gear.flare > 0)}
-        ${b.kind === 'defend' ? '' : btn('extract', '🚪 Leave', Tactics.canExtract(b, u))}
+        ${Tactics.siege(b) ? '' : btn('extract', '🚪 Leave', Tactics.canExtract(b, u))}
       </div>
       <div class="btn-row">${btn('next', '⏭ Next survivor', this.controllable(b).length > 1)}<button class="btn primary" data-act="end-turn">End turn ▶</button></div></div>`;
   },
   resultPanel(b) {
     return `<div class="actions result ${b.result}"><h2>${b.result === 'won' ? '✅ Done' : '❌ Failed'}</h2>
-      <p class="small">${b.kind === 'defend' ? (b.result === 'won' ? 'The walls held.' : 'The walls fell.') : b.result === 'won' ? 'Everyone still standing is out.' : 'The objective was not met, or no one made it out.'}</p>
+      <p class="small">${Tactics.siege(b) ? (b.result === 'won' ? 'The barricades held.' : 'The barricades fell.') : b.result === 'won' ? 'Everyone still standing is out.' : 'The objective was not met, or no one made it out.'}</p>
       <button class="btn primary" data-act="leave-battle">Back to Grace Hill</button></div>`;
+  },
+
+  // --- Traits ---
+  traitChips(sv) {
+    return `<div class="traits">${(sv.traits || []).map(t => TRAITS[t]).filter(Boolean).map(t => `<span class="trait ${t.good ? 'good' : 'flaw'}" title="${esc(t.desc)}">${t.icon} ${t.name}<span class="trait-desc"> · ${esc(t.desc)}</span></span>`).join('')}</div>`;
   },
 
   // --- Levels and the skill tree ---
@@ -659,7 +694,7 @@ const UI = {
       ? (LEVEL_XP[sv.level] === undefined ? 'Every skill on this path is learned.' : `Next level at ${LEVEL_XP[sv.level]} xp. Survivors earn xp for kills and missions.`)
       : '<b class="warn">★ Pick one of the bright options.</b> The choice is permanent.';
     document.getElementById('modal').innerHTML = `<div class="modal-box wide"><h2>${spec.icon} ${esc(sv.name)} <span class="small muted">level ${sv.level} ${LEVEL_NAMES[sv.level - 1]}${this.specLine(sv)}</span></h2>
-      ${this.xpBar(sv)}<p class="small">${hint}</p><div class="tree">${rows}</div>
+      ${this.xpBar(sv)}${this.traitChips(sv)}<p class="small">${hint}</p><div class="tree">${rows}</div>
       <div class="btn-row"><button class="btn" data-act="close-modal">Close</button></div></div>`;
   },
 

@@ -53,7 +53,18 @@ const Game = {
     const used = new Set(this.state.survivors.map(x => x.name));
     let name;
     do name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`; while (used.has(name));
-    return { id: 0, name, spec: spec || pick(Object.keys(SPECIALTIES)), baseHp: randInt(8, 11), baseAim: randInt(55, 68), xp: 0, level: 1, path: null, branch: null, perks: [], gun, melee, status: 'ready', injured: 0, infected: 0, kills: 0, missions: 0 };
+    return { id: 0, name, spec: spec || pick(Object.keys(SPECIALTIES)), baseHp: randInt(8, 11), baseAim: randInt(55, 68), xp: 0, level: 1, path: null, branch: null, perks: [], traits: this.rollTraits(), gun, melee, status: 'ready', injured: 0, infected: 0, kills: 0, missions: 0 };
+  },
+  // One strength, and often one flaw.
+  rollTraits() {
+    const ids = Object.keys(TRAITS);
+    const traits = [pick(ids.filter(t => TRAITS[t].good))];
+    if (Math.random() < FLAW_CHANCE) traits.push(pick(ids.filter(t => !TRAITS[t].good)));
+    return traits;
+  },
+  // A trait's effect summed over everyone at home who is up and about (or over everyone alive).
+  traitSum(key, people = this.alive()) {
+    return people.reduce((n, sv) => n + (this.fx(sv)[key] || 0), 0);
   },
   addSurvivor(sv) {
     sv.id = this.state.nextId++;
@@ -78,6 +89,7 @@ const Game = {
   fx(sv) {
     const total = {};
     const add = fx => { for (const [k, v] of Object.entries(fx || {})) total[k] = (total[k] || 0) + v; };
+    for (const t of sv.traits || []) if (TRAITS[t]) add(TRAITS[t].fx);
     const path = sv.path && PATHS[sv.path];
     if (path) {
       add(path.fx);
@@ -138,7 +150,7 @@ const Game = {
   },
   // Returns how many levels were gained.
   addXp(sv, xp) {
-    sv.xp += xp;
+    sv.xp += Math.round(xp * (1 + (this.fx(sv).learn || 0)));
     let gained = 0;
     while (sv.level < LEVEL_XP.length && sv.xp >= LEVEL_XP[sv.level]) {
       sv.level++;
@@ -258,8 +270,59 @@ const Game = {
   site(id) {
     return id === 'base' ? BASE_SITE : SITES[id];
   },
+  // Fuel for the trip, from the church or the nearest outpost that is not under attack.
   fuelCost(siteId) {
-    return Math.ceil(dist(SITES[siteId], BASE_SITE) / FUEL_PER_DISTANCE);
+    const from = [BASE_SITE, ...this.outposts().filter(id => id !== siteId && !this.state.sites[id].siege).map(id => SITES[id])];
+    return Math.ceil(Math.min(...from.map(o => dist(SITES[siteId], o))) / FUEL_PER_DISTANCE);
+  },
+  // --- Outposts ---
+  outposts() {
+    return Object.keys(this.state.sites).filter(id => this.state.sites[id].outpost);
+  },
+  outpostYield(id) {
+    return SITE_TYPES[SITES[id].type].outpost || {};
+  },
+  claimBlocker(id) {
+    const st = this.state.sites[id];
+    if (st.outpost) return 'Already yours';
+    if (id === HIVE_SITE) return 'Nobody can live this close to the Hive';
+    if (!st.visited) return 'Go there first';
+    if (st.infested) return 'Destroy the Plague Heart first';
+    if (this.outposts().length >= OUTPOST_MAX) return `At most ${OUTPOST_MAX} outposts`;
+    if (!this.canAfford(OUTPOST_COST)) return `Needs ${this.costText(OUTPOST_COST)}`;
+    return null;
+  },
+  claim(id) {
+    if (this.claimBlocker(id)) return;
+    this.pay(OUTPOST_COST);
+    const st = this.state.sites[id];
+    st.outpost = true;
+    st.siege = 0;
+    st.stock = 0;
+    this.revealAround(id, 160);
+    this.log(`🚩 ${SITES[id].name} is now an outpost. It sends ${this.costText(this.outpostYield(id))} home every day.`, 'good');
+    this.save();
+    this.emit('change');
+  },
+  abandon(id) {
+    const st = this.state.sites[id];
+    if (!st.outpost) return;
+    st.outpost = false;
+    st.siege = 0;
+    this.log(`🏳️ You pull out of ${SITES[id].name}.`);
+    this.save();
+    this.emit('change');
+  },
+  outpostRisk(id) {
+    const near = this.hearts().filter(h => dist(SITES[h], SITES[id]) <= OUTPOST_HEART_RANGE).length;
+    return OUTPOST_RISK + OUTPOST_RISK_HEART * near;
+  },
+  loseOutpost(id, lines) {
+    const st = this.state.sites[id];
+    st.outpost = false;
+    st.siege = 0;
+    this.state.morale = Math.max(0, this.state.morale - 5);
+    lines.push(`🏚️ The dead overrun ${SITES[id].name}. The outpost is lost.`);
   },
   revealAround(siteId, radius) {
     const found = [];
@@ -278,10 +341,11 @@ const Game = {
   missionKinds(siteId) {
     const s = this.state.sites[siteId];
     const kinds = [];
+    if (s.siege) kinds.push('hold');
     if (siteId === HIVE_SITE && this.state.hiveKnown) kinds.push('hive');
     if (s.infested) kinds.push('clear');
     if (this.state.contacts.some(c => c.site === siteId)) kinds.push('rescue');
-    if (s.stock > 0 && !s.infested) kinds.push('scavenge');
+    if (s.stock > 0 && !s.infested && !s.outpost) kinds.push('scavenge');
     return kinds;
   },
   missionBlocker(siteId, kind, squad) {
@@ -342,7 +406,7 @@ const Game = {
     let deaths = 0;
     for (const u of b.units.filter(u => u.side === 'p')) {
       if (u.npc) {
-        if (u.extracted || (b.kind === 'defend' && u.hp > 0)) {
+        if (u.extracted || (Tactics.siege(b) && u.hp > 0)) {
           const sv = this.addSurvivor(Object.assign(this.makeSurvivor(u.spec, null, 'knife'), { name: u.name }));
           sv.hp = Math.max(1, Math.min(sv.hp, u.hp));
           report.lines.push(`${sv.name} joins you.`);
@@ -353,7 +417,7 @@ const Game = {
       const sv = this.survivor(u.svId);
       sv.missions++;
       // In a siege, those knocked down are carried into the crypt; only the torn apart are lost.
-      const safe = b.kind === 'defend' ? u.hp > 0 || u.downed > 0 : u.extracted;
+      const safe = Tactics.siege(b) ? u.hp > 0 || u.downed > 0 : u.extracted;
       if (!safe) {
         sv.status = 'dead';
         deaths++;
@@ -378,7 +442,7 @@ const Game = {
     this.state.resources.ammo = b.ammo;
     // Unused gear comes home.
     const anyHome = b.units.some(u => u.side === 'p' && !u.npc && u.extracted);
-    if (anyHome || b.kind === 'defend') {
+    if (anyHome || Tactics.siege(b)) {
       for (const [g, n] of Object.entries(b.gear)) this.state.gear[g] = (this.state.gear[g] || 0) + n;
       this.gain(b.bag.resources);
       for (const w of b.bag.weapons) this.state.armory[w] = (this.state.armory[w] || 0) + 1;
@@ -413,6 +477,17 @@ const Game = {
         report.lines.push('Deep inside St. Agnes, you find where it all comes from: the Hive.');
       }
     }
+    if (b.kind === 'hold') {
+      const st = this.state.sites[b.siteId];
+      if (report.won) {
+        st.siege = 0;
+        report.lines.push(`🚩 ${SITES[b.siteId].name} holds. The outpost is safe.`);
+      } else {
+        const lines = [];
+        this.loseOutpost(b.siteId, lines);
+        report.lines.push(...lines);
+      }
+    }
     if (b.kind === 'defend') {
       if (report.won) {
         report.lines.push('The horde breaks against your walls and drifts away.');
@@ -424,7 +499,7 @@ const Game = {
         report.lines.push('The dead pour through the church. You lose half of everything before you drive them out.');
       }
     }
-    this.log(`${b.kind === 'defend' ? 'The siege' : `The mission to ${SITES[b.siteId].name}`} ${report.won ? 'succeeded' : 'failed'}.`, report.won ? 'good' : 'bad');
+    this.log(`${b.kind === 'defend' ? 'The siege' : b.kind === 'hold' ? `The defence of ${SITES[b.siteId].name}` : `The mission to ${SITES[b.siteId].name}`} ${report.won ? 'succeeded' : 'failed'}.`, report.won ? 'good' : 'bad');
     this.state.battle = null;
     this.checkLost();
     this.save();
@@ -439,7 +514,7 @@ const Game = {
     const lines = [];
     const people = this.alive();
     // Food.
-    const eat = people.length * DAILY_FOOD;
+    const eat = people.length * DAILY_FOOD + this.traitSum('eats', people);
     if (s.resources.food >= eat) {
       s.resources.food -= eat;
     } else {
@@ -453,9 +528,19 @@ const Game = {
       s.resources.food += grown;
       lines.push(`🌱 The garden gives ${grown} food.`);
     }
+    // Outposts send supplies home, unless they are under attack.
+    const income = {};
+    for (const id of this.outposts()) {
+      if (s.sites[id].siege) continue;
+      for (const [r, n] of Object.entries(this.outpostYield(id))) income[r] = (income[r] || 0) + n;
+    }
+    if (Object.keys(income).length) {
+      this.gain(income);
+      lines.push(`🚩 The outposts send home ${this.costText(income)}.`);
+    }
     // Building, sped up by engineers at home.
     if (s.building) {
-      const builders = this.ready().filter(sv => SPECIALTIES[sv.spec].builder).length;
+      const builders = this.ready().filter(sv => SPECIALTIES[sv.spec].builder).length + this.traitSum('builder', this.ready());
       s.building.daysLeft -= 1 + builders;
       if (s.building.daysLeft <= 0) {
         lines.push(`🛠️ ${FACILITIES[s.building.id].name} ${s.building.level > 1 ? `is now level ${s.building.level}` : 'is finished'}.`);
@@ -466,7 +551,9 @@ const Game = {
     const medics = this.ready().some(sv => SPECIALTIES[sv.spec].healBonus) ? 1 : 0;
     for (const sv of people) {
       if (sv.injured) {
-        sv.injured = Math.max(0, sv.injured - 1 - (this.facility('infirmary').heal || 0) - medics);
+        // A slow healer only mends every other day.
+        const slow = this.fx(sv).slowHeal && s.day % 2 === 0;
+        sv.injured = slow ? sv.injured : Math.max(0, sv.injured - 1 - (this.facility('infirmary').heal || 0) - medics);
         if (!sv.injured) lines.push(`🩹 ${sv.name} is back on their feet.`);
       }
       sv.hp = Math.min(this.maxHp(sv), sv.hp + 2 + (this.facility('infirmary').heal || 0) * 2);
@@ -481,6 +568,8 @@ const Game = {
       }
     }
     // Morale.
+    const cheer = this.traitSum('cheer', this.alive());
+    s.morale += cheer;
     if (people.length > this.beds()) {
       s.morale -= 3;
       lines.push('🛏️ There are not enough beds. Tempers fray.');
@@ -510,10 +599,22 @@ const Game = {
     s.contacts = s.contacts.filter(c => c.days > 0);
     // The plague spreads.
     if (this.hearts().length < MAX_HEARTS && Math.random() < HEART_CHANCE) {
-      const options = Object.keys(SITES).filter(id => !s.sites[id].infested && id !== HIVE_SITE);
+      const options = Object.keys(SITES).filter(id => !s.sites[id].infested && !s.sites[id].outpost && id !== HIVE_SITE);
       const site = pick(options);
       s.sites[site].infested = true;
       if (s.sites[site].known) lines.push(`🫀 The dead are gathering at ${SITES[site].name}. Something has taken root there.`);
+    }
+    // The dead come for the outposts. Send help in time, or lose them.
+    for (const id of this.outposts()) {
+      const st = s.sites[id];
+      if (st.siege) {
+        st.siege--;
+        if (!st.siege) this.loseOutpost(id, lines);
+        else lines.push(`⚔️ ${SITES[id].name} is still under attack. Send help today or lose it.`);
+      } else if (Math.random() < this.outpostRisk(id)) {
+        st.siege = OUTPOST_SIEGE_DAYS;
+        lines.push(`⚔️ The dead are at ${SITES[id].name}! Send a squad within ${OUTPOST_SIEGE_DAYS} days or the outpost falls.`);
+      }
     }
     s.threat += this.threatPerDay();
     s.day++;
@@ -551,7 +652,10 @@ const Game = {
     if (raw) {
       try {
         this.state = JSON.parse(raw);
-        for (const sv of this.state.survivors) sv.perks = sv.perks || [];
+        for (const sv of this.state.survivors) {
+          sv.perks = sv.perks || [];
+          sv.traits = sv.traits || this.rollTraits();
+        }
         return true;
       } catch (e) {
         console.warn('Broken save, starting over', e);

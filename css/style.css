@@ -330,3 +330,17 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--b
 
 /* Debug tools on the log tab */
 .debug-grid { display: grid; grid-template-columns: auto auto auto; justify-content: start; align-items: center; gap: .3rem .5rem; margin-bottom: .5rem; }
+
+/* Traits */
+.traits { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0; }
+.trait { font-size: .75rem; border: 1px solid var(--border); border-radius: 10px; padding: .05rem .45rem; background: var(--panel); cursor: help; }
+.trait.good { border-color: #4f6b42; }
+.trait.flaw { border-color: #6b4242; }
+.trait-desc { color: var(--muted); }
+.cards .trait-desc { display: none; }
+
+/* Outposts */
+.outpost-box { border: 1px dashed var(--accent-dim); border-radius: 6px; padding: .45rem .6rem; margin: .5rem 0; font-size: .85rem; }
+.outpost-box.siege { border: 1px solid var(--bad); }
+.pin.outpost .sign { border-color: var(--accent); }
+.pin.under-siege .sign { border-color: var(--bad); animation: glow 1.2s ease-in-out infinite; }

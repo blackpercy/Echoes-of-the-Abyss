@@ -1,6 +1,6 @@
 // Holdout: game data. Survivors, weapons, the dead, base facilities and the region around the base.
 
-const GAME_VERSION = '9';
+const GAME_VERSION = '10';
 
 // --- Resources ---
 const RESOURCES = {
@@ -22,6 +22,28 @@ const SPECIALTIES = {
   medic: { name: 'Medic', icon: '🩺', desc: 'Heals for twice as much in the field. At home, injured survivors recover a day faster.', healBonus: true },
   engineer: { name: 'Engineer', icon: '🔧', desc: 'Searches crates for more materials. At home, speeds up building by a day\'s work each day.', builder: true },
 };
+// Traits: everyone arrives with one strength, and often a flaw. fx works like the skill tree's (see skills.js);
+// eats, cheer, learn, builder and slowHeal are read at home, the rest in battle.
+const TRAITS = {
+  tough: { name: 'Tough', icon: '💪', good: true, desc: '+2 hitpoints.', fx: { hp: 2 } },
+  ex_cop: { name: 'Former Cop', icon: '👮', good: true, desc: '+8 aim.', fx: { aim: 8 } },
+  athlete: { name: 'Athlete', icon: '🏃', good: true, desc: '+1 movement.', fx: { move: 1 } },
+  light_step: { name: 'Light Step', icon: '🐾', good: true, desc: 'The dead notice them a tile later.', fx: { stealth: 1 } },
+  scrounger: { name: 'Scrounger', icon: '🔍', good: true, desc: 'Finds one more of something in every crate.', fx: { loot: 1 } },
+  handy: { name: 'Handy', icon: '🪛', good: true, desc: 'At home, adds a day\'s work to building each day.', fx: { builder: 1 } },
+  cheerful: { name: 'Cheerful', icon: '😄', good: true, desc: '+1 morale every day.', fx: { cheer: 1 } },
+  quick_study: { name: 'Quick Study', icon: '📚', good: true, desc: '+50% xp.', fx: { learn: 0.5 } },
+  hardy: { name: 'Hardy', icon: '🛡️', good: true, desc: 'Shrugs off half of the bites that would give them the Blood Plague.', fx: { resist: 0.5 } },
+  bar_fighter: { name: 'Bar Fighter', icon: '🍺', good: true, desc: '+1 melee damage and +10 to hit in melee.', fx: { meleeDmg: 1, meleeHit: 10 } },
+  glutton: { name: 'Glutton', icon: '🍗', good: false, desc: 'Eats an extra food every day.', fx: { eats: 1 } },
+  shaky: { name: 'Shaky Hands', icon: '🫨', good: false, desc: '−8 aim.', fx: { aim: -8 } },
+  loud: { name: 'Loud', icon: '📢', good: false, desc: 'The dead notice them a tile sooner.', fx: { stealth: -1 } },
+  frail: { name: 'Frail', icon: '🦴', good: false, desc: '−2 hitpoints.', fx: { hp: -2 } },
+  squeamish: { name: 'Squeamish', icon: '😖', good: false, desc: '−15 to hit in melee.', fx: { meleeHit: -15 } },
+  gloomy: { name: 'Gloomy', icon: '🌧️', good: false, desc: '−1 morale every day.', fx: { cheer: -1 } },
+  slow_healer: { name: 'Slow Healer', icon: '🩼', good: false, desc: 'Injuries take a day longer to heal.', fx: { slowHeal: 1 } },
+};
+const FLAW_CHANCE = 0.6;         // chance a new survivor also has a flaw
 // Levels and the skill tree are in skills.js.
 
 // --- Weapons ---
@@ -109,17 +131,17 @@ const CRAFTS = {
 // --- The region ---
 // Site types: what they hold, how dangerous they are, and what lives there.
 const SITE_TYPES = {
-  houses: { name: 'Houses', icon: '🏘️', loot: { food: [2, 4], materials: [1, 3], medicine: [0, 1] }, danger: 1, crates: 4, weapons: ['knife', 'bat'] },
-  diner: { name: 'Diner', icon: '🍔', loot: { food: [3, 6] }, danger: 1, crates: 3, weapons: ['knife'] },
-  gas_station: { name: 'Gas Station', icon: '⛽', loot: { fuel: [2, 4], food: [1, 2] }, danger: 1, crates: 3, weapons: ['bat'] },
-  farm: { name: 'Farm', icon: '🚜', loot: { food: [3, 6], materials: [1, 2] }, danger: 1, crates: 4, weapons: ['axe', 'shotgun'] },
-  hardware: { name: 'Hardware Store', icon: '🔨', loot: { materials: [3, 6] }, danger: 2, crates: 4, weapons: ['axe', 'sledge', 'machete'] },
-  pharmacy: { name: 'Pharmacy', icon: '💊', loot: { medicine: [2, 4] }, danger: 2, crates: 3, weapons: [] },
-  school: { name: 'School', icon: '🏫', loot: { food: [1, 3], materials: [1, 3], medicine: [0, 2] }, danger: 2, crates: 5, weapons: ['bat'] },
-  police: { name: 'Police Station', icon: '🚓', loot: { ammo: [4, 8], medicine: [0, 1] }, danger: 3, crates: 4, weapons: ['revolver', 'shotgun', 'smg'], raiders: true },
-  warehouse: { name: 'Warehouse', icon: '🏭', loot: { materials: [3, 6], fuel: [1, 3] }, danger: 3, crates: 5, weapons: ['sledge'], raiders: true },
-  hospital: { name: 'Hospital', icon: '🏥', loot: { medicine: [3, 6] }, danger: 4, crates: 5, weapons: ['knife'] },
-  checkpoint: { name: 'Army Checkpoint', icon: '🪖', loot: { ammo: [6, 12], fuel: [1, 3] }, danger: 5, crates: 4, weapons: ['assault', 'rifle', 'smg'], raiders: true },
+  houses: { name: 'Houses', icon: '🏘️', loot: { food: [2, 4], materials: [1, 3], medicine: [0, 1] }, danger: 1, crates: 4, weapons: ['knife', 'bat'], outpost: { food: 1, materials: 1 } },
+  diner: { name: 'Diner', icon: '🍔', loot: { food: [3, 6] }, danger: 1, crates: 3, weapons: ['knife'], outpost: { food: 2 } },
+  gas_station: { name: 'Gas Station', icon: '⛽', loot: { fuel: [2, 4], food: [1, 2] }, danger: 1, crates: 3, weapons: ['bat'], outpost: { fuel: 1 } },
+  farm: { name: 'Farm', icon: '🚜', loot: { food: [3, 6], materials: [1, 2] }, danger: 1, crates: 4, weapons: ['axe', 'shotgun'], outpost: { food: 3 } },
+  hardware: { name: 'Hardware Store', icon: '🔨', loot: { materials: [3, 6] }, danger: 2, crates: 4, weapons: ['axe', 'sledge', 'machete'], outpost: { materials: 2 } },
+  pharmacy: { name: 'Pharmacy', icon: '💊', loot: { medicine: [2, 4] }, danger: 2, crates: 3, weapons: [], outpost: { medicine: 1 } },
+  school: { name: 'School', icon: '🏫', loot: { food: [1, 3], materials: [1, 3], medicine: [0, 2] }, danger: 2, crates: 5, weapons: ['bat'], outpost: { food: 1, materials: 1 } },
+  police: { name: 'Police Station', icon: '🚓', loot: { ammo: [4, 8], medicine: [0, 1] }, danger: 3, crates: 4, weapons: ['revolver', 'shotgun', 'smg'], raiders: true, outpost: { ammo: 3 } },
+  warehouse: { name: 'Warehouse', icon: '🏭', loot: { materials: [3, 6], fuel: [1, 3] }, danger: 3, crates: 5, weapons: ['sledge'], raiders: true, outpost: { materials: 2, fuel: 1 } },
+  hospital: { name: 'Hospital', icon: '🏥', loot: { medicine: [3, 6] }, danger: 4, crates: 5, weapons: ['knife'], outpost: { medicine: 2 } },
+  checkpoint: { name: 'Army Checkpoint', icon: '🪖', loot: { ammo: [6, 12], fuel: [1, 3] }, danger: 5, crates: 4, weapons: ['assault', 'rifle', 'smg'], raiders: true, outpost: { ammo: 4, fuel: 1 } },
 };
 // The map of Marrow Creek. x/y on a 1000 × 700 map. stock: how many missions' worth of loot is left.
 const BASE_SITE = { name: 'Grace Hill Church', icon: '⛪', x: 500, y: 350 };
@@ -141,6 +163,13 @@ const SITES = {
 };
 // The source of it all: once found, destroying it ends the plague in Marrow Creek.
 const HIVE_SITE = 'hospital';
+// Outposts: claim a place you have been to and it sends supplies home every day, until the dead take it back.
+const OUTPOST_COST = { materials: 10 };
+const OUTPOST_MAX = 3;
+const OUTPOST_RISK = 0.04;          // chance each day an outpost is attacked...
+const OUTPOST_RISK_HEART = 0.06;    // ...plus this for every Plague Heart within OUTPOST_HEART_RANGE
+const OUTPOST_HEART_RANGE = 260;
+const OUTPOST_SIEGE_DAYS = 2;       // days to send help before an attacked outpost falls
 const FUEL_PER_DISTANCE = 250;   // one fuel for every this many map units to a site (rounded up), there and back
 const START_REVEAL = 200;        // sites this close to the base are known at the start
 

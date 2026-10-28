@@ -25,7 +25,7 @@ const Tactics = {
       turn: 1, log: [], bag: { resources: {}, weapons: [] }, gear: gear || {}, ammo: Game.state.resources.ammo,
       noise: 0, noiseMade: 0, kills: 0, result: null, heartKilled: false, lootTaken: false, flare: null, waves: null,
     };
-    if (kind === 'defend') this.makeBase(b);
+    if (this.siege(b)) this.makeBase(b);
     else this.makeSite(b);
     // Your people start at the bottom, where you came in.
     const starts = this.startTiles(b, squad.length);
@@ -37,7 +37,7 @@ const Tactics = {
         gun: sv.gun, melee: sv.melee, clip: gun ? gun.clip : 0, kills: 0, xp: 0, fx: Game.fx(sv),
       });
     });
-    this.addLog(b, kind === 'defend' ? 'They are coming. Hold the walls.' : this.objective(b));
+    this.addLog(b, this.siege(b) ? 'They are coming. Hold the barricades.' : this.objective(b));
     this.updateAwareness(b);
     return b;
   },
@@ -48,7 +48,12 @@ const Tactics = {
       hive: 'Destroy the Hive (🫀) at the heart of the hospital.',
       rescue: 'Reach the survivor and get them out with you.',
       defend: 'Hold out until every wave is beaten.',
+      hold: 'Hold the outpost until every wave is beaten.',
     }[b.kind];
+  },
+  // Sieges: the church, or an outpost under attack. Waves come from the top; nobody leaves.
+  siege(b) {
+    return b.kind === 'defend' || b.kind === 'hold';
   },
   tile(b, x, y) {
     return x < 0 || y < 0 || x >= b.w || y >= b.h ? '#' : b.tiles[y][x];
@@ -150,11 +155,12 @@ const Tactics = {
       this.addLog(b, 'You hear voices. Living ones. Armed.');
     }
   },
-  // The church on Grace Hill: walls with barricaded gaps across the middle, the dead coming from the top.
+  // The church on Grace Hill (or an outpost): walls with barricaded gaps across the middle, the dead coming from the top.
   makeBase(b) {
+    const outpost = b.kind === 'hold';
     for (let y = 0; y < b.h; y++) b.tiles.push('.'.repeat(b.w));
     const wallY = 6;
-    const hp = Game.facility('walls').barricade || 6;
+    const hp = outpost ? 4 : Game.facility('walls').barricade || 6;
     for (let x = 0; x < b.w; x++) {
       if (x % 4 === 1 || x % 4 === 2) {
         this.setTile(b, x, wallY, 'b');
@@ -163,15 +169,17 @@ const Tactics = {
         this.setTile(b, x, wallY, '#');
       }
     }
-    // The church itself, at the bottom.
-    for (let x = 2; x < b.w - 2; x++) this.setTile(b, x, b.h - 3, '#');
-    this.setTile(b, Math.floor(b.w / 2), b.h - 3, '.');
+    // The church itself, at the bottom; an outpost is just a few cars and some junk behind its barricades.
+    if (!outpost) {
+      for (let x = 2; x < b.w - 2; x++) this.setTile(b, x, b.h - 3, '#');
+      this.setTile(b, Math.floor(b.w / 2), b.h - 3, '.');
+    }
     for (const [x, y] of [[1, 8], [4, 9], [7, 8], [10, 9], [3, 11], [8, 11]]) this.setTile(b, x, y, 'c');
-    b.waves = { left: 3, nextTurn: 1, size: 3 + Math.floor(Game.state.day / 5) };
+    b.waves = outpost ? { left: 2, nextTurn: 1, size: 2 + Math.floor(Game.state.day / 6) } : { left: 3, nextTurn: 1, size: 3 + Math.floor(Game.state.day / 5) };
   },
   startTiles(b, n) {
     const tiles = [];
-    const rows = b.kind === 'defend' ? [9, 10, 11] : [b.h - 1, b.h - 2];
+    const rows = this.siege(b) ? [9, 10, 11] : [b.h - 1, b.h - 2];
     for (const y of rows) for (let x = 0; x < b.w; x++) if (this.open(b, x, y)) tiles.push({ x, y });
     tiles.sort((a, c) => Math.abs(a.x - b.w / 2) - Math.abs(c.x - b.w / 2));
     return tiles.slice(0, n);
@@ -511,7 +519,7 @@ const Tactics = {
       return;
     }
     u.hp -= dmg;
-    if (by && ENEMIES[by.type] && !this.fx(u, 'immune') && Math.random() < ENEMIES[by.type].infect) {
+    if (by && ENEMIES[by.type] && !this.fx(u, 'immune') && Math.random() < ENEMIES[by.type].infect && !(Math.random() < this.fx(u, 'resist'))) {
       u.infected = true;
       this.addLog(b, `🦠 ${u.name.split(' ')[0]} is bitten. The wound looks wrong.`);
     }
@@ -571,8 +579,10 @@ const Tactics = {
     b.lootTaken = true;
     const type = b.siteId === 'base' ? null : SITE_TYPES[SITES[b.siteId].type];
     const found = [];
+    // A scrounger turns up one more of something.
+    const extra = type && this.fx(u, 'loot') ? pick(Object.keys(type.loot)) : null;
     for (const [res, [min, max]] of Object.entries(type ? type.loot : {})) {
-      let n = randInt(min, max);
+      let n = randInt(min, max) + (res === extra ? this.fx(u, 'loot') : 0);
       if (res === 'materials' && SPECIALTIES[u.spec].builder) n += 1;
       if (n > 0) {
         b.bag.resources[res] = (b.bag.resources[res] || 0) + n;
@@ -639,7 +649,7 @@ const Tactics = {
   },
   // Leave the map from the green tiles where you came in.
   canExtract(b, u) {
-    return b.kind !== 'defend' && u.ap > 0 && this.tile(b, u.x, u.y) === 'x';
+    return !this.siege(b) && u.ap > 0 && this.tile(b, u.x, u.y) === 'x';
   },
   extract(b, u) {
     if (!this.canExtract(b, u)) return false;
@@ -677,9 +687,9 @@ const Tactics = {
     // The watchtower lookout picks off what it can.
     if (b.kind === 'defend') this.lookout(b);
     // Noise and time bring more of the dead (in a siege, they are all coming anyway).
-    let spawns = b.kind === 'defend' ? 0 : Math.floor(b.noise / NOISE_PER_SPAWN);
-    if (b.kind !== 'defend') b.noise -= spawns * NOISE_PER_SPAWN;
-    if (b.kind !== 'defend' && b.turn % AMBIENT_EVERY === 0) spawns++;
+    let spawns = this.siege(b) ? 0 : Math.floor(b.noise / NOISE_PER_SPAWN);
+    if (!this.siege(b)) b.noise -= spawns * NOISE_PER_SPAWN;
+    if (!this.siege(b) && b.turn % AMBIENT_EVERY === 0) spawns++;
     for (let i = 0; i < spawns && this.enemies(b).length < MAX_MAP_ENEMIES; i++) this.spawnAtEdge(b, pick(['walker', 'walker', 'runner']), 'Drawn by the noise, ');
     if (b.waves) this.nextWave(b);
     for (const e of this.enemies(b)) {
@@ -714,7 +724,7 @@ const Tactics = {
     if (Game.state.day >= 8) pool.push('feral');
     if (Game.state.day >= 14) pool.push('juggernaut');
     for (let i = 0; i < w.size; i++) this.spawnAtEdge(b, pick(pool), null, true);
-    this.addLog(b, `📯 A wave of ${w.size} comes up the hill.${w.left ? ` ${w.left} more to come.` : ' The last of them.'}`);
+    this.addLog(b, `📯 A wave of ${w.size} comes ${b.kind === 'hold' ? 'at the barricades' : 'up the hill'}.${w.left ? ` ${w.left} more to come.` : ' The last of them.'}`);
   },
   spawnAtEdge(b, type, why, topOnly = false) {
     for (let i = 0; i < 40; i++) {
@@ -911,7 +921,7 @@ const Tactics = {
   checkEnd(b) {
     if (b.result) return;
     const active = b.units.filter(u => u.side === 'p' && !u.npc && this.onMap(u));
-    if (b.kind === 'defend') {
+    if (this.siege(b)) {
       if (!active.some(u => u.hp > 0)) {
         b.result = 'lost';
         this.addLog(b, 'The last defender falls.');
