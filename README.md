@@ -26,7 +26,7 @@ Open `index.html` in a browser, or host the folder on GitHub Pages. Plain HTML, 
 - Missions cost fuel by distance. Places run out of supplies. Missions reveal more of the map.
 
 ### Missions (turn-based)
-- A 12 × 16 grid with buildings, cars, crates and fog of war.
+- An **isometric 2.5D** battlefield: a 12 × 16 grid with raised walls, cars, crates and barricades, standing figures and fog of war. Zoom in and scroll on small screens, or switch to a flat top-down view.
 - Each survivor has **two actions**: move (or run with both), reload, search a crate, heal, throw, leave. **Shooting ends the turn.**
 - **Cover:** cars and crates give half cover, walls full cover. It matters against raiders.
 - **Noise:** gunfire wakes sleeping dead and draws more in from the edges. Melee and suppressed weapons are quiet.

@@ -14,6 +14,12 @@ const UI = {
   init() {
     document.body.addEventListener('click', e => this.onClick(e));
     document.body.addEventListener('change', e => this.onChange(e));
+    // The isometric grid is sized to the screen, so redraw it when the screen changes.
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => Game.state.battle && this.render(), 150);
+    });
     Game.listeners.push(type => {
       if (type === 'reset') {
         this.tab = 'base';
@@ -91,6 +97,15 @@ const UI = {
       case 'extract': this.act(b, () => Tactics.extract(b, this.unit(b))); break;
       case 'heal-self': this.act(b, () => Tactics.heal(b, this.unit(b), this.unit(b))); break;
       case 'next': this.selectNext(b); break;
+      case 'zoom':
+        Game.state.zoom = Math.max(1, Math.min(2.6, Math.round((this.zoom() + 0.3 * +d.step) * 10) / 10));
+        Game.save();
+        this.followSel = true;
+        break;
+      case 'view':
+        Game.state.view = Game.state.view === 'flat' ? 'iso' : 'flat';
+        Game.save();
+        break;
       case 'end-turn':
         Tactics.endTurn(b);
         this.target = null;
@@ -176,7 +191,15 @@ const UI = {
     const scroll = main.scrollTop;
     if (s.battle) {
       if (!this.unit(s.battle)) this.selectNext(s.battle);
+      const wrap = document.getElementById('iso-wrap');
+      const keep = wrap && [wrap.scrollLeft, wrap.scrollTop];
       main.innerHTML = this.battleView(s.battle);
+      // Follow the survivor whose turn it is; otherwise leave the view where the player put it.
+      const next = document.getElementById('iso-wrap');
+      if (next && keep && this.lastSel === this.sel && !this.followSel) [next.scrollLeft, next.scrollTop] = keep;
+      else this.scrollToSelected(s.battle);
+      this.lastSel = this.sel;
+      this.followSel = false;
     } else {
       main.innerHTML = this.tabs() + ({ base: () => this.baseView(), people: () => this.peopleView(), map: () => this.mapView(), log: () => this.logView() })[this.tab]();
       if (Game.hordeHere() && !document.querySelector('#modal .defend')) this.showDefense();
@@ -323,6 +346,7 @@ const UI = {
     let reach = new Map();
     if (u && this.mode === 'move' && !b.result) reach = Tactics.reach(b, u, u.move * Math.min(2, u.ap));
     const target = this.target ? this.unitById(b, this.target) : null;
+    const iso = Game.state.view !== 'flat';
     let grid = '';
     for (let y = 0; y < b.h; y++) {
       for (let x = 0; x < b.w; x++) {
@@ -336,9 +360,12 @@ const UI = {
         if ((this.mode === 'bomb' || this.mode === 'flare') && u && Tactics.canThrow(b, u, x, y)) cls.push('throwable');
         let inner = '';
         const crate = Tactics.crateAt(b, x, y);
-        if (crate) inner = `<span class="obj">${crate.open ? '▫️' : '📦'}</span>`;
-        if (t === 'b') inner = `<span class="obj">🚧</span><span class="hpnum">${b.barricades[key]}</span>`;
-        if (b.flare && b.flare.x === x && b.flare.y === y) inner += '<span class="obj">🎆</span>';
+        // In the isometric view, walls, cars, crates and barricades are raised blocks.
+        if (iso && t === '#') inner = this.block('wall', '');
+        if (iso && t === 'c') inner = this.block('car', '🚗');
+        if (crate) inner = iso ? (crate.open ? this.block('crate open', '') : this.block('crate', '📦')) : `<span class="obj">${crate.open ? '▫️' : '📦'}</span>`;
+        if (t === 'b') inner = iso ? this.block('barricade', `<span class="hpnum">${b.barricades[key]}</span>`) : `<span class="obj">🚧</span><span class="hpnum">${b.barricades[key]}</span>`;
+        if (b.flare && b.flare.x === x && b.flare.y === y) inner += iso ? '<span class="stand"><span class="obj">🎆</span></span>' : '<span class="obj">🎆</span>';
         const unit = Tactics.unitAt(b, x, y);
         if (unit && (unit.side === 'p' || seen)) {
           const def = unit.side === 'e' ? ENEMIES[unit.type] : null;
@@ -349,20 +376,52 @@ const UI = {
           if (unit.waiting) ucls.push('waiting');
           if (target && target.id === unit.id) ucls.push('targeted');
           const chance = unit.side === 'e' && u && !b.result ? this.chanceLabel(b, u, unit) : '';
-          inner = `<span class="${ucls.join(' ')}" title="${esc(unit.name)}">${unit.downed ? '🩸' : unit.icon}${unit.overwatch ? '<i class="ow">👁</i>' : ''}${def && def.heart ? '' : ''}<span class="hpbar"><span style="width:${Math.max(0, unit.hp / unit.maxHp * 100)}%"></span></span>${chance}</span>`;
+          const token = `<span class="${ucls.join(' ')}" title="${esc(unit.name)}">${unit.downed ? '🩸' : unit.icon}${unit.overwatch ? '<i class="ow">👁</i>' : ''}<span class="hpbar"><span style="width:${Math.max(0, unit.hp / unit.maxHp * 100)}%"></span></span>${chance}</span>`;
+          // Standing figures face the camera; a ring on the floor marks the selected one.
+          inner = iso ? `${inner}<span class="ring ${ucls.slice(1).join(' ')}"></span><span class="stand">${token}</span>` : token;
         }
-        grid += `<button class="${cls.join(' ')}" data-act="tile" data-x="${x}" data-y="${y}">${inner}</button>`;
+        grid += `<div class="${cls.join(' ')}" role="button" data-act="tile" data-x="${x}" data-y="${y}">${inner}</div>`;
       }
     }
     const bag = Object.entries(b.bag.resources).filter(([, n]) => n).map(([r, n]) => `${RESOURCES[r].icon}${n}`).concat(b.bag.weapons.map(w => WEAPONS[w].icon)).join(' ') || '—';
     const noise = Math.round(b.noise / NOISE_PER_SPAWN * 100);
     return `<section class="battle">
       <div class="bhead"><b>${title}</b> <span class="muted small">turn ${b.turn}</span>
+        <span class="view-toggle">${iso ? `<button class="btn small" data-act="zoom" data-step="-1" title="Zoom out">−</button><button class="btn small" data-act="zoom" data-step="1" title="Zoom in">＋</button> ` : ''}<button class="btn small" data-act="view" title="Switch between the isometric and the flat view">${iso ? '▦ Flat' : '🧊 Isometric'}</button></span>
         <div class="small">${esc(Tactics.objective(b))}</div>
         <div class="small">🔫 ammo ${b.ammo} · ${Object.entries(GEAR).map(([g, def]) => `${def.icon}${b.gear[g] || 0}`).join(' ')} · 🎒 ${bag} · <span title="Gunfire draws more of the dead">🔊 noise <span class="meter inline"><span class="fill" style="width:${Math.min(100, noise)}%"></span></span></span>${b.waves ? ` · 📯 ${b.waves.left} waves left` : ''}</div></div>
-      <div class="grid" style="--cols:${b.w}">${grid}</div>
+      ${iso ? `<div class="iso-wrap" id="iso-wrap"><div class="iso-sizer" style="${this.isoSize(b)}"><div class="grid iso" style="--cols:${b.w}">${grid}</div></div></div>` : `<div class="grid flat" style="--cols:${b.w}">${grid}</div>`}
       ${b.result ? this.resultPanel(b) : this.actionPanel(b, u, target)}
       <div class="blog">${b.log.slice(0, 8).map(l => `<div>${esc(l)}</div>`).join('')}</div></section>`;
+  },
+  // A raised block with a top and the two sides that face the camera.
+  block(kind, top) {
+    return `<span class="block ${kind}"><i class="fs"></i><i class="fw"></i><i class="top">${top}</i></span>`;
+  },
+  // Zoom for the isometric view: fitted to the screen at 1, bigger and scrollable above that.
+  zoom() {
+    return Game.state.zoom || (window.innerWidth < 600 ? 1.6 : 1);
+  },
+  // Tile size and room for the tilted grid.
+  isoSize(b) {
+    const avail = Math.min(document.getElementById('main').clientWidth || window.innerWidth, 980) - 12;
+    const fit = Math.max(14, Math.min(46, Math.floor(avail / ((b.w + b.h) * Math.SQRT1_2))));
+    const t = Math.round(fit * this.zoom());
+    const w = Math.round((b.w + b.h) * t * Math.SQRT1_2 + t);
+    const h = Math.round((b.w + b.h) * t * Math.SQRT1_2 * 0.5 + t * 1.8);
+    return `--t:${t}px;--rows:${b.h};width:${w}px;height:${h}px`;
+  },
+  // Keep the selected survivor in view when the map is bigger than the screen.
+  scrollToSelected(b) {
+    const wrap = document.getElementById('iso-wrap');
+    const u = this.unit(b);
+    if (!wrap || !u || wrap.scrollWidth <= wrap.clientWidth + 2) return;
+    const sizer = wrap.firstElementChild;
+    const t = parseFloat(getComputedStyle(sizer).getPropertyValue('--t'));
+    const lx = (u.x + 0.5) * t - b.w * t / 2, ly = (u.y + 0.5) * t - b.h * t / 2;
+    const sx = Math.SQRT1_2 * (lx + ly), sy = Math.SQRT1_2 * (ly - lx) * 0.5 + t * 0.45;
+    wrap.scrollLeft = sizer.offsetWidth / 2 + sx - wrap.clientWidth / 2;
+    wrap.scrollTop = sizer.offsetHeight / 2 + sy - wrap.clientHeight / 2;
   },
   chanceLabel(b, u, e) {
     if (this.mode === 'move' || this.mode === 'shoot') {
