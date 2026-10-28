@@ -12,6 +12,7 @@ Open `index.html` in a browser, or host the folder on GitHub Pages. Plain HTML, 
 ## How it works
 
 ### The base (one day at a time)
+- The church and its yard are drawn in **2.5D**: the walls rise with every level, buildings grow taller as you upgrade them, scaffolding marks what is being built, and your ready survivors stand in the yard. Tap a building or an empty plot to jump to it.
 - **Survivors** each have a specialty (Fighter, Sharpshooter, Scout, Medic, Engineer), hitpoints, aim, a gun and a melee weapon, and rise in rank with kills.
 - **Resources:** food, materials, medicine, ammo and fuel. Everyone eats every day.
 - **Facilities:** Bunks, Garden, Infirmary, Workshop, Watchtower, Walls and Radio Tower, built and upgraded with materials over several days. Engineers at home build faster.
@@ -21,6 +22,7 @@ Open `index.html` in a browser, or host the folder on GitHub Pages. Plain HTML, 
 - **The horde** grows every day, faster with every Plague Heart in town and every noisy mission. At 100 it attacks the church.
 
 ### The region
+- The region is a **map laid on a table**, tilted in 2.5D, with every known place standing up from it on a signpost.
 - A map of Marrow Creek: houses, a diner, a gas station, a farm, a hardware store, a pharmacy, a school, a police station, a warehouse, a hospital and an army checkpoint.
 - One mission a day: **scavenge**, **destroy a Plague Heart**, **rescue** someone who called on the radio, or **destroy the Hive** at the hospital to win.
 - Missions cost fuel by distance. Places run out of supplies. Missions reveal more of the map.

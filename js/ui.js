@@ -33,7 +33,9 @@ const UI = {
 
   // --- Clicks ---
   onClick(e) {
-    const el = e.target.closest('[data-act]');
+    // Browsers sometimes hand a tap on a tilted grid to the grid itself; work out the tile from where it landed.
+    const grid = e.target.classList && e.target.classList.contains('iso') ? e.target : null;
+    const el = grid ? this.tileAtPoint(grid, e.clientX, e.clientY) : e.target.closest('[data-act]');
     if (!el) return;
     const d = el.dataset;
     const b = Game.state.battle;
@@ -47,6 +49,14 @@ const UI = {
       case 'build': Game.build(d.id); break;
       case 'craft': Game.craft(d.id); break;
       case 'cure': Game.cure(+d.id); break;
+      case 'pick-fac':
+        this.facSel = d.id || null;
+        this.render();
+        if (d.id) {
+          const card = document.getElementById(`fac-${d.id}`);
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        return;
       case 'site':
         this.mapSel = d.id;
         this.plan = { kind: Game.missionKinds(d.id)[0] || null, squad: [], gear: {} };
@@ -128,6 +138,22 @@ const UI = {
     if (el.dataset.equip) Game.equip(+el.dataset.equip, el.dataset.slot, el.value || null);
   },
 
+  // The tile under a point on an isometric grid: undo the tilt and the turn.
+  tileAtPoint(grid, px, py) {
+    const sizer = grid.parentElement;
+    const r = sizer.getBoundingClientRect();
+    const t = parseFloat(getComputedStyle(sizer).getPropertyValue('--t'));
+    const cols = +getComputedStyle(grid).getPropertyValue('--cols');
+    const rows = +getComputedStyle(sizer).getPropertyValue('--rows');
+    const sx = px - (r.left + r.width / 2);
+    const sy = (py - (r.top + r.height / 2 + t * 0.45)) / 0.5;
+    const lx = Math.SQRT1_2 * (sx - sy) + cols * t / 2;
+    const ly = Math.SQRT1_2 * (sx + sy) + rows * t / 2;
+    const x = Math.floor(lx / t), y = Math.floor(ly / t);
+    if (x < 0 || y < 0 || x >= cols || y >= rows) return null;
+    return grid.children[y * cols + x] || null;
+  },
+
   // --- Battle helpers ---
   unit(b) {
     return b && b.units.find(u => u.id === this.sel && Tactics.onMap(u) && u.side === 'p');
@@ -202,6 +228,13 @@ const UI = {
       this.followSel = false;
     } else {
       main.innerHTML = this.tabs() + ({ base: () => this.baseView(), people: () => this.peopleView(), map: () => this.mapView(), log: () => this.logView() })[this.tab]();
+      // On a narrow screen the map scrolls sideways; start it centred on the church.
+      const tilt = document.querySelector('.tilt-wrap');
+      if (tilt) {
+        if (this.mapScroll === undefined) this.mapScroll = (tilt.scrollWidth - tilt.clientWidth) * BASE_SITE.x / 1000;
+        tilt.scrollLeft = this.mapScroll;
+        tilt.addEventListener('scroll', () => { this.mapScroll = tilt.scrollLeft; });
+      }
       if (Game.hordeHere() && !document.querySelector('#modal .defend')) this.showDefense();
     }
     main.scrollTop = scroll;
@@ -228,15 +261,16 @@ const UI = {
     let html = `<section class="panel"><h2>⛪ ${BASE_SITE.name}</h2>
       <p class="small">${people.length} survivors · ${Game.beds()} beds · ${Game.ready().length} ready to go out${s.missionToday ? ' · <span class="muted">someone has already been out today</span>' : ''}</p>
       <p class="small">Morale ${s.morale}: ${Game.moraleAim() >= 0 ? '+' : ''}${Game.moraleAim()} aim. The horde grows by ${Game.threatPerDay()} each day${Game.facilityLevel('watchtower') ? `; the lookout expects it in about <b>${Game.hordeEta()} days</b>` : ''}.</p></section>`;
+    html += this.baseScene();
     // Facilities.
     const b = s.building;
-    html += `<section class="panel"><h2>🏗️ Facilities <span class="muted small">${Game.usedSlots()} / ${FACILITY_SLOTS} spaces</span></h2>
+    html += `<section class="panel" id="facilities"><h2>🏗️ Facilities <span class="muted small">${Game.usedSlots()} / ${FACILITY_SLOTS} spaces</span></h2>
       ${b ? `<p class="small">Building: <b>${FACILITIES[b.id].icon} ${FACILITIES[b.id].name}${b.level > 1 ? ` (level ${b.level})` : ''}</b>, ${b.daysLeft} day${b.daysLeft === 1 ? '' : 's'} of work left. Engineers at home speed it up.</p>` : ''}
       <div class="cards">${Object.entries(FACILITIES).map(([id, f]) => {
         const lvl = Game.facilityLevel(id);
         const next = f.levels[lvl];
         const blocker = Game.buildBlocker(id);
-        return `<div class="card${lvl ? ' built' : ''}"><div class="card-head"><span class="big">${f.icon}</span><div><b>${f.name}</b><div class="small muted">${lvl ? `Level ${lvl} / ${f.levels.length}` : 'Not built'}</div></div></div>
+        return `<div class="card${lvl ? ' built' : ''}${this.facSel === id ? ' picked' : ''}" id="fac-${id}"><div class="card-head"><span class="big">${f.icon}</span><div><b>${f.name}</b><div class="small muted">${lvl ? `Level ${lvl} / ${f.levels.length}` : 'Not built'}</div></div></div>
           <p class="small">${f.desc}</p>${lvl ? `<p class="small good">${this.facilityEffect(id, f.levels[lvl - 1])}</p>` : ''}
           ${next ? `<div class="small">${lvl ? 'Upgrade' : 'Build'}: ${Game.costText(next.cost)} · ${next.days} day${next.days === 1 ? '' : 's'}${lvl ? ` → ${this.facilityEffect(id, next)}` : ''}</div>
           <button class="btn small" data-act="build" data-id="${id}"${blocker ? ` disabled title="${esc(blocker)}"` : ''}>${lvl ? 'Upgrade' : 'Build'}</button>${blocker && blocker !== 'Fully built' ? `<div class="small muted">${esc(blocker)}</div>` : ''}` : ''}</div>`;
@@ -295,23 +329,92 @@ const UI = {
   },
 
   // --- The region ---
+  // The region as a map laid on a table: roads on the ground, places standing up from it.
   mapView() {
     const s = Game.state;
-    let svg = '<svg class="region" viewBox="0 0 1000 700"><rect width="1000" height="700" class="ground"/><path class="road" d="M0 350 H1000 M500 0 V700 M200 230 L500 350 L880 120 M250 560 L500 350 L820 500"/>';
-    svg += `<circle cx="${BASE_SITE.x}" cy="${BASE_SITE.y}" r="${START_REVEAL + (Game.facility('watchtower').reveal || 0)}" class="sight"/>`;
+    const sight = START_REVEAL + (Game.facility('watchtower').reveal || 0);
+    let pins = '';
+    const pin = (x, y, cls, inner, act) => `<div class="pin ${cls}" style="left:${x / 10}%;top:${y / 7}%"${act || ''}>${inner}</div>`;
     for (const [id, site] of Object.entries(SITES)) {
       const st = s.sites[id];
       if (!st.known) continue;
       const type = SITE_TYPES[site.type];
-      const sel = this.mapSel === id;
-      svg += `<g class="site${sel ? ' sel' : ''}${st.infested ? ' infested' : ''}${!st.stock ? ' empty' : ''}" data-act="site" data-id="${id}">
-        <circle cx="${site.x}" cy="${site.y}" r="30"/><text x="${site.x}" y="${site.y + 10}" class="icon">${type.icon}</text>
-        ${st.infested ? `<text x="${site.x + 24}" y="${site.y - 18}" class="icon small-icon">🫀</text>` : ''}
-        ${s.contacts.some(c => c.site === id) ? `<text x="${site.x - 34}" y="${site.y - 18}" class="icon small-icon">📻</text>` : ''}
-        <text x="${site.x}" y="${site.y + 50}" class="label">${esc(site.name)}</text></g>`;
+      const cls = ['site', this.mapSel === id ? 'sel' : '', st.infested ? 'infested' : '', !st.stock ? 'empty' : ''].join(' ');
+      const marks = `${st.infested ? '<span class="mark">🫀</span>' : ''}${s.contacts.some(c => c.site === id) ? '<span class="mark">📻</span>' : ''}`;
+      pins += pin(site.x, site.y, cls, `<span class="plot"></span><span class="sign" data-act="site" data-id="${id}"><span class="sign-icon">${type.icon}${marks}</span><span class="sign-name">${esc(site.name)}</span><span class="danger">${stars(type.danger + (st.infested ? 1 : 0))}</span></span>`);
     }
-    svg += `<g class="site base"><circle cx="${BASE_SITE.x}" cy="${BASE_SITE.y}" r="34"/><text x="${BASE_SITE.x}" y="${BASE_SITE.y + 12}" class="icon">${BASE_SITE.icon}</text><text x="${BASE_SITE.x}" y="${BASE_SITE.y + 56}" class="label">${BASE_SITE.name}</text></g></svg>`;
-    return `<section class="panel"><p class="small muted">Tap a place to plan a mission. One mission a day; the further away, the more fuel it takes.</p>${svg}</section>${this.mapSel ? this.missionPlanner(this.mapSel) : ''}`;
+    pins += pin(BASE_SITE.x, BASE_SITE.y, 'site base', `<span class="plot"></span><span class="sign"><span class="sign-icon">${BASE_SITE.icon}</span><span class="sign-name">${BASE_SITE.name}</span></span>`);
+    const ground = `<svg class="ground-svg" viewBox="0 0 1000 700" preserveAspectRatio="none"><rect width="1000" height="700" class="ground"/>
+      <path class="field" d="M120 160 h170 v130 h-170 z M700 560 h160 v100 h-160 z M60 480 h120 v140 h-120 z"/>
+      <path class="river" d="M0 620 C200 600 300 660 480 640 S800 590 1000 640"/>
+      <path class="road" d="M0 350 H1000 M500 0 V700 M200 230 L500 350 L880 120 M250 560 L500 350 L820 500"/>
+      <circle cx="${BASE_SITE.x}" cy="${BASE_SITE.y}" r="${sight}" class="sight"/></svg>`;
+    return `<section class="panel"><p class="small muted">Tap a place to plan a mission. One mission a day; the further away, the more fuel it takes.</p>
+      <div class="tilt-wrap"><div class="tilt-plane">${ground}${pins}</div></div></section>${this.mapSel ? this.missionPlanner(this.mapSel) : ''}`;
+  },
+  // The church and its yard, seen from above at an angle. Buildings rise as you build and upgrade them.
+  baseScene() {
+    const s = Game.state;
+    const W = 8, H = 8;
+    const plots = { bunks: [1, 1], infirmary: [1, 3], garden: [1, 5], workshop: [6, 1], radio: [6, 3], watchtower: [6, 5] };
+    const at = {};
+    for (const [id, [x, y]] of Object.entries(plots)) at[`${x},${y}`] = id;
+    const church = new Set(['3,2', '4,2', '3,3', '4,3', '3,4', '4,4']);
+    const yard = [[2, 6], [5, 6], [3, 5], [4, 6], [2, 2], [5, 2], [2, 4], [5, 4]];
+    const people = Game.alive().filter(sv => sv.status === 'ready');
+    const where = {};
+    people.slice(0, yard.length).forEach((sv, i) => { where[`${yard[i][0]},${yard[i][1]}`] = sv; });
+    const walls = Game.facilityLevel('walls');
+    const building = s.building;
+    let tiles = '';
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const key = `${x},${y}`;
+        const edge = x === 0 || y === 0 || x === W - 1 || y === H - 1;
+        const gate = y === H - 1 && (x === 3 || x === 4);
+        let cls = edge ? 'dirt' : 'yard';
+        let inner = '';
+        let act = '';
+        if (edge && !gate) {
+          // The walls: a broken fence until you build them, then higher with every level.
+          inner = walls ? this.block('wall', '', 0.25 + walls * 0.17) : (x + y) % 2 ? this.block('fence', '', 0.25) : '';
+          act = ' data-act="pick-fac" data-id="walls"';
+        } else if (gate) {
+          cls = 'path';
+          if (walls) inner = this.block('gate', '', 0.15);
+        } else if (church.has(key)) {
+          inner = this.block('church', key === '3,2' ? '<span>🔔</span>' : '', key === '3,2' ? 2.6 : 1.5);
+        } else if (at[key]) {
+          const id = at[key];
+          const lvl = Game.facilityLevel(id);
+          const f = FACILITIES[id];
+          act = ` data-act="pick-fac" data-id="${id}"`;
+          if (building && building.id === id) {
+            inner = this.block('scaffold', '<span>🚧</span>', 0.4 + building.level * 0.35);
+          } else if (!lvl) {
+            cls = 'plot-empty';
+            inner = `<span class="stand"><span class="ghost">${f.icon}</span></span>`;
+          } else if (id === 'garden') {
+            cls = 'garden';
+            inner = `<span class="stand"><span class="crops">${'🌱'.repeat(lvl)}</span></span>`;
+          } else {
+            const h = { watchtower: 1.6 + lvl * 0.6, radio: 1.2 + lvl * 0.6 }[id] || 0.5 + lvl * 0.3;
+            inner = this.block(`fac ${id}`, `<span>${f.icon}</span>`, h);
+          }
+          if (this.facSel === id) cls += ' picked';
+        } else if (y >= 5 && x >= 2 && x <= 5) {
+          cls = 'path';
+        }
+        const sv = where[key];
+        if (sv) inner += `<span class="ring friend"></span><span class="stand"><span class="unit friend" title="${esc(sv.name)}">${SPECIALTIES[sv.spec].icon}</span></span>`;
+        if (!act && this.facSel === 'walls' && edge) cls += ' picked';
+        tiles += `<div class="tile ${cls}"${act || ' data-act="pick-fac" data-id=""'}>${inner}</div>`;
+      }
+    }
+    const fit = Math.max(22, Math.min(58, Math.floor((Math.min(document.getElementById('main').clientWidth || window.innerWidth, 980) - 30) / ((W + H) * Math.SQRT1_2))));
+    const size = `--t:${fit}px;--rows:${H};width:${Math.round((W + H) * fit * Math.SQRT1_2 + fit)}px;height:${Math.round((W + H) * fit * Math.SQRT1_2 * 0.5 + fit * 2.2)}px`;
+    return `<section class="panel scene-panel"><div class="iso-wrap base-wrap"><div class="iso-sizer" style="${size}"><div class="grid iso base-grid" style="--cols:${W}">${tiles}</div></div></div>
+      <p class="small muted">Tap a building or a plot to see it below.</p></section>`;
   },
   missionPlanner(id) {
     const s = Game.state;
@@ -395,8 +498,8 @@ const UI = {
       <div class="blog">${b.log.slice(0, 8).map(l => `<div>${esc(l)}</div>`).join('')}</div></section>`;
   },
   // A raised block with a top and the two sides that face the camera.
-  block(kind, top) {
-    return `<span class="block ${kind}"><i class="fs"></i><i class="fw"></i><i class="top">${top}</i></span>`;
+  block(kind, top, h) {
+    return `<span class="block ${kind}"${h ? ` style="--h:calc(var(--t) * ${h})"` : ''}><i class="fs"></i><i class="fw"></i><i class="top">${top}</i></span>`;
   },
   // Zoom for the isometric view: fitted to the screen at 1, bigger and scrollable above that.
   zoom() {

@@ -212,6 +212,68 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--b
 .ring.downed { background: radial-gradient(circle, rgba(139, 30, 30, .7), transparent 70%); }
 .view-toggle { float: right; display: flex; gap: .25rem; }
 
+/* --- The base, in 2.5D --- */
+.scene-panel { padding: .4rem; }
+.base-wrap { max-height: none; overflow: hidden; }
+.grid.iso .tile.yard { background: linear-gradient(135deg, #3a3f2f, #33382a); }
+.grid.iso .tile.dirt { background: linear-gradient(135deg, #3b3427, #332d22); }
+.grid.iso .tile.path { background: linear-gradient(135deg, #4a4538, #403b30); }
+.grid.iso .tile.garden { background: repeating-linear-gradient(45deg, #3d4a28 0 5px, #33401f 5px 10px); }
+.grid.iso .tile.plot-empty { background: #2e291f; box-shadow: inset 0 0 0 2px rgba(201, 162, 74, .35); }
+.grid.iso .tile.picked { box-shadow: inset 0 0 0 3px var(--accent); }
+.base-grid .tile { cursor: pointer; }
+.ghost { font-size: calc(var(--t) * .7); opacity: .35; }
+.crops { font-size: calc(var(--t) * .45); letter-spacing: -2px; }
+/* The church and the fences are scenery: taps go through them to the plots behind. */
+.block.church, .block.church i, .block.fence, .block.fence i, .base-grid .stand { pointer-events: none; }
+.block.church .top { background: #8a7f6a; }
+.block.church .fs { background: #74695a; }
+.block.church .fw { background: #5d5446; }
+.block.fence { inset: 40% 0; }
+.block.fence .top, .block.fence .fs, .block.fence .fw { background: #5a4a33; }
+.block.gate .top, .block.gate .fs, .block.gate .fw { background: #6e5530; }
+.block.scaffold .top { background: rgba(201, 162, 74, .35); }
+.block.scaffold .fs, .block.scaffold .fw { background: repeating-linear-gradient(45deg, rgba(201, 162, 74, .7) 0 3px, rgba(0, 0, 0, .3) 3px 9px); }
+.block.fac { inset: 10%; }
+.block.fac .top { background: #6d7360; }
+.block.fac .fs { background: #5a604e; }
+.block.fac .fw { background: #474c3d; }
+.block.fac.watchtower, .block.fac.radio { inset: 28%; }
+.block.fac.infirmary .top { background: #9aa39a; }
+.block.fac.workshop .top { background: #7a6450; }
+.block .top span { transform: rotateZ(45deg); display: inline-block; }
+.card.picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+
+/* --- The region, as a map on a table --- */
+.tilt-wrap { perspective: 2400px; perspective-origin: 50% 0; overflow-x: auto; overflow-y: hidden; padding: 30px 0 0; }
+.tilt-plane {
+  position: relative; width: max(86%, 600px); aspect-ratio: 1000 / 700; margin: 0 auto -16%;
+  transform-origin: 50% 0; transform: rotateX(48deg); transform-style: preserve-3d;
+}
+.ground-svg { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; box-shadow: 0 30px 40px rgba(0, 0, 0, .5); }
+.ground-svg .ground { fill: #1f2619; }
+.ground-svg .field { fill: #26301d; stroke: #2f3a24; stroke-width: 3; }
+.ground-svg .river { stroke: #1d3340; stroke-width: 22; fill: none; }
+.ground-svg .road { stroke: #3d4236; stroke-width: 14; fill: none; stroke-linecap: round; }
+.ground-svg .sight { fill: rgba(201, 162, 74, .06); stroke: rgba(201, 162, 74, .35); stroke-width: 3; stroke-dasharray: 10 8; }
+.pin { position: absolute; width: 0; height: 0; transform-style: preserve-3d; }
+.pin .plot { position: absolute; width: 40px; height: 40px; left: -20px; top: -20px; border-radius: 50%; background: rgba(0, 0, 0, .35); border: 2px solid #59614c; }
+.pin.sel .plot { border-color: var(--accent); background: rgba(201, 162, 74, .25); }
+.pin.infested .plot { border-color: var(--bad); }
+.pin.base .plot { border-color: var(--accent); background: rgba(201, 162, 74, .2); }
+.sign {
+  position: absolute; left: 0; bottom: 0; transform-origin: 50% 100%; transform: translateX(-50%) rotateX(-48deg);
+  display: flex; flex-direction: column; align-items: center; cursor: pointer; white-space: nowrap; padding-bottom: 6px;
+}
+.sign-icon { position: relative; font-size: 30px; line-height: 1; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .7)); }
+.sign-icon .mark { position: absolute; top: -10px; right: -16px; font-size: 16px; }
+.sign-name { font-family: 'Oswald', sans-serif; font-size: 12px; background: rgba(18, 20, 16, .85); border: 1px solid var(--border); border-radius: 3px; padding: 0 .3rem; margin-top: 2px; }
+.sign .danger { font-size: 9px; color: var(--bad); line-height: 1; }
+.pin.sel .sign-name { border-color: var(--accent); color: var(--accent); }
+.pin.empty .sign-icon { filter: grayscale(.8) drop-shadow(0 3px 2px rgba(0, 0, 0, .7)); opacity: .7; }
+.pin.base .sign { cursor: default; }
+.pin.base .sign-icon { font-size: 38px; }
+
 /* --- Modal --- */
 #modal:empty { display: none; }
 #modal { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .7); display: flex; align-items: center; justify-content: center; padding: 1rem; }
