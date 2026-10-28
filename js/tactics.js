@@ -121,7 +121,8 @@ const Tactics = {
       }
     }
     if (b.kind === 'rescue') {
-      const spot = inside.length ? inside[randInt(0, inside.length - 1)] : this.randomFloor(b, 0, 6);
+      const free = inside.filter(p => this.open(b, p.x, p.y));
+      const spot = free.length ? pick(free) : this.randomFloor(b, 0, 6);
       const spec = pick(Object.keys(SPECIALTIES));
       const name = Game.makeSurvivor(spec).name;
       b.units.push({ id: b.nextUnit++, side: 'p', npc: true, name, icon: '🙋', spec, x: spot.x, y: spot.y, hp: 6, maxHp: 9, ap: 0, aim: 50, move: 5, gun: null, melee: null, clip: 0, kills: 0, xp: 0, waiting: true });
@@ -182,21 +183,62 @@ const Tactics = {
     }
     return null;
   },
-  // Knock a hole in any wall that would trap a crate or the objective out of reach.
+  // Every floor tile, and a side of every crate, must be reachable on foot from where the squad comes in.
+  // Where something is shut in, dig the cheapest way out: through cars and walls, and through a crate
+  // only if nothing else works (that crate is then gone).
   ensureReachable(b) {
-    const seen = this.flood(b, Math.floor(b.w / 2), b.h - 1, true);
-    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
-      if (this.tile(b, x, y) !== '.' || seen.has(`${x},${y}`)) continue;
-      // Open the nearest wall towards the street.
-      for (let yy = y + 1; yy < b.h; yy++) {
-        if (this.tile(b, x, yy) === '#') {
-          this.setTile(b, x, yy, '.');
-          break;
+    const walk = (x, y) => {
+      const t = this.tile(b, x, y);
+      return (t === '.' || t === 'x') && !this.crateAt(b, x, y);
+    };
+    for (let guard = 0; guard < 60; guard++) {
+      const seen = this.flood(b, Math.floor(b.w / 2), b.h - 1, true, true);
+      const touches = o => DIRS.some(([dx, dy]) => seen.has(`${o.x + dx},${o.y + dy}`));
+      let stuck = b.crates.find(c => !touches(c));
+      if (!stuck) {
+        for (let y = 0; y < b.h && !stuck; y++) for (let x = 0; x < b.w && !stuck; x++) {
+          if (walk(x, y) && !seen.has(`${x},${y}`)) stuck = { x, y };
+        }
+      }
+      if (!stuck) return;
+      this.digOut(b, stuck, seen);
+    }
+  },
+  // Cheapest path from a shut-in spot to the reachable area; clears whatever is in the way.
+  digOut(b, from, seen) {
+    const costOf = (x, y) => {
+      if (this.crateAt(b, x, y)) return 8;
+      const t = this.tile(b, x, y);
+      return t === '#' || t === 'c' ? 2 : 1;
+    };
+    const key = (x, y) => `${x},${y}`;
+    const dist = new Map([[key(from.x, from.y), 0]]);
+    const prev = new Map();
+    const open = [[0, from.x, from.y]];
+    let end = null;
+    while (open.length) {
+      open.sort((a, c) => a[0] - c[0]);
+      const [d, x, y] = open.shift();
+      if (d > dist.get(key(x, y))) continue;
+      if (seen.has(key(x, y))) { end = [x, y]; break; }
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= b.w || ny >= b.h) continue;
+        const nd = d + costOf(nx, ny);
+        if (nd < (dist.get(key(nx, ny)) ?? Infinity)) {
+          dist.set(key(nx, ny), nd);
+          prev.set(key(nx, ny), [x, y]);
+          open.push([nd, nx, ny]);
         }
       }
     }
+    for (let p = end && prev.get(key(...end)); p && !(p[0] === from.x && p[1] === from.y); p = prev.get(key(...p))) {
+      const [x, y] = p;
+      if (this.tile(b, x, y) === '#' || this.tile(b, x, y) === 'c') this.setTile(b, x, y, '.');
+      b.crates = b.crates.filter(c => c.x !== x || c.y !== y);
+    }
   },
-  flood(b, sx, sy, ignoreUnits) {
+  flood(b, sx, sy, ignoreUnits, crates) {
     const seen = new Set([`${sx},${sy}`]);
     const queue = [[sx, sy]];
     while (queue.length) {
@@ -206,6 +248,7 @@ const Tactics = {
         const t = this.tile(b, nx, ny);
         if (seen.has(key) || t === '#' || t === 'c' || t === 'b') continue;
         if (!ignoreUnits && this.unitAt(b, nx, ny)) continue;
+        if (crates && this.crateAt(b, nx, ny)) continue;
         seen.add(key);
         queue.push([nx, ny]);
       }
