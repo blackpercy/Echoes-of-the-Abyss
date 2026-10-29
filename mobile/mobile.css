@@ -179,27 +179,39 @@ html.mob-touch #mobNav {
     /* The resource strip over the game panel. */
     body.mob-game #mobTicker {
         display: flex;
-        flex-wrap: wrap;
-        gap: .25rem;
+        align-items: flex-start;
+        gap: .3rem;
         position: sticky;
         top: 1.4rem;
         z-index: 25;
         margin-top: 1.4rem;
-        /* Late in the game there are dozens of resources; past a third of the screen, the strip scrolls. */
-        max-height: 33vh;
-        overflow-y: auto;
-        padding: .3rem .4rem;
+        padding: .25rem .35rem;
         background: #1e1e1e;
         border-bottom: 1px solid #444;
-        font-size: .72rem;
+        font-size: .68rem;
+    }
+    #mobTicker .mob-chips {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .2rem;
+        /* Two lines of chips unless opened. */
+        max-height: 2.6rem;
+        overflow: hidden;
         cursor: pointer;
+    }
+    #mobTicker.open .mob-chips {
+        /* Late in the game there are dozens of resources; past a third of the screen, it scrolls. */
+        max-height: 33vh;
+        overflow-y: auto;
     }
     #mobTicker .mob-chip {
         white-space: nowrap;
-        padding: 0 .4rem;
-        border-radius: .6rem;
+        padding: 0 .3rem;
+        border-radius: .5rem;
         background: #2d2d2d;
-        line-height: 1.3rem;
+        line-height: 1.2rem;
     }
     #mobTicker .mob-chip.full {
         box-shadow: inset 0 0 0 1px #ffdd57;
@@ -207,6 +219,18 @@ html.mob-touch #mobNav {
     #mobTicker .mob-chip i {
         font-style: normal;
         opacity: .6;
+    }
+    #mobTicker .mob-more {
+        flex-shrink: 0;
+        min-width: 2rem;
+        height: 1.2rem;
+        padding: 0 .35rem;
+        border: 1px solid #555;
+        border-radius: .5rem;
+        background: #2d2d2d;
+        color: #ffdd57;
+        font: inherit;
+        cursor: pointer;
     }
     body.mob-game .main {
         margin-top: .5rem;

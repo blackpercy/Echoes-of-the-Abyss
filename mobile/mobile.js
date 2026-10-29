@@ -80,13 +80,21 @@
     }
 
     // --- A strip of resources over the game panel, so you can see what you can afford ---
+    // Two lines by default; a button at the end shows the rest.
+    let tickerOpen = read('evolve-mobile-ticker') === 'open';
+
     function buildTicker() {
         if (document.getElementById('mobTicker')) return;
         const strip = document.createElement('div');
         strip.id = 'mobTicker';
-        strip.title = 'Tap for all resources';
-        strip.addEventListener('click', () => show('res'));
-        // In the page flow just above the game, so it can wrap onto as many lines as it needs.
+        strip.innerHTML = '<div class="mob-chips" title="Tap for all resources"></div><button type="button" class="mob-more" aria-label="Show all resources"></button>';
+        strip.querySelector('.mob-chips').addEventListener('click', () => show('res'));
+        strip.querySelector('.mob-more').addEventListener('click', () => {
+            tickerOpen = !tickerOpen;
+            write('evolve-mobile-ticker', tickerOpen ? 'open' : 'closed');
+            updateTicker();
+        });
+        // In the page flow just above the game, so it can grow when opened.
         const main = document.getElementById('main');
         main.parentNode.insertBefore(strip, main);
         setInterval(updateTicker, 1000);
@@ -96,23 +104,32 @@
     function updateTicker() {
         const strip = document.getElementById('mobTicker');
         if (!strip || !NARROW.matches || panel !== 'game') return;
+        const box = strip.querySelector('.mob-chips');
+        const more = strip.querySelector('.mob-more');
         const chips = [];
         for (const row of document.querySelectorAll('#resources .resource')) {
             if (row.style.display === 'none') continue;
             const name = row.querySelector('.res');
             const count = row.querySelector('.count');
             if (!name || !count) continue;
-            const text = count.textContent.trim();
-            const [have, max] = text.split('/').map(t => t.trim());
-            const full = max && have === max && max !== '0';
+            const [have, max] = count.textContent.trim().split('/').map(t => t.trim());
+            // Nowhere to keep it yet: nothing to show.
+            if (max === '0' && have === '0') continue;
+            const full = max && have === max;
             const colour = [...name.classList].find(c => c.startsWith('has-text-')) || '';
             chips.push(`<span class="mob-chip${full ? ' full' : ''}"><b class="${colour}">${name.textContent.trim()}</b> ${have}${max ? `<i>/${max}</i>` : ''}</span>`);
         }
         const html = chips.join('');
-        if (strip.dataset.html !== html) {
-            strip.dataset.html = html;
-            strip.innerHTML = html || '<span class="mob-chip">Resources</span>';
+        if (box.dataset.html !== html) {
+            box.dataset.html = html;
+            box.innerHTML = html || '<span class="mob-chip">Resources</span>';
         }
+        strip.classList.toggle('open', tickerOpen);
+        // Count the chips that fall below the two lines shown.
+        const limit = box.getBoundingClientRect().top + box.clientHeight + 1;
+        const hidden = tickerOpen ? 0 : [...box.children].filter(c => c.getBoundingClientRect().top >= limit).length;
+        more.hidden = !tickerOpen && !hidden;
+        more.textContent = tickerOpen ? '▴' : `+${hidden}`;
     }
 
     // --- Touch: tap acts, press and hold explains ---
