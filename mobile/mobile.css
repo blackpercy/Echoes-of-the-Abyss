@@ -50,7 +50,10 @@ html.mob-touch #mobNav {
         height: auto !important;
         max-height: none !important;
     }
-    body.mob .main .sticky {
+    /* The game pins some panels to the screen; on a phone they scroll with the page.
+       (iPhone browsers pull a pinned panel that is taller than the screen up over the tabs above it.) */
+    body.mob .main .sticky,
+    body.mob .main .resTabs > section {
         position: static;
         overflow-y: visible;
     }
