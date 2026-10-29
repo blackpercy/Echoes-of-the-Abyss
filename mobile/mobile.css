@@ -1,0 +1,286 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+/* Mobile layer for Evolve: see mobile/mobile.js. Only applies on narrow and touch screens. */
+
+/* --- Touch screens --- */
+html.mob-touch body {
+    /* No double-tap zoom, and no 300ms wait before a tap counts. */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+html.mob-touch .action,
+html.mob-touch .resource,
+html.mob-touch .button,
+html.mob-touch #mobNav {
+    /* Holding a finger down shows details; it should not select text or open the browser's menu. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+#mobNav,
+#mobTip,
+#mobTicker {
+    display: none;
+}
+
+/* --- Narrow screens: one panel at a time --- */
+@media only screen and (max-width: 768px) {
+    body.mob {
+        --mob-nav: 3.4rem;
+        padding-bottom: calc(var(--mob-nav) + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* The whole page scrolls, instead of each panel inside a box the height of the screen. */
+    body.mob .main {
+        margin: 1.6rem .5rem 1rem;
+        overflow: visible;
+    }
+    body.mob .main .leftColumn,
+    body.mob .main .vscroll,
+    body.mob .main .mtab,
+    body.mob .main #evolution,
+    body.mob .main .resTabs > section,
+    body.mob .main .tab-content,
+    body.mob .main .tab-item {
+        height: auto !important;
+        max-height: none !important;
+    }
+    body.mob .main .vscroll {
+        overflow-y: visible;
+    }
+    body.mob .main > .columns > :first-child {
+        min-width: 0;
+    }
+
+    /* Which panel shows. */
+    body.mob-game .leftColumn,
+    body.mob-game #queueColumn,
+    body.mob-res #mainColumn,
+    body.mob-res #queueColumn,
+    body.mob-res #sideQueue,
+    body.mob-log #mainColumn,
+    body.mob-log #race,
+    body.mob-log #resources {
+        display: none !important;
+    }
+    body.mob-log .leftColumn,
+    body.mob-log #queueColumn {
+        display: block !important;
+    }
+
+    /* The top bar: one line, smaller, never wider than the screen. */
+    body.mob .topBar {
+        font-size: .8rem;
+        height: 1.4rem;
+        line-height: 1.4rem;
+        overflow: hidden;
+        white-space: nowrap;
+        padding: 0 .4rem;
+        z-index: 30;
+    }
+    body.mob .topBar .planetWrap {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        flex-shrink: 1;
+    }
+    body.mob .topBar .calendar {
+        flex-shrink: 0;
+        margin: 0 .4rem;
+    }
+    body.mob .topBar .calendar .season,
+    body.mob .topBar .version {
+        display: none;
+    }
+
+    /* The credits and links sit at the end of the log instead of floating over the game. */
+    body.mob .promoBar {
+        display: none;
+    }
+    body.mob-log .promoBar {
+        display: block;
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 1rem .5rem;
+        padding: .3rem .5rem;
+        line-height: 1.6rem;
+    }
+    body.mob-log .promoBar .right {
+        position: static;
+        display: block;
+        text-align: left;
+        margin: 0;
+    }
+
+    /* Two buttons to a row, big enough for a thumb. */
+    body.mob .main .content .action {
+        width: calc(50% - .25rem);
+        margin-right: .25rem;
+        vertical-align: top;
+    }
+    body.mob .main .content .action a.button,
+    body.mob .main .content .action span.oldTech {
+        width: 100%;
+        min-height: 2.6rem;
+        height: auto;
+        margin-right: 0;
+        white-space: normal;
+    }
+
+    /* Rows of tabs scroll sideways instead of wrapping or being cut off. */
+    body.mob .main .tabs {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    body.mob .main .tabs::-webkit-scrollbar {
+        display: none;
+    }
+    body.mob .main .tabs ul {
+        flex-wrap: nowrap;
+        margin-left: 0;
+        padding-left: 0;
+    }
+    body.mob .main .tabs li a {
+        padding: .45rem .7rem;
+    }
+
+    /* Resource rows: a touch taller, to hit the right one. */
+    body.mob .main #resources .resource {
+        min-height: 1.6rem;
+        align-items: center;
+    }
+
+    /* Details pop-ups and dialogs fit the screen. */
+    body.mob .main > div.popper,
+    body.mob .main > div.popper.wide,
+    body.mob .modal > div.popper {
+        max-width: calc(100vw - 1rem) !important;
+        z-index: 40;
+    }
+    body.mob .modal .modal-content {
+        min-width: 0 !important;
+        width: calc(100vw - 1rem) !important;
+        max-height: calc(100vh - 2rem);
+        margin: 0 .5rem;
+    }
+
+    /* The resource strip over the game panel. */
+    body.mob-game #mobTicker {
+        display: flex;
+        gap: .35rem;
+        position: fixed;
+        top: 1.4rem;
+        left: 0;
+        right: 0;
+        z-index: 25;
+        height: 1.7rem;
+        padding: .2rem .4rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        scrollbar-width: none;
+        background: #1e1e1e;
+        border-bottom: 1px solid #444;
+        font-size: .75rem;
+        cursor: pointer;
+    }
+    #mobTicker::-webkit-scrollbar {
+        display: none;
+    }
+    #mobTicker .mob-chip {
+        padding: 0 .4rem;
+        border-radius: .6rem;
+        background: #2d2d2d;
+        line-height: 1.3rem;
+    }
+    #mobTicker .mob-chip.full {
+        box-shadow: inset 0 0 0 1px #ffdd57;
+    }
+    #mobTicker .mob-chip i {
+        font-style: normal;
+        opacity: .6;
+    }
+    body.mob-game .main {
+        margin-top: 3.3rem;
+    }
+
+    /* The bottom bar. */
+    body.mob #mobNav {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 35;
+        height: calc(var(--mob-nav) + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: #1e1e1e;
+        border-top: 1px solid #444;
+    }
+    #mobNav button {
+        flex: 1;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .1rem;
+        background: none;
+        border: none;
+        color: #aaa;
+        font: inherit;
+        font-size: .75rem;
+        cursor: pointer;
+    }
+    #mobNav button.on {
+        color: #ffdd57;
+        box-shadow: inset 0 2px 0 #ffdd57;
+    }
+    #mobNav .mob-icon {
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+    #mobNav .mob-badge {
+        position: absolute;
+        top: .3rem;
+        left: calc(50% + .5rem);
+        min-width: 1.1rem;
+        padding: 0 .3rem;
+        border-radius: .6rem;
+        background: #ff3860;
+        color: #fff;
+        font-size: .65rem;
+        line-height: 1.1rem;
+    }
+
+    /* A one-time tip about press and hold. */
+    body.mob #mobTip {
+        display: block;
+        position: fixed;
+        left: .5rem;
+        right: .5rem;
+        bottom: calc(var(--mob-nav) + env(safe-area-inset-bottom, 0px) + .5rem);
+        z-index: 36;
+        padding: .6rem 2.2rem .6rem .8rem;
+        border-radius: .4rem;
+        background: #ffdd57;
+        color: #222;
+        font-size: .85rem;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, .5);
+    }
+    #mobTip button {
+        position: absolute;
+        top: .35rem;
+        right: .45rem;
+        background: none;
+        border: none;
+        font-size: 1rem;
+        color: #222;
+        cursor: pointer;
+    }
+}
