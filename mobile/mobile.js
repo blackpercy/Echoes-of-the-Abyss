@@ -82,9 +82,10 @@
     // --- A strip of resources over the game panel, so you can see what you can afford ---
     // Two lines by default; a button at the end shows the rest.
     let tickerOpen = read('evolve-mobile-ticker') === 'open';
+    let tickerTimer = null;
 
     function buildTicker() {
-        if (document.getElementById('mobTicker')) return;
+        if (document.getElementById('mobTicker') || !document.getElementById('main')) return;
         const strip = document.createElement('div');
         strip.id = 'mobTicker';
         strip.innerHTML = '<div class="mob-chips" title="Tap for all resources"></div><button type="button" class="mob-more" aria-label="Show all resources"></button>';
@@ -97,13 +98,20 @@
         // In the page flow just above the game, so it can grow when opened.
         const main = document.getElementById('main');
         main.parentNode.insertBefore(strip, main);
-        setInterval(updateTicker, 1000);
+        if (!tickerTimer) tickerTimer = setInterval(updateTicker, 1000);
         updateTicker();
     }
 
     function updateTicker() {
         const strip = document.getElementById('mobTicker');
-        if (!strip || !NARROW.matches || panel !== 'game') return;
+        if (!strip) {
+            buildTicker();
+            return;
+        }
+        // Always directly above the game, wherever something else may have put it.
+        const main = document.getElementById('main');
+        if (main && strip.nextElementSibling !== main) main.parentNode.insertBefore(strip, main);
+        if (!NARROW.matches || panel !== 'game') return;
         const box = strip.querySelector('.mob-chips');
         const more = strip.querySelector('.mob-more');
         const chips = [];
