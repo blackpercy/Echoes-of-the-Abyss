@@ -43,9 +43,16 @@ html.mob-touch #mobNav {
     body.mob .main #evolution,
     body.mob .main .resTabs > section,
     body.mob .main .tab-content,
-    body.mob .main .tab-item {
+    body.mob .main .tab-item,
+    body.mob .main .sticky,
+    body.mob .main .content .settings,
+    body.mob .main .govTabs2 > section {
         height: auto !important;
         max-height: none !important;
+    }
+    body.mob .main .sticky {
+        position: static;
+        overflow-y: visible;
     }
     body.mob .main .vscroll {
         overflow-y: visible;
