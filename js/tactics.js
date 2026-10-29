@@ -625,17 +625,26 @@ const Tactics = {
   canThrow(b, u, x, y) {
     return u.ap > 0 && Math.hypot(u.x - x, u.y - y) <= 6 && this.los(b, u, { x, y });
   },
-  throwBomb(b, u, x, y) {
-    if (!(b.gear.pipe_bomb > 0) || !this.canThrow(b, u, x, y)) return false;
-    b.gear.pipe_bomb--;
+  // Pipe bombs, molotovs and grenades: damage everything within the radius (friends too).
+  throwBomb(b, u, x, y, kind = 'pipe_bomb') {
+    const def = GEAR[kind];
+    if (!def || !def.blast || !(b.gear[kind] > 0) || !this.canThrow(b, u, x, y)) return false;
+    b.gear[kind]--;
     u.ap = 0;
-    this.addLog(b, `${u.name.split(' ')[0]} throws a pipe bomb. BOOM.`);
-    for (const v of b.units.filter(v => this.onMap(v) && v.hp > 0 && Math.max(Math.abs(v.x - x), Math.abs(v.y - y)) <= GEAR.pipe_bomb.radius)) this.damage(b, v, GEAR.pipe_bomb.dmg, u);
+    this.addLog(b, `${u.name.split(' ')[0]} throws a ${def.name.toLowerCase()}. ${def.burn ? 'WHOOMPH.' : 'BOOM.'}`);
+    const hit = b.units.filter(v => this.onMap(v) && v.hp > 0 && Math.max(Math.abs(v.x - x), Math.abs(v.y - y)) <= def.radius);
+    for (const v of hit) {
+      this.damage(b, v, def.dmg, u);
+      if (def.burn && v.side === 'e' && v.hp > 0) {
+        v.burning = def.burn;
+        v.burnBy = u.id;
+      }
+    }
     for (const key of Object.keys(b.barricades)) {
       const [bx, by] = key.split(',').map(Number);
-      if (Math.max(Math.abs(bx - x), Math.abs(by - y)) <= 1) this.damageBarricade(b, bx, by, GEAR.pipe_bomb.dmg);
+      if (Math.max(Math.abs(bx - x), Math.abs(by - y)) <= def.radius) this.damageBarricade(b, bx, by, def.dmg);
     }
-    this.makeNoise(b, u, GEAR.pipe_bomb.noise);
+    this.makeNoise(b, u, def.noise);
     this.checkEnd(b);
     return true;
   },
@@ -695,6 +704,13 @@ const Tactics = {
     for (const e of this.enemies(b)) {
       if (b.result) return;
       if (e.hp <= 0) continue;
+      if (e.burning) {
+        e.burning--;
+        this.addLog(b, `🔥 The ${e.name} burns (2).`);
+        this.damage(b, e, 2, b.units.find(v => v.id === e.burnBy && v.hp > 0) || null);
+        this.checkEnd(b);
+        if (e.hp <= 0) continue;
+      }
       if (ENEMIES[e.type].heart) this.heartTurn(b, e);
       else if (e.human) this.raiderTurn(b, e);
       else this.zombieTurn(b, e);

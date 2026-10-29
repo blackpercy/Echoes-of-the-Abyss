@@ -17,7 +17,13 @@ Open `index.html` in a browser, or host the folder on GitHub Pages. Plain HTML, 
 - **Traits:** everyone arrives with a strength (Tough, Former Cop, Athlete, Light Step, Scrounger, Handy, Cheerful, Quick Study, Hardy, Bar Fighter) and often a flaw (Glutton, Shaky Hands, Loud, Frail, Squeamish, Gloomy, Slow Healer). Some matter in battle, some at home.
 - **Resources:** food, materials, medicine, ammo and fuel. Everyone eats every day.
 - **Facilities:** Bunks, Garden, Infirmary, Workshop, Watchtower, Walls and Radio Tower, built and upgraded with materials over several days. Engineers at home build faster.
-- **Workshop:** make ammo, medkits, pipe bombs, flares and weapons.
+- **Workshop:** four levels, each adding recipes:
+  - Level 1: ammo, medkits, pipe bombs and a homemade pipe gun.
+  - Level 2: flares, a machete, a suppressed pistol and a crossbow.
+  - Level 3: ammo in bulk, molotovs, a nail gun and a sawed-off shotgun.
+  - Level 4: frag grenades, a lever-action rifle and a sniper rifle.
+- **Guns:** pistol, revolver, suppressed pistol, pipe gun, crossbow (silent), nail gun (quiet), shotgun, sawed-off, hunting rifle, lever-action, sniper rifle, SMG, assault rifle and light machine gun. Each survivor's card shows their gun's damage, clip, range, aim and noise. Better guns are found at tougher places.
+- **Throwables:** pipe bombs, molotovs (set the dead alight) and frag grenades (bigger blast, very loud).
 - **Morale** affects aim; too low and people leave.
 - **The Blood Plague:** bites can infect. Cure it at the infirmary within three days, or lose the survivor.
 - **The horde** grows every day, faster with every Plague Heart in town and every noisy mission. At 100 it attacks the church.

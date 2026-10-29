@@ -352,3 +352,7 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--b
 #attack-pop .pop-x { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 .2rem; }
 #attack-pop .pop-x:hover { color: var(--text); }
 #attack-pop .btn-row { margin-top: .35rem; }
+
+/* Workshop recipes, by level */
+.craft-tier { margin-top: .4rem; }
+.craft-tier.locked { opacity: .55; }

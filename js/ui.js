@@ -234,7 +234,7 @@ const UI = {
       return;
     }
     if (!u) return;
-    if (this.mode === 'bomb') return this.act(b, () => Tactics.throwBomb(b, u, x, y));
+    if (GEAR[this.mode] && GEAR[this.mode].blast) return this.act(b, () => Tactics.throwBomb(b, u, x, y, this.mode));
     if (this.mode === 'flare') return this.act(b, () => Tactics.throwFlare(b, u, x, y));
     if (here && here.side === 'e') {
       if (Tactics.visible(b).has(`${x},${y}`)) this.target = this.target === here.id ? null : here.id;
@@ -327,10 +327,15 @@ const UI = {
     // The workshop.
     const gear = Object.entries(GEAR).map(([g, def]) => `${def.icon} ${def.name} ×${s.gear[g] || 0}`).join(' · ');
     html += `<section class="panel"><h2>🛠️ Workshop</h2><p class="small">Gear in store: ${gear}</p>
-      ${Game.facilityLevel('workshop') ? `<div class="btn-row">${Object.entries(CRAFTS).map(([id, c]) => {
-        const blocker = Game.craftBlocker(id);
-        return `<button class="btn small" data-act="craft" data-id="${id}"${blocker ? ` disabled title="${esc(blocker)}"` : ''}>${c.icon} ${c.name} <span class="muted">(${Game.costText(c.cost)})</span></button>`;
-      }).join('')}</div>` : '<p class="small muted">Build a workshop to make ammo, medkits and bombs.</p>'}</section>`;
+      ${Game.facilityLevel('workshop') ? [1, 2, 3, 4].map(lvl => {
+        const recipes = Object.entries(CRAFTS).filter(([, c]) => c.level === lvl);
+        const open = Game.facilityLevel('workshop') >= lvl;
+        return `<div class="craft-tier${open ? '' : ' locked'}"><div class="small ${open ? 'muted' : 'muted'}">Level ${lvl}${open ? '' : ' 🔒 upgrade the workshop'}</div><div class="btn-row">${recipes.map(([id, c]) => {
+          const blocker = Game.craftBlocker(id);
+          const info = c.weapon ? this.gunStats(WEAPONS[c.weapon]) : c.gear ? GEAR[c.gear].desc : '';
+          return `<button class="btn small" data-act="craft" data-id="${id}"${blocker ? ' disabled' : ''} title="${esc([info, blocker].filter(Boolean).join(' · '))}">${c.icon} ${c.name} <span class="muted">(${Game.costText(c.cost)})</span></button>`;
+        }).join('')}</div></div>`;
+      }).join('') : '<p class="small muted">Build a workshop to make ammo, medkits, bombs and guns.</p>'}</section>`;
     // The sick.
     const sick = people.filter(sv => sv.infected);
     if (sick.length) {
@@ -346,7 +351,7 @@ const UI = {
     if (lvl.beds) parts.push(`${lvl.beds} beds`);
     if (lvl.food) parts.push(`+${lvl.food} food a day`);
     if (lvl.heal) parts.push(`injuries heal ${lvl.heal} day${lvl.heal > 1 ? 's' : ''} faster`);
-    if (lvl.craft) parts.push(lvl.craft > 1 ? 'all recipes' : 'basic recipes');
+    if (lvl.craft) parts.push(`${Object.values(CRAFTS).filter(c => c.level <= lvl.craft).length} recipes`);
     if (lvl.reveal) parts.push(`see ${lvl.reveal} further, ${lvl.sniper} lookout shot${lvl.sniper > 1 ? 's' : ''} a turn in a siege`);
     if (lvl.barricade) parts.push(`barricades of ${lvl.barricade}, −${lvl.threat} horde a day`);
     if (lvl.contact) parts.push(`${Math.round(lvl.contact * 100)}% chance a day of a call for help`);
@@ -371,7 +376,7 @@ const UI = {
         <div class="btn-row"><button class="btn small${pending ? ' primary glow' : ''}" data-act="skills" data-id="${sv.id}">${pending ? '★ Choose a skill' : '🌳 Skills'}</button></div>
         <div class="small">❤️ ${sv.hp}/${Game.maxHp(sv)} · 🎯 ${Game.aim(sv)} aim · 👟 ${Game.move(sv)} move · 💀 ${sv.kills} kills · ${sv.missions} missions</div>
         <div class="small">${status}</div><div class="small muted">${spec.desc}</div>
-        <div class="equip">${options('gun', sv.gun)}${options('melee', sv.melee)}</div></div>`;
+        <div class="equip">${options('gun', sv.gun)}${options('melee', sv.melee)}</div>${sv.gun ? `<div class="small muted">${this.gunStats(WEAPONS[sv.gun])}</div>` : ''}</div>`;
     }
     html += '</div>';
     const lost = s.survivors.filter(sv => sv.status === 'dead' || sv.status === 'gone');
@@ -540,7 +545,7 @@ const UI = {
         if (t === '#' && seeThrough.has(key)) cls.push('see-through');
         const steps = reach.get(key);
         if (steps) cls.push(steps <= u.move ? 'reach1' : 'reach2');
-        if ((this.mode === 'bomb' || this.mode === 'flare') && u && Tactics.canThrow(b, u, x, y)) cls.push('throwable');
+        if (GEAR[this.mode] && this.mode !== 'medkit' && u && Tactics.canThrow(b, u, x, y)) cls.push('throwable');
         let inner = '';
         const crate = Tactics.crateAt(b, x, y);
         // In the isometric view, walls, cars, crates and barricades are raised blocks.
@@ -622,14 +627,13 @@ const UI = {
     const downedNear = Tactics.players(b).some(p => p.downed && Tactics.manhattan(p, u) === 1);
     return `<div class="actions">
       <div class="who">${u.icon} <b>${esc(u.name)}</b>${this.skillIcons(u)} ❤️ ${u.hp}/${u.maxHp} · ${'●'.repeat(u.ap)}${'○'.repeat(2 - u.ap)} actions · ${gun ? `${gun.icon} ${gun.name} ${u.clip}/${gun.clip}` : 'no gun'} · ${Tactics.meleeOf(u).icon} ${Tactics.meleeOf(u).name}</div>
-      <div class="small muted">${this.mode === 'move' ? 'Tap a blue tile to move (1 action) or a yellow one to run (2). Tap an enemy to attack it.' : this.mode === 'bomb' ? 'Tap where to throw the pipe bomb.' : this.mode === 'flare' ? 'Tap where to throw the flare.' : this.mode === 'heal' ? 'Tap yourself or someone next to you.' : ''}${downedNear ? ' Tap a downed friend next to you to get them up.' : ''}</div>
+      <div class="small muted">${this.mode === 'move' ? 'Tap a blue tile to move (1 action) or a yellow one to run (2). Tap an enemy to attack it.' : GEAR[this.mode] && this.mode !== 'medkit' ? `Tap where to throw the ${GEAR[this.mode].name.toLowerCase()}. ${GEAR[this.mode].desc}` : this.mode === 'heal' ? 'Tap yourself or someone next to you.' : ''}${downedNear ? ' Tap a downed friend next to you to get them up.' : ''}</div>
       <div class="btn-row">
         ${btn('reload', '🔄 Reload', gun && u.clip < gun.clip && b.ammo > 0)}
         ${btn('overwatch', '👁 Overwatch', gun && u.clip > 0)}
         ${btn('search', '📦 Search', !!crate)}
         ${mode('heal', `🩹 Heal (${b.gear.medkit || 0})`, b.gear.medkit > 0)}
-        ${mode('bomb', `💣 Bomb (${b.gear.pipe_bomb || 0})`, b.gear.pipe_bomb > 0)}
-        ${mode('flare', `🎆 Flare (${b.gear.flare || 0})`, b.gear.flare > 0)}
+        ${Object.entries(GEAR).filter(([g]) => g !== 'medkit' && (g === 'pipe_bomb' || b.gear[g] > 0)).map(([g, def]) => mode(g, `${def.icon} ${def.name} (${b.gear[g] || 0})`, b.gear[g] > 0)).join('')}
         ${Tactics.siege(b) ? '' : btn('extract', '🚪 Leave', Tactics.canExtract(b, u))}
       </div>
       <div class="btn-row">${btn('next', '⏭ Next survivor', this.controllable(b).length > 1)}<button class="btn primary" data-act="end-turn">End turn ▶</button></div></div>`;
@@ -689,6 +693,9 @@ const UI = {
       <button class="btn primary" data-act="leave-battle">Back to Grace Hill</button></div>`;
   },
 
+  gunStats(w) {
+    return `${w.icon} ${w.dmg[0]}–${w.dmg[1]} damage${w.burst ? ` ×${w.burst}` : ''} · clip ${w.clip} · range ${w.range}${w.aim ? ` · ${w.aim > 0 ? '+' : ''}${w.aim} aim` : ''} · ${w.noise ? `🔊 ${w.noise}` : '🤫 silent'}${w.desc ? ` · ${w.desc}` : ''}`;
+  },
   // --- Traits ---
   traitChips(sv) {
     return `<div class="traits">${(sv.traits || []).map(t => TRAITS[t]).filter(Boolean).map(t => `<span class="trait ${t.good ? 'good' : 'flaw'}" title="${esc(t.desc)}">${t.icon} ${t.name}<span class="trait-desc"> · ${esc(t.desc)}</span></span>`).join('')}</div>`;

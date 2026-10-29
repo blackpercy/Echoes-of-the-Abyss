@@ -1,6 +1,6 @@
 // Holdout: game data. Survivors, weapons, the dead, base facilities and the region around the base.
 
-const GAME_VERSION = '11';
+const GAME_VERSION = '12';
 
 // --- Resources ---
 const RESOURCES = {
@@ -56,6 +56,13 @@ const WEAPONS = {
   smg: { name: 'Submachine Gun', icon: '🔫', type: 'gun', dmg: [3, 5], clip: 20, aim: 0, range: 6, noise: 3, burst: 2 },
   suppressed: { name: 'Suppressed Pistol', icon: '🤫', type: 'gun', dmg: [3, 4], clip: 10, aim: 5, range: 7, noise: 0 },
   assault: { name: 'Assault Rifle', icon: '🪖', type: 'gun', dmg: [5, 7], clip: 25, aim: 5, range: 9, noise: 4, burst: 2 },
+  pipe_gun: { name: 'Pipe Gun', icon: '🔧', type: 'gun', dmg: [3, 5], clip: 1, aim: -10, range: 5, noise: 3, desc: 'Homemade. One shot, then reload.' },
+  crossbow: { name: 'Crossbow', icon: '🏹', type: 'gun', dmg: [6, 8], clip: 1, aim: 5, range: 8, noise: 0, desc: 'Silent and hard-hitting. One bolt, then reload.' },
+  sawed_off: { name: 'Sawed-Off Shotgun', icon: '💥', type: 'gun', dmg: [6, 9], clip: 2, aim: 15, range: 2, noise: 4, desc: 'Brutal up close, useless far away.' },
+  nail_gun: { name: 'Nail Gun', icon: '🔩', type: 'gun', dmg: [2, 3], clip: 15, aim: 0, range: 4, noise: 1, burst: 2, desc: 'Quiet, two nails a pull, short range.' },
+  lever: { name: 'Lever-Action Rifle', icon: '🤠', type: 'gun', dmg: [4, 6], clip: 8, aim: 5, range: 9, noise: 3 },
+  sniper: { name: 'Sniper Rifle', icon: '🔭', type: 'gun', dmg: [8, 11], clip: 3, aim: 15, range: 14, noise: 5, desc: 'Reaches across the whole map. Very loud.' },
+  lmg: { name: 'Light Machine Gun', icon: '🪖', type: 'gun', dmg: [4, 6], clip: 40, aim: -5, range: 8, noise: 5, burst: 3, desc: 'Three shots a pull. Eats ammo and wakes the dead.' },
   knife: { name: 'Kitchen Knife', icon: '🔪', type: 'melee', dmg: [2, 3], aim: 10 },
   bat: { name: 'Baseball Bat', icon: '🏏', type: 'melee', dmg: [3, 4], aim: 5 },
   machete: { name: 'Machete', icon: '🗡️', type: 'melee', dmg: [4, 5], aim: 5 },
@@ -67,7 +74,9 @@ const FISTS = { name: 'Fists', icon: '✊', type: 'melee', dmg: [1, 2], aim: 0 }
 // Things you carry into a mission and use up.
 const GEAR = {
   medkit: { name: 'Medkit', icon: '🩹', desc: 'Heals 4 (8 for a medic). Made from 1 medicine.', heal: 4 },
-  pipe_bomb: { name: 'Pipe Bomb', icon: '💣', desc: '5 damage to everything within 1 tile of where it lands. Very loud.', dmg: 5, radius: 1, noise: 8 },
+  pipe_bomb: { name: 'Pipe Bomb', icon: '💣', desc: '5 damage to everything within 1 tile of where it lands. Very loud.', dmg: 5, radius: 1, noise: 8, blast: true },
+  molotov: { name: 'Molotov', icon: '🔥', desc: '3 damage within 1 tile, and sets the dead alight: 2 more damage a turn for 2 turns. Fairly quiet.', dmg: 3, radius: 1, noise: 3, burn: 2, blast: true },
+  frag: { name: 'Frag Grenade', icon: '🧨', desc: '6 damage to everything within 2 tiles. Extremely loud.', dmg: 6, radius: 2, noise: 10, blast: true },
   flare: { name: 'Flare', icon: '🎆', desc: 'Every zombie that can see it walks to it this turn instead of to you.', lure: 3 },
 };
 
@@ -100,8 +109,9 @@ const FACILITIES = {
     levels: [{ cost: { materials: 8 }, days: 1, heal: 1 }, { cost: { materials: 15, medicine: 2 }, days: 2, heal: 2 }],
   },
   workshop: {
-    name: 'Workshop', icon: '🛠️', desc: 'Make ammo, medkits and bombs from what you scavenge.',
-    levels: [{ cost: { materials: 10 }, days: 1, craft: 1 }, { cost: { materials: 18, fuel: 2 }, days: 2, craft: 2 }],
+    name: 'Workshop', icon: '🛠️', desc: 'Make ammo, medkits, bombs and guns from what you scavenge. Every level adds recipes.',
+    levels: [{ cost: { materials: 10 }, days: 1, craft: 1 }, { cost: { materials: 18, fuel: 2 }, days: 2, craft: 2 },
+      { cost: { materials: 28, fuel: 3 }, days: 3, craft: 3 }, { cost: { materials: 40, fuel: 4, medicine: 2 }, days: 4, craft: 4 }],
   },
   watchtower: {
     name: 'Watchtower', icon: '🗼', desc: 'See further across the region, and warns you when a horde is near. In a siege, a lookout shoots from it.',
@@ -123,25 +133,34 @@ const CRAFTS = {
   ammo: { name: '6 Ammo', icon: '🔫', cost: { materials: 3 }, level: 1, gives: { ammo: 6 } },
   medkit: { name: 'Medkit', icon: '🩹', cost: { medicine: 1 }, level: 1, gear: 'medkit' },
   pipe_bomb: { name: 'Pipe Bomb', icon: '💣', cost: { materials: 3, fuel: 1 }, level: 1, gear: 'pipe_bomb' },
+  pipe_gun: { name: 'Pipe Gun', icon: '🔧', cost: { materials: 5 }, level: 1, weapon: 'pipe_gun' },
   flare: { name: 'Flare', icon: '🎆', cost: { materials: 1, fuel: 1 }, level: 2, gear: 'flare' },
-  suppressed: { name: 'Suppressed Pistol', icon: '🤫', cost: { materials: 12 }, level: 2, weapon: 'suppressed' },
   machete: { name: 'Machete', icon: '🗡️', cost: { materials: 6 }, level: 2, weapon: 'machete' },
+  suppressed: { name: 'Suppressed Pistol', icon: '🤫', cost: { materials: 12 }, level: 2, weapon: 'suppressed' },
+  crossbow: { name: 'Crossbow', icon: '🏹', cost: { materials: 10 }, level: 2, weapon: 'crossbow' },
+  ammo_press: { name: '20 Ammo', icon: '📦', cost: { materials: 7 }, level: 3, gives: { ammo: 20 } },
+  molotov: { name: 'Molotov', icon: '🔥', cost: { materials: 1, fuel: 2 }, level: 3, gear: 'molotov' },
+  nail_gun: { name: 'Nail Gun', icon: '🔩', cost: { materials: 14, fuel: 1 }, level: 3, weapon: 'nail_gun' },
+  sawed_off: { name: 'Sawed-Off Shotgun', icon: '💥', cost: { materials: 16 }, level: 3, weapon: 'sawed_off' },
+  frag: { name: 'Frag Grenade', icon: '🧨', cost: { materials: 5, fuel: 1, ammo: 4 }, level: 4, gear: 'frag' },
+  lever: { name: 'Lever-Action Rifle', icon: '🤠', cost: { materials: 20 }, level: 4, weapon: 'lever' },
+  sniper: { name: 'Sniper Rifle', icon: '🔭', cost: { materials: 30, fuel: 2 }, level: 4, weapon: 'sniper' },
 };
 
 // --- The region ---
 // Site types: what they hold, how dangerous they are, and what lives there.
 const SITE_TYPES = {
-  houses: { name: 'Houses', icon: '🏘️', loot: { food: [2, 4], materials: [1, 3], medicine: [0, 1] }, danger: 1, crates: 4, weapons: ['knife', 'bat'], outpost: { food: 1, materials: 1 } },
+  houses: { name: 'Houses', icon: '🏘️', loot: { food: [2, 4], materials: [1, 3], medicine: [0, 1] }, danger: 1, crates: 4, weapons: ['knife', 'bat', 'crossbow'], outpost: { food: 1, materials: 1 } },
   diner: { name: 'Diner', icon: '🍔', loot: { food: [3, 6] }, danger: 1, crates: 3, weapons: ['knife'], outpost: { food: 2 } },
   gas_station: { name: 'Gas Station', icon: '⛽', loot: { fuel: [2, 4], food: [1, 2] }, danger: 1, crates: 3, weapons: ['bat'], outpost: { fuel: 1 } },
-  farm: { name: 'Farm', icon: '🚜', loot: { food: [3, 6], materials: [1, 2] }, danger: 1, crates: 4, weapons: ['axe', 'shotgun'], outpost: { food: 3 } },
-  hardware: { name: 'Hardware Store', icon: '🔨', loot: { materials: [3, 6] }, danger: 2, crates: 4, weapons: ['axe', 'sledge', 'machete'], outpost: { materials: 2 } },
+  farm: { name: 'Farm', icon: '🚜', loot: { food: [3, 6], materials: [1, 2] }, danger: 1, crates: 4, weapons: ['axe', 'shotgun', 'sawed_off', 'crossbow'], outpost: { food: 3 } },
+  hardware: { name: 'Hardware Store', icon: '🔨', loot: { materials: [3, 6] }, danger: 2, crates: 4, weapons: ['axe', 'sledge', 'machete', 'nail_gun'], outpost: { materials: 2 } },
   pharmacy: { name: 'Pharmacy', icon: '💊', loot: { medicine: [2, 4] }, danger: 2, crates: 3, weapons: [], outpost: { medicine: 1 } },
   school: { name: 'School', icon: '🏫', loot: { food: [1, 3], materials: [1, 3], medicine: [0, 2] }, danger: 2, crates: 5, weapons: ['bat'], outpost: { food: 1, materials: 1 } },
-  police: { name: 'Police Station', icon: '🚓', loot: { ammo: [4, 8], medicine: [0, 1] }, danger: 3, crates: 4, weapons: ['revolver', 'shotgun', 'smg'], raiders: true, outpost: { ammo: 3 } },
-  warehouse: { name: 'Warehouse', icon: '🏭', loot: { materials: [3, 6], fuel: [1, 3] }, danger: 3, crates: 5, weapons: ['sledge'], raiders: true, outpost: { materials: 2, fuel: 1 } },
+  police: { name: 'Police Station', icon: '🚓', loot: { ammo: [4, 8], medicine: [0, 1] }, danger: 3, crates: 4, weapons: ['revolver', 'shotgun', 'smg', 'lever'], raiders: true, outpost: { ammo: 3 } },
+  warehouse: { name: 'Warehouse', icon: '🏭', loot: { materials: [3, 6], fuel: [1, 3] }, danger: 3, crates: 5, weapons: ['sledge', 'nail_gun'], raiders: true, outpost: { materials: 2, fuel: 1 } },
   hospital: { name: 'Hospital', icon: '🏥', loot: { medicine: [3, 6] }, danger: 4, crates: 5, weapons: ['knife'], outpost: { medicine: 2 } },
-  checkpoint: { name: 'Army Checkpoint', icon: '🪖', loot: { ammo: [6, 12], fuel: [1, 3] }, danger: 5, crates: 4, weapons: ['assault', 'rifle', 'smg'], raiders: true, outpost: { ammo: 4, fuel: 1 } },
+  checkpoint: { name: 'Army Checkpoint', icon: '🪖', loot: { ammo: [6, 12], fuel: [1, 3] }, danger: 5, crates: 4, weapons: ['assault', 'rifle', 'smg', 'sniper', 'lmg'], raiders: true, outpost: { ammo: 4, fuel: 1 } },
 };
 // The map of Marrow Creek. x/y on a 1000 × 700 map. stock: how many missions' worth of loot is left.
 const BASE_SITE = { name: 'Grace Hill Church', icon: '⛪', x: 500, y: 350 };
