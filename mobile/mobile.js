@@ -54,6 +54,8 @@
         const body = document.body;
         const on = NARROW.matches;
         body.classList.toggle('mob', on);
+        // The game locks scrolling on the page itself; on a phone the page is what scrolls.
+        document.documentElement.classList.toggle('mob-page', on);
         for (const p of PANELS) body.classList.toggle(`mob-${p.id}`, on && panel === p.id);
         const nav = document.getElementById('mobNav');
         if (!nav) return;

@@ -27,6 +27,11 @@ html.mob-touch #mobNav {
 
 /* --- Narrow screens: one panel at a time --- */
 @media only screen and (max-width: 768px) {
+    html.mob-page {
+        overflow-y: auto !important;
+        height: auto;
+        -webkit-overflow-scrolling: touch;
+    }
     body.mob {
         --mob-nav: 3.4rem;
         padding-bottom: calc(var(--mob-nav) + env(safe-area-inset-bottom, 0px));
@@ -55,7 +60,7 @@ html.mob-touch #mobNav {
     body.mob .main .sticky,
     body.mob .main .resTabs > section {
         position: static;
-        overflow-y: visible;
+        overflow-y: visible !important;
     }
     body.mob .main .vscroll {
         overflow-y: visible;
