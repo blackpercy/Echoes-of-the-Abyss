@@ -86,7 +86,9 @@
         strip.id = 'mobTicker';
         strip.title = 'Tap for all resources';
         strip.addEventListener('click', () => show('res'));
-        document.body.appendChild(strip);
+        // In the page flow just above the game, so it can wrap onto as many lines as it needs.
+        const main = document.getElementById('main');
+        main.parentNode.insertBefore(strip, main);
         setInterval(updateTicker, 1000);
         updateTicker();
     }
@@ -102,7 +104,7 @@
             if (!name || !count) continue;
             const text = count.textContent.trim();
             const [have, max] = text.split('/').map(t => t.trim());
-            const full = max && have === max;
+            const full = max && have === max && max !== '0';
             const colour = [...name.classList].find(c => c.startsWith('has-text-')) || '';
             chips.push(`<span class="mob-chip${full ? ' full' : ''}"><b class="${colour}">${name.textContent.trim()}</b> ${have}${max ? `<i>/${max}</i>` : ''}</span>`);
         }
