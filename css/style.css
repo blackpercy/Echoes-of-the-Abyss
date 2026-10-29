@@ -344,3 +344,11 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--b
 .outpost-box.siege { border: 1px solid var(--bad); }
 .pin.outpost .sign { border-color: var(--accent); }
 .pin.under-siege .sign { border-color: var(--bad); animation: glow 1.2s ease-in-out infinite; }
+
+/* The attack pop-up beside a targeted enemy */
+#attack-pop { position: fixed; z-index: 40; max-width: min(320px, calc(100vw - 12px)); background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: .45rem .55rem; box-shadow: 0 6px 18px rgba(0, 0, 0, .55); font-size: .88rem; }
+#attack-pop.away { visibility: hidden; }
+#attack-pop .pop-head { display: flex; align-items: center; gap: .35rem; }
+#attack-pop .pop-x { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 .2rem; }
+#attack-pop .pop-x:hover { color: var(--text); }
+#attack-pop .btn-row { margin-top: .35rem; }

@@ -20,6 +20,8 @@ const UI = {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => Game.state.battle && this.render(), 150);
     });
+    // The attack pop-up follows its target when the battlefield scrolls.
+    document.addEventListener('scroll', () => this.placeAttackPop(), true);
     Game.listeners.push(type => {
       if (type === 'reset') {
         this.tab = 'base';
@@ -109,6 +111,7 @@ const UI = {
       case 'abandon':
         if (confirm(`Abandon ${SITES[d.id].name}? You will have to claim it again.`)) Game.abandon(d.id);
         return;
+      case 'cancel-attack': this.target = null; break;
       case 'close-modal': this.closeModal(); break;
       case 'intro-done':
         Game.state.seenIntro = true;
@@ -234,10 +237,14 @@ const UI = {
     if (this.mode === 'bomb') return this.act(b, () => Tactics.throwBomb(b, u, x, y));
     if (this.mode === 'flare') return this.act(b, () => Tactics.throwFlare(b, u, x, y));
     if (here && here.side === 'e') {
-      if (Tactics.visible(b).has(`${x},${y}`)) this.target = here.id;
+      if (Tactics.visible(b).has(`${x},${y}`)) this.target = this.target === here.id ? null : here.id;
       return;
     }
-    this.target = null;
+    // With an attack pop-up open, a tap elsewhere only closes it.
+    if (this.target) {
+      this.target = null;
+      return;
+    }
     if (Tactics.moveUnit(b, u, x, y)) {
       if (u.ap <= 0) this.selectNext(b);
       Game.save();
@@ -261,7 +268,9 @@ const UI = {
       else this.scrollToSelected(s.battle);
       this.lastSel = this.sel;
       this.followSel = false;
+      this.attackPop(s.battle);
     } else {
+      this.attackPop(null);
       main.innerHTML = this.tabs() + ({ base: () => this.baseView(), people: () => this.peopleView(), map: () => this.mapView(), log: () => this.logView() })[this.tab]();
       // On a narrow screen the map scrolls sideways; start it centred on the church.
       const tilt = document.querySelector('.tilt-wrap');
@@ -609,18 +618,11 @@ const UI = {
     const gun = Tactics.gunOf(u);
     const btn = (act, label, ok, extra = '') => `<button class="btn small${extra}" data-act="${act}"${ok ? '' : ' disabled'}>${label}</button>`;
     const mode = (m, label, ok) => `<button class="btn small${this.mode === m ? ' on' : ''}" data-act="mode" data-mode="${m}"${ok ? '' : ' disabled'}>${label}</button>`;
-    let attack = '';
-    if (target && target.hp > 0) {
-      attack = `<div class="attack">🎯 ${target.icon} <b>${esc(target.name)}</b> ❤️ ${target.hp}/${target.maxHp}${ENEMIES[target.type].desc ? ` <span class="muted small">${esc(ENEMIES[target.type].desc)}</span>` : ''}<br>
-        ${gun ? btn('fire', `Shoot ${Tactics.canShoot(b, u, target) ? `${Tactics.shotChance(b, u, target)}%` : ''}${gun.noise ? ' 🔊' : ' 🤫'}`, Tactics.canShoot(b, u, target), ' primary') : ''}
-        ${btn('strike', `Melee ${Tactics.canMelee(b, u, target) ? `${Tactics.meleeChance(u)}%` : '(get next to it)'} 🤫`, Tactics.canMelee(b, u, target))}</div>`;
-    }
     const crate = Tactics.adjacentCrate(b, u);
     const downedNear = Tactics.players(b).some(p => p.downed && Tactics.manhattan(p, u) === 1);
     return `<div class="actions">
       <div class="who">${u.icon} <b>${esc(u.name)}</b>${this.skillIcons(u)} ❤️ ${u.hp}/${u.maxHp} · ${'●'.repeat(u.ap)}${'○'.repeat(2 - u.ap)} actions · ${gun ? `${gun.icon} ${gun.name} ${u.clip}/${gun.clip}` : 'no gun'} · ${Tactics.meleeOf(u).icon} ${Tactics.meleeOf(u).name}</div>
       <div class="small muted">${this.mode === 'move' ? 'Tap a blue tile to move (1 action) or a yellow one to run (2). Tap an enemy to attack it.' : this.mode === 'bomb' ? 'Tap where to throw the pipe bomb.' : this.mode === 'flare' ? 'Tap where to throw the flare.' : this.mode === 'heal' ? 'Tap yourself or someone next to you.' : ''}${downedNear ? ' Tap a downed friend next to you to get them up.' : ''}</div>
-      ${attack}
       <div class="btn-row">
         ${btn('reload', '🔄 Reload', gun && u.clip < gun.clip && b.ammo > 0)}
         ${btn('overwatch', '👁 Overwatch', gun && u.clip > 0)}
@@ -631,6 +633,55 @@ const UI = {
         ${Tactics.siege(b) ? '' : btn('extract', '🚪 Leave', Tactics.canExtract(b, u))}
       </div>
       <div class="btn-row">${btn('next', '⏭ Next survivor', this.controllable(b).length > 1)}<button class="btn primary" data-act="end-turn">End turn ▶</button></div></div>`;
+  },
+  // A small pop-up next to the enemy picked for an attack: its health and the odds, and buttons to go ahead.
+  attackPop(b) {
+    let pop = document.getElementById('attack-pop');
+    const u = b && !b.result && this.unit(b);
+    const target = u && this.target ? this.unitById(b, this.target) : null;
+    if (!target || target.hp <= 0) {
+      if (pop) pop.remove();
+      return;
+    }
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.id = 'attack-pop';
+      document.body.appendChild(pop);
+    }
+    const gun = Tactics.gunOf(u);
+    const btn = (act, label, ok, extra = '') => `<button class="btn small${extra}" data-act="${act}"${ok ? '' : ' disabled'}>${label}</button>`;
+    const canShoot = gun && Tactics.canShoot(b, u, target), canMelee = Tactics.canMelee(b, u, target);
+    const why = !gun ? 'No gun' : u.clip <= 0 ? 'Reload first' : !canShoot ? 'No clear shot' : '';
+    const def = ENEMIES[target.type];
+    pop.innerHTML = `<div class="pop-head">${target.icon} <b>${esc(target.name)}</b> <span class="muted">❤️ ${target.hp}/${target.maxHp}</span><button class="pop-x" data-act="cancel-attack" title="Cancel">✕</button></div>
+      ${def.desc ? `<div class="small muted">${esc(def.desc)}</div>` : ''}
+      <div class="btn-row">
+        ${gun ? btn('fire', `🔫 Shoot ${canShoot ? `<b>${Tactics.shotChance(b, u, target)}%</b>` : ''}${gun.noise ? ' 🔊' : ' 🤫'}`, canShoot, canShoot ? ' primary' : '') : ''}
+        ${btn('strike', `${Tactics.meleeOf(u).icon} Melee ${canMelee ? `<b>${Tactics.meleeChance(u)}%</b>` : ''} 🤫`, canMelee, canMelee && !canShoot ? ' primary' : '')}
+      </div>${!canShoot && !canMelee ? `<div class="small muted">${why ? `${why}. ` : ''}Get next to it to use melee.</div>` : ''}`;
+    this.placeAttackPop();
+  },
+  // Keep the pop-up beside the target's figure, on screen.
+  placeAttackPop() {
+    const pop = document.getElementById('attack-pop');
+    const b = Game.state.battle;
+    if (!pop || !b) return;
+    const target = this.unitById(b, this.target);
+    const fig = target && document.querySelector(`.tile[data-x="${target.x}"][data-y="${target.y}"] .unit`);
+    if (!fig) return pop.remove();
+    const r = fig.getBoundingClientRect();
+    const pw = pop.offsetWidth, ph = pop.offsetHeight, gap = 8;
+    let left = r.left + r.width / 2 - pw / 2;
+    let top = r.top - ph - gap;
+    if (top < 60) top = r.bottom + gap;
+    left = Math.max(6, Math.min(window.innerWidth - pw - 6, left));
+    top = Math.max(6, Math.min(window.innerHeight - ph - 6, top));
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    // Hide it while its target is scrolled out of sight.
+    const wrap = document.getElementById('iso-wrap') || document.getElementById('main');
+    const w = wrap.getBoundingClientRect();
+    pop.classList.toggle('away', r.bottom < w.top || r.top > w.bottom || r.right < w.left || r.left > w.right);
   },
   resultPanel(b) {
     return `<div class="actions result ${b.result}"><h2>${b.result === 'won' ? '✅ Done' : '❌ Failed'}</h2>
