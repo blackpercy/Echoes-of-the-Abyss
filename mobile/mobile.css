@@ -349,3 +349,33 @@ html.mob-touch #mobNav {
 #autoTrade .at-note a {
     text-decoration: underline;
 }
+
+/* Yield multiplier setting (mobile/yield.js) */
+#yieldMult {
+    margin: .5rem 0 1rem;
+    padding: .5rem .75rem;
+    border: 1px solid #555;
+    border-radius: .4rem;
+}
+#yieldMult h3 {
+    margin-bottom: .4rem;
+}
+#yieldMult .ym-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin-bottom: .4rem;
+}
+#yieldMult .ym-row .button {
+    min-width: 2.8rem;
+}
+#yieldMult .ym-note {
+    font-size: .85rem;
+    opacity: .85;
+}
+#yieldMult .ym-row .button.ym-on {
+    border-color: #ffdd57;
+    color: #ffdd57;
+    font-weight: bold;
+    box-shadow: inset 0 0 0 1px #ffdd57;
+}
