@@ -14,7 +14,7 @@ The game's own code is unchanged. A small layer is added on top:
 | `mobile/mobile.js` | A bottom bar to switch between **Resources**, **Game** and **Log** (with a count of new messages), a strip of resources above the game, and touch controls: **tap** to gather, build or research; **press and hold** to see what something costs and does. |
 
 | `mobile/yield.js` | **Yield multiplier** (×1 to ×100) at the top of the Settings tab: every second, each growing resource gets that many times its usual net gain, up to its storage cap. |
-| `mobile/market.js` | **Auto-trading**, switched on at the top of the Settings tab (on any screen size): auto-sell 100 of any resource that is full, and when money is over half its cap, auto-buy 100 of the least-full resource. It uses the game's own market buttons, so prices are exactly the game's, and turns on the game's *Preload Tab Content* so the market is there in the background. |
+| `mobile/market.js` | **Auto-trading**, switched on at the top of the Settings tab (on any screen size): auto-sell 1000 of every resource that is full, each second, and when money is over half its cap, auto-buy 100 of the least-full resource. It uses the game's own market buttons, so prices are exactly the game's, and turns on the game's *Preload Tab Content* so the market is there in the background. |
 
 `index.html` loads the files and has phone-friendly meta tags. The Google Analytics tag that reported to
 the original author's account is removed from `index.html`, `wiki.html` and `save.html`.
