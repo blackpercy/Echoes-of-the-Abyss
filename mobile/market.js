@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Auto-trading for Evolve, switched on from the Settings tab. Changes nothing in the game's own code.
 // - Auto-sell: every second, each tradable resource at its cap sells 100.
-// - Auto-buy: every second that money is at its cap, buy 100 of the tradable resource that is least full.
+// - Auto-buy: every second that money is over half its cap, buy 100 of the tradable resource that is least full.
 // Trades go through the game's own market buttons, so prices and price changes are exactly the game's.
 // Those buttons only exist while the market is drawn, so auto-trading turns on the game's own
 // "Preload Tab Content" switch, which draws every tab in the background.
@@ -11,6 +11,7 @@
     'use strict';
 
     const QTY = 100;
+    const BUY_ABOVE = 0.5;   // auto-buy while money is over this share of its cap
     const KEYS = { sell: 'evolve-auto-sell', buy: 'evolve-auto-buy' };
     const opts = { sell: read(KEYS.sell) === '1', buy: read(KEYS.buy) === '1' };
     let last = '';
@@ -84,7 +85,7 @@
                 if (trade(g, name, 'sell') && r.amount < before) done.push(`sold ${Math.round(before - r.amount)} ${r.name}`);
             }
         }
-        if (opts.buy && money && money.r.amount >= money.r.max) {
+        if (opts.buy && money && money.r.amount > money.r.max * BUY_ABOVE) {
             const pick = tradable
                 .filter(x => x.r.amount < x.r.max)
                 .sort((a, b) => a.r.amount / a.r.max - b.r.amount / b.r.max)[0];
@@ -109,7 +110,7 @@
             panel.id = 'autoTrade';
             panel.innerHTML = `<h3 class="has-text-warning">Auto-trading</h3>
                 <label class="at-row"><input type="checkbox" data-opt="sell"> Auto-sell ${QTY} of a resource when it is full</label>
-                <label class="at-row"><input type="checkbox" data-opt="buy"> Auto-buy ${QTY} of the least-full resource when money is full</label>
+                <label class="at-row"><input type="checkbox" data-opt="buy"> Auto-buy ${QTY} of the least-full resource when money is over ${BUY_ABOVE * 100}%</label>
                 <div class="at-note"></div>`;
             panel.addEventListener('change', e => {
                 const box = e.target.closest('input[data-opt]');
