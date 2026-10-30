@@ -6,14 +6,16 @@ repository at commit `3436358` (version 1.4.10). All credit for the game goes to
 
 ## What is different here
 
-The game's own code is unchanged. A small mobile layer is added on top:
+The game's own code is unchanged. A small layer is added on top:
 
 | File | What it does |
 |------|--------------|
 | `mobile/mobile.css` | Phone layout: the page scrolls instead of each panel, buttons two to a row and big enough for a thumb, tabs scroll sideways, pop-ups and dialogs fit the screen, no double-tap zoom. |
 | `mobile/mobile.js` | A bottom bar to switch between **Resources**, **Game** and **Log** (with a count of new messages), a strip of resources above the game, and touch controls: **tap** to gather, build or research; **press and hold** to see what something costs and does. |
 
-`index.html` loads the two files and has phone-friendly meta tags. The Google Analytics tag that reported to
+| `mobile/market.js` | **Auto-trading**, switched on at the top of the Settings tab (on any screen size): auto-sell 100 of any resource that is full, and when money is full, auto-buy 100 of the least-full resource. It uses the game's own market buttons, so prices are exactly the game's, and turns on the game's *Preload Tab Content* so the market is there in the background. |
+
+`index.html` loads the files and has phone-friendly meta tags. The Google Analytics tag that reported to
 the original author's account is removed from `index.html`, `wiki.html` and `save.html`.
 
 Everything else, including the original README below, is as it was upstream.
