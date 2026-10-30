@@ -379,3 +379,17 @@ html.mob-touch #mobNav {
     font-weight: bold;
     box-shadow: inset 0 0 0 1px #ffdd57;
 }
+
+/* The message log: a little larger than the game's .75rem, on every screen size. */
+#msgQueueLog {
+    font-size: .95rem;
+    line-height: 1.35;
+}
+#msgQueueLog p {
+    margin-bottom: .2rem;
+}
+@media only screen and (max-width: 768px) {
+    body.mob #msgQueueLog {
+        font-size: 1rem;
+    }
+}
