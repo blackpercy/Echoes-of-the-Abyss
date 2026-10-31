@@ -2,20 +2,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Auto-trading for Evolve, switched on from the Settings tab. Changes nothing in the game's own code.
-// - Auto-sell: every second, every tradable resource at its cap sells 1000 (as many as are full).
-// - Auto-buy: every second that money is over half its cap, buy 10000 of the tradable resource that is least
-//   full, or else 1000, or else 100: the biggest step that both the money above half and the free storage allow.
+// - Auto-sell: every second, every tradable resource at its cap sells a chosen share of what it holds (1%, 10% or 25%).
+// - Auto-buy: every second that money is over half its cap, buy 100000 of the tradable resource that is least full,
+//   or else 10000, 1000 or 100: the biggest step that both the money above half and the free storage allow.
 // Trades go through the game's own market buttons, so prices and price changes are exactly the game's.
 // Those buttons only exist while the market is drawn, so auto-trading turns on the game's own
 // "Preload Tab Content" switch, which draws every tab in the background.
 (function () {
     'use strict';
 
-    const SELL_QTY = 1000;
-    const BUY_STEPS = [10000, 1000, 100];   // the biggest that fits the budget and the free storage
+    const SELL_PCTS = [1, 10, 25];   // share of a full resource sold each second
+    const BUY_STEPS = [100000, 10000, 1000, 100];   // the biggest that fits the budget and the free storage
     const BUY_ABOVE = 0.5;   // auto-buy while money is over this share of its cap
-    const KEYS = { sell: 'evolve-auto-sell', buy: 'evolve-auto-buy' };
-    const opts = { sell: read(KEYS.sell) === '1', buy: read(KEYS.buy) === '1' };
+    const KEYS = { sell: 'evolve-auto-sell', buy: 'evolve-auto-buy', pct: 'evolve-auto-sell-pct' };
+    const opts = { sell: read(KEYS.sell) === '1', buy: read(KEYS.buy) === '1', pct: Number(read(KEYS.pct)) || 10 };
+    if (!SELL_PCTS.includes(opts.pct)) opts.pct = 10;
     let last = '';
     let preloadMissing = false;
 
@@ -84,7 +85,8 @@
             for (const { name, r } of tradable) {
                 if (r.amount < r.max) continue;
                 const before = r.amount;
-                if (trade(g, name, 'sell', SELL_QTY) && r.amount < before) done.push(`sold ${Math.round(before - r.amount)} ${r.name}`);
+                const qty = Math.max(1, Math.floor(r.amount * opts.pct / 100));
+                if (trade(g, name, 'sell', qty) && r.amount < before) done.push(`sold ${Math.round(before - r.amount)} ${r.name}`);
             }
         }
         if (opts.buy && money && money.r.amount > money.r.max * BUY_ABOVE) {
@@ -114,7 +116,8 @@
             panel = document.createElement('div');
             panel.id = 'autoTrade';
             panel.innerHTML = `<h3 class="has-text-warning">Auto-trading</h3>
-                <label class="at-row"><input type="checkbox" data-opt="sell"> Auto-sell ${SELL_QTY} of every resource that is full</label>
+                <label class="at-row"><input type="checkbox" data-opt="sell"> Auto-sell a share of every resource that is full, each second:</label>
+                <div class="at-pcts">${SELL_PCTS.map(n => `<button type="button" class="button is-small" data-pct="${n}">${n}%</button>`).join('')}</div>
                 <label class="at-row"><input type="checkbox" data-opt="buy"> Auto-buy ${BUY_STEPS.map(n => n.toLocaleString('en-US')).join(', else ')} of the least-full resource with the money over ${BUY_ABOVE * 100}%</label>
                 <div class="at-note"></div>`;
             panel.addEventListener('change', e => {
@@ -125,11 +128,19 @@
                 tick();
                 drawPanel(true);
             });
+            panel.addEventListener('click', e => {
+                const btn = e.target.closest('[data-pct]');
+                if (!btn) return;
+                opts.pct = Number(btn.dataset.pct);
+                write(KEYS.pct, String(opts.pct));
+                drawPanel(true);
+            });
             settings.insertBefore(panel, settings.firstChild);
             refresh = true;
         }
         if (!refresh) return;
         for (const box of panel.querySelectorAll('input[data-opt]')) box.checked = opts[box.dataset.opt];
+        for (const btn of panel.querySelectorAll('[data-pct]')) btn.classList.toggle('at-on', Number(btn.dataset.pct) === opts.pct);
         const g = game();
         let note = '';
         if (preloadMissing) note = 'Auto-trading needs the game\'s <b>Preload Tab Content</b> setting. Turn it on below, in this Settings tab.';
