@@ -2685,7 +2685,22 @@ export function containerValue(){
         container_value *= 1 + (traits.pack_rat.vars(1)[0] / 100 * fathom);
     }
     container_value *= global.stats.achieve['blackhole'] ? 1 + (global.stats.achieve.blackhole.l * 0.05) : 1;
+    container_value *= containerBoost();
     return Math.round(spatialReasoning(container_value));
+}
+
+// Added in this copy: Settings → Container capacity (mobile/storage.js) multiplies what a container holds.
+// It is stored in the browser, not in the save; ×100 unless set otherwise.
+function containerBoost(){
+    let mult = 100;
+    try {
+        let saved = Number(localStorage.getItem('evolve-container-mult'));
+        if (saved > 0){
+            mult = saved;
+        }
+    }
+    catch (e){}
+    return mult;
 }
 
 function initMarket(){
