@@ -3,8 +3,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Auto-trading for Evolve, switched on from the Settings tab. Changes nothing in the game's own code.
 // - Auto-sell: every second, every tradable resource at its cap sells 1000 (as many as are full).
-// - Auto-buy: every second that money is over half its cap, buy up to 10000 of the tradable resource that is
-//   least full, spending only the money above half (the market also stops at the resource's free storage).
+// - Auto-buy: every second that money is over half its cap, buy 10000 of the tradable resource that is least
+//   full, or else 1000, or else 100: the biggest step that both the money above half and the free storage allow.
 // Trades go through the game's own market buttons, so prices and price changes are exactly the game's.
 // Those buttons only exist while the market is drawn, so auto-trading turns on the game's own
 // "Preload Tab Content" switch, which draws every tab in the background.
@@ -12,7 +12,7 @@
     'use strict';
 
     const SELL_QTY = 1000;
-    const BUY_QTY = 10000;
+    const BUY_STEPS = [10000, 1000, 100];   // the biggest that fits the budget and the free storage
     const BUY_ABOVE = 0.5;   // auto-buy while money is over this share of its cap
     const KEYS = { sell: 'evolve-auto-sell', buy: 'evolve-auto-buy' };
     const opts = { sell: read(KEYS.sell) === '1', buy: read(KEYS.buy) === '1' };
@@ -91,9 +91,10 @@
             const pick = tradable
                 .filter(x => x.r.amount < x.r.max)
                 .sort((a, b) => a.r.amount / a.r.max - b.r.amount / b.r.max)[0];
-            // Spend only the money above the line, at the market's price per unit.
-            const qty = pick && pick.r.value > 0 ? Math.min(BUY_QTY, Math.floor((money.r.amount - money.r.max * BUY_ABOVE) / pick.r.value)) : 0;
-            if (qty >= 1) {
+            // The biggest step that fits the money above the line (at the market's price) and the free storage.
+            const budget = pick && pick.r.value > 0 ? (money.r.amount - money.r.max * BUY_ABOVE) / pick.r.value : 0;
+            const qty = pick ? BUY_STEPS.find(n => n <= budget && n <= pick.r.max - pick.r.amount) : 0;
+            if (qty) {
                 const before = pick.r.amount;
                 if (trade(g, pick.name, 'purchase', qty) && pick.r.amount > before) done.push(`bought ${Math.round(pick.r.amount - before)} ${pick.r.name}`);
             }
@@ -114,7 +115,7 @@
             panel.id = 'autoTrade';
             panel.innerHTML = `<h3 class="has-text-warning">Auto-trading</h3>
                 <label class="at-row"><input type="checkbox" data-opt="sell"> Auto-sell ${SELL_QTY} of every resource that is full</label>
-                <label class="at-row"><input type="checkbox" data-opt="buy"> Auto-buy up to ${BUY_QTY.toLocaleString('en-US')} of the least-full resource with the money over ${BUY_ABOVE * 100}%</label>
+                <label class="at-row"><input type="checkbox" data-opt="buy"> Auto-buy ${BUY_STEPS.map(n => n.toLocaleString('en-US')).join(', else ')} of the least-full resource with the money over ${BUY_ABOVE * 100}%</label>
                 <div class="at-note"></div>`;
             panel.addEventListener('change', e => {
                 const box = e.target.closest('input[data-opt]');
