@@ -6,7 +6,7 @@ repository at commit `3436358` (version 1.4.10). All credit for the game goes to
 
 ## What is different here
 
-The game's own code is unchanged except for two settings (container capacity and money storage, below). A small layer is added on top:
+The game's own code is unchanged except for two settings (crate and container capacity, and money storage, below). A small layer is added on top:
 
 | File | What it does |
 |------|--------------|
@@ -15,7 +15,7 @@ The game's own code is unchanged except for two settings (container capacity and
 
 | `mobile/yield.js` | **Yield multiplier** (×1 to ×100) at the top of the Settings tab: every second, each growing resource gets that many times its usual net gain, up to its storage cap. |
 | `mobile/genes.js` | An **Auto** toggle next to *Assemble Gene* (A.R.P.A. → Genetics): while on, it presses Assemble Gene once a second whenever Knowledge is full, so only knowledge that would go to waste is spent. |
-| `mobile/storage.js` + `src/resources.js`, `src/main.js` | **Container capacity** and **Money storage** (each ×1, ×10, ×100; ×100 by default) in the Settings tab. These change the game itself: `containerValue()` and the money cap are multiplied through `storageBoost()`, and `evolve/main.js` is rebuilt from `src` with esbuild. |
+| `mobile/storage.js` + `src/resources.js`, `src/main.js` | **Crate & container capacity** and **Money storage** (each ×1, ×10, ×100; ×100 by default) in the Settings tab. These change the game itself: `crateValue()`, `containerValue()` and the money cap are multiplied through `storageBoost()`, and `evolve/main.js` is rebuilt from `src` with esbuild. |
 | `mobile/market.js` | **Auto-trading**, switched on at the top of the Settings tab (on any screen size): auto-sell 1%, 10% or 25% (your choice) of every resource that is full, each second, and when money is over half its cap, auto-buy 100,000 (or else 10,000, 1,000 or 100) of the least-full resource with the money above half. It uses the game's own market buttons, so prices are exactly the game's, and turns on the game's *Preload Tab Content* so the market is there in the background. |
 
 `index.html` loads the files and has phone-friendly meta tags. The Google Analytics tag that reported to

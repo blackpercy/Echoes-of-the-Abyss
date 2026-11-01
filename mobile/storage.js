@@ -1,8 +1,8 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-// Storage settings, in the Settings tab: container capacity and the money cap. The game reads them every tick
-// through storageBoost() in src/resources.js (used by containerValue() and by the money cap in src/main.js),
+// Storage settings, in the Settings tab: crate and container capacity, and the money cap. The game reads them every tick
+// through storageBoost() in src/resources.js (used by crateValue(), containerValue() and the money cap in src/main.js),
 // so a change applies at once.
 (function () {
     'use strict';
@@ -10,7 +10,7 @@
     const CHOICES = [1, 10, 100];
     const DEFAULT = 100;   // must match storageBoost() in src/resources.js
     const PANELS = [
-        { id: 'containerMult', key: 'evolve-container-mult', title: 'Container capacity', note: 'Each container holds this many times its normal amount.' },
+        { id: 'containerMult', key: 'evolve-container-mult', title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
         { id: 'moneyMult', key: 'evolve-money-mult', title: 'Money storage', note: 'Your money cap is this many times its normal size.' },
     ];
 

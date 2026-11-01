@@ -2663,6 +2663,7 @@ export function crateValue(){
         create_value *= 1.1;
     }
     create_value *= global.stats.achieve['blackhole'] ? 1 + (global.stats.achieve.blackhole.l * 0.05) : 1;
+    create_value *= storageBoost('evolve-container-mult');
     return Math.round(spatialReasoning(create_value));
 }
 
@@ -2689,7 +2690,7 @@ export function containerValue(){
     return Math.round(spatialReasoning(container_value));
 }
 
-// Added in this copy: storage multipliers set in Settings (mobile/storage.js): container capacity
+// Added in this copy: storage multipliers set in Settings (mobile/storage.js): crate and container capacity
 // ('evolve-container-mult') and the money cap ('evolve-money-mult', used in main.js).
 // They are stored in the browser, not in the save; ×100 unless set otherwise.
 export function storageBoost(key){
