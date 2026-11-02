@@ -8,7 +8,12 @@
     'use strict';
 
     const KEY = 'evolve-yield';
-    const CHOICES = [1, 2, 3, 5, 10, 25, 100];
+    const CHOICES = [1, 2, 3, 5, 10, 25, 100, 250, 1000];
+    // One-time update: switch this game to ×1000 when the bigger steps arrive; the player's choice wins after that.
+    if (!read('evolve-yield-v2')) {
+        write(KEY, '1000');
+        write('evolve-yield-v2', '1');
+    }
     let mult = Number(read(KEY)) || 1;
     if (!CHOICES.includes(mult)) mult = 1;
 
@@ -56,7 +61,7 @@
         const panel = document.createElement('div');
         panel.id = 'yieldMult';
         panel.innerHTML = `<h3 class="has-text-warning">Yield multiplier</h3>
-            <div class="ym-row">${CHOICES.map(n => `<button type="button" class="button is-small${n === mult ? ' ym-on' : ''}" data-mult="${n}">×${n}</button>`).join('')}</div>
+            <div class="ym-row">${CHOICES.map(n => `<button type="button" class="button is-small${n === mult ? ' ym-on' : ''}" data-mult="${n}">×${n.toLocaleString('en-US')}</button>`).join('')}</div>
             <div class="ym-note">Growing resources gain this many times their usual amount per second, up to their storage cap.</div>`;
         panel.addEventListener('click', e => {
             const btn = e.target.closest('[data-mult]');
