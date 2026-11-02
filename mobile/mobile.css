@@ -484,3 +484,26 @@ html.mob-touch #mobNav {
         margin-left: auto;
     }
 }
+
+/* Dialogs with buttons (Space Dock and other gear pop-ups): the game sets a 38rem minimum width,
+   which pushed buttons off the right edge of a phone. Two to a row instead. */
+@media only screen and (max-width: 768px) {
+    body.mob .modal .actionSpace {
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+        padding: .25rem 0;
+    }
+    body.mob .modal .actionSpace .action {
+        width: calc(50% - .2rem);
+        margin: 0;
+    }
+    body.mob .modal .actionSpace .action a.button {
+        width: 100%;
+        min-height: 2.6rem;
+        height: auto;
+        margin: 0;
+        white-space: normal;
+    }
+}
