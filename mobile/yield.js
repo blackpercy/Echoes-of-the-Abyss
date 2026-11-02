@@ -8,7 +8,7 @@
     'use strict';
 
     const KEY = 'evolve-yield';
-    const CHOICES = [1, 2, 3, 5, 10, 25, 100, 250, 1000];
+    const CHOICES = [1, 2, 3, 5, 10, 25, 100, 250, 1000, 100000];
     // One-time update: switch this game to ×1000 when the bigger steps arrive; the player's choice wins after that.
     if (!read('evolve-yield-v2')) {
         write(KEY, '1000');

@@ -13,7 +13,7 @@ The game's own code is unchanged except for two settings (crate and container ca
 | `mobile/mobile.css` | Phone layout: the page scrolls instead of each panel, buttons two to a row and big enough for a thumb, tabs scroll sideways, pop-ups and dialogs fit the screen, no double-tap zoom. |
 | `mobile/mobile.js` | A bottom bar to switch between **Resources**, **Game** and **Log** (with a count of new messages), a strip of resources above the game, and touch controls: **tap** to gather, build or research; **press and hold** to see what something costs and does. |
 
-| `mobile/yield.js` | **Yield multiplier** (×1 to ×1,000) at the top of the Settings tab: every second, each growing resource gets that many times its usual net gain, up to its storage cap. |
+| `mobile/yield.js` | **Yield multiplier** (×1 to ×100,000) at the top of the Settings tab: every second, each growing resource gets that many times its usual net gain, up to its storage cap. |
 | `mobile/genes.js` | An **Auto** toggle next to *Assemble Gene* (A.R.P.A. → Genetics): while on, it presses Assemble Gene once a second whenever Knowledge is full, so only knowledge that would go to waste is spent. |
 | `mobile/storage.js` + `src/resources.js`, `src/main.js` | **Crate & container capacity** (×1 to ×10,000) and **Money storage** (×1, ×10, ×100), ×100 by default in the Settings tab. These change the game itself: `crateValue()`, `containerValue()` and the money cap are multiplied through `storageBoost()`, and `evolve/main.js` is rebuilt from `src` with esbuild. |
 | `mobile/multiclick.js` | A tap on the **World Collider** builds 10 segments at once (like Ctrl+click on a keyboard). |
