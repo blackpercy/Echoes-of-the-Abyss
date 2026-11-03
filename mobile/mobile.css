@@ -372,7 +372,8 @@ html.mob-touch #mobNav {
 /* Yield multiplier setting (mobile/yield.js) */
 #yieldMult,
 #containerMult ,
-#moneyMult {
+#moneyMult ,
+#gasMult {
     margin: .5rem 0 1rem;
     padding: .5rem .75rem;
     border: 1px solid #555;
@@ -380,12 +381,14 @@ html.mob-touch #mobNav {
 }
 #yieldMult h3,
 #containerMult h3 ,
-#moneyMult h3 {
+#moneyMult h3 ,
+#gasMult h3 {
     margin-bottom: .4rem;
 }
 #yieldMult .ym-row,
 #containerMult .ym-row ,
-#moneyMult .ym-row {
+#moneyMult .ym-row ,
+#gasMult .ym-row {
     display: flex;
     flex-wrap: wrap;
     gap: .35rem;
@@ -393,18 +396,21 @@ html.mob-touch #mobNav {
 }
 #yieldMult .ym-row .button,
 #containerMult .ym-row .button ,
-#moneyMult .ym-row .button {
+#moneyMult .ym-row .button ,
+#gasMult .ym-row .button {
     min-width: 2.8rem;
 }
 #yieldMult .ym-note,
 #containerMult .ym-note ,
-#moneyMult .ym-note {
+#moneyMult .ym-note ,
+#gasMult .ym-note {
     font-size: .85rem;
     opacity: .85;
 }
 #yieldMult .ym-row .button.ym-on,
 #containerMult .ym-row .button.ym-on ,
-#moneyMult .ym-row .button.ym-on {
+#moneyMult .ym-row .button.ym-on ,
+#gasMult .ym-row .button.ym-on {
     border-color: #ffdd57;
     color: #ffdd57;
     font-weight: bold;
