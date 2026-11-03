@@ -526,3 +526,24 @@ html.mob-touch #mobNav {
         white-space: normal;
     }
 }
+
+/* Region headings in space and Andromeda (name, support, syndicate or piracy threat and armada) are one
+   flex row on desktop; on a phone they wrap, with the threat line on a row of its own. */
+@media only screen and (max-width: 768px) {
+    body.mob .main .space {
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: .5rem;
+    }
+    body.mob .main .space > div:not(:first-child) {
+        flex-basis: 100%;
+    }
+    body.mob .main .space .syndThreat,
+    body.mob .main .space .regionSupport,
+    body.mob .main .space .regionControl {
+        margin-left: 0;
+    }
+    body.mob .main .space .pirate {
+        margin-left: 0;
+    }
+}
