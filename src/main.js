@@ -15,7 +15,7 @@ import { renderTauCeti, syndicate, shipFuelUse, spacePlanetStats, genXYcoord, sh
 import { arpa, buildArpa, sequenceLabs } from './arpa.js';
 import { events, eventList } from './events.js';
 import { defineGovernor, govern, govActive, removeTask } from './governor.js';
-import { production, highPopAdjust, teamster, factoryBonus } from './prod.js';
+import { production, gasBoost, highPopAdjust, teamster, factoryBonus } from './prod.js';
 import { swissKnife } from './tech.js';
 import { vacuumCollapse } from './resets.js';
 import { index, mainVue, initTabs, loadTab } from './index.js';
@@ -6971,7 +6971,7 @@ function fastLoop(){
         }
 
         if (p_on['s_gate'] && global.galaxy['raider'] && gal_on['raider'] > 0){
-            let base = gal_on['raider'] * 0.65 * production('psychic_boost','Deuterium');
+            let base = gal_on['raider'] * 0.65 * gasBoost() * production('psychic_boost','Deuterium');
             let pirate = piracy('gxy_chthonian');
             let delta = base * global_multiplier * pirate * hunger * zigVal;
 

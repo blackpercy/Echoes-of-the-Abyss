@@ -23,6 +23,20 @@ export function teamster(v){
     return v;
 }
 
+// Added in this copy: Settings → Gas production (mobile/storage.js) multiplies the base output of every building
+// that makes Helium-3 or Deuterium. Stored in the browser, not in the save; ×100 unless set otherwise.
+export function gasBoost(){
+    let mult = 100;
+    try {
+        let saved = Number(localStorage.getItem('evolve-gas-mult'));
+        if (saved > 0){
+            mult = saved;
+        }
+    }
+    catch (e){}
+    return mult;
+}
+
 export function production(id,val,wiki){
     switch (id){
         case 'transmitter':
@@ -82,7 +96,7 @@ export function production(id,val,wiki){
         }
         case 'helium_mine':
         {
-            let base = global.race['warlord'] ? 0.3 + (global.portal?.pumpjack?.rank || 1) * 0.08 : 0.18;
+            let base = (global.race['warlord'] ? 0.3 + (global.portal?.pumpjack?.rank || 1) * 0.08 : 0.18) * gasBoost();
             let gov = govRelationFactor(3);
             return {
                 b: base,
@@ -134,7 +148,7 @@ export function production(id,val,wiki){
         }
         case 'gas_mining':
         {
-            return (global.tech['helium'] ? 0.65 : 0.5);
+            return (global.tech['helium'] ? 0.65 : 0.5) * gasBoost();
         }
         case 'outpost':
         {
@@ -200,9 +214,9 @@ export function production(id,val,wiki){
         {
             switch (val){
                 case 'helium':
-                    return 0.85;
+                    return 0.85 * gasBoost();
                 case 'deuterium':
-                    return 0.15;
+                    return 0.15 * gasBoost();
             }
         }
         case 'elerium_prospector':
@@ -422,7 +436,7 @@ export function production(id,val,wiki){
         }
         case 'refueling_station':
         {
-            return global.tech['isolation'] ? 18.5 : 9.35;
+            return (global.tech['isolation'] ? 18.5 : 9.35) * gasBoost();
         }
         case 'ore_refinery':
         {

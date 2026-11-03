@@ -677,31 +677,7 @@ export function resetResBuffer(){
     });
 }
 
-// Added in this copy: Settings → Gas production (mobile/storage.js) multiplies what Helium-3 and Deuterium
-// producers add. Stored in the browser, not in the save; ×100 unless set otherwise; read at most once a second.
-const gasResources = ['Helium_3','Deuterium'];
-const gasSetting = { value: 100, read: 0 };
-function gasBoost(){
-    let now = Date.now();
-    if (now - gasSetting.read > 1000){
-        gasSetting.read = now;
-        let mult = 100;
-        try {
-            let saved = Number(localStorage.getItem('evolve-gas-mult'));
-            if (saved > 0){
-                mult = saved;
-            }
-        }
-        catch (e){}
-        gasSetting.value = mult;
-    }
-    return gasSetting.value;
-}
-
 export function modRes(res,val,notrack){
-    if (val > 0 && !notrack && gasResources.includes(res)){
-        val *= gasBoost();
-    }
     if(res === 'Food' && global.race['fasting']){
         global.resource[res].amount = 0;
         return false;

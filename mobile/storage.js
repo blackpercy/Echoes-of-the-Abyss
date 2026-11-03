@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Storage and gas settings, in the Settings tab: crate and container capacity, the money cap and gas production.
 // The game reads them every tick, through storageBoost() in src/resources.js (crateValue(), containerValue() and the
-// money cap in src/main.js) and gasBoost() in src/functions.js (modRes), so a change applies at once.
+// money cap in src/main.js) and gasBoost() in src/prod.js (the gas buildings' base output), so a change applies at once.
 (function () {
     'use strict';
 
@@ -11,7 +11,7 @@
     const PANELS = [
         { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
         { id: 'moneyMult', key: 'evolve-money-mult', choices: [1, 10, 100], title: 'Money storage', note: 'Your money cap is this many times its normal size.' },
-        { id: 'gasMult', key: 'evolve-gas-mult', choices: [1, 10, 100], title: 'Gas production', note: 'Helium-3 and Deuterium producers make this many times their normal amount.' },
+        { id: 'gasMult', key: 'evolve-gas-mult', choices: [1, 10, 100], title: 'Gas production', note: 'Every Helium-3 and Deuterium building produces this many times its normal amount.' },
     ];
 
     // One-time update: switch this game to ×10000 container capacity when that step arrives; the player's choice wins after that.
