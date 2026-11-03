@@ -9,7 +9,7 @@
 
     const DEFAULT = 100;   // must match storageBoost() in src/resources.js
     const PANELS = [
-        { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
+        { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
         { id: 'moneyMult', key: 'evolve-money-mult', choices: [1, 10, 100], title: 'Money storage', note: 'Your money cap is this many times its normal size.' },
     ];
 
