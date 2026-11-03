@@ -3563,13 +3563,13 @@ function fastLoop(){
                             serve *= servantTrait(global.race.servants.jobs.forager,'forager');
                             foragers += serve;
                         }
-                        let food_forage = foragers * forage * 0.35;
+                        let food_forage = foragers * forage * 0.35 * oreBoost('Food');
                         breakdown.p['Food'][jobName('forager')] = food_forage + 'v';
                         food_base += food_forage;
                     }
 
                     if (global.race['warlord']){
-                        let food = workerScale(global.civic.lumberjack.workers,'farmer') * farmerValue(true);
+                        let food = workerScale(global.civic.lumberjack.workers,'farmer') * farmerValue(true) * oreBoost('Food');
                         breakdown.p['Food'][jobName('lumberjack')] = food + 'v';
                         food_base += food;
                     }

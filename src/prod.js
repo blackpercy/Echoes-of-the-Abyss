@@ -37,29 +37,37 @@ export function gasBoost(){
     return mult;
 }
 
-// Added in this copy: Settings → Ore & oil production (mobile/storage.js) multiplies the output of every source
-// of these resources. It rides on psychic_boost, the per-resource multiplier every producer already applies to its
-// base output, so building descriptions and breakdowns show it. Read at most once a second; ×100 unless set otherwise.
+// Added in this copy: Settings → Ore & oil production and Food production (mobile/storage.js) multiply the output
+// of every source of these resources. They ride on psychic_boost, the per-resource multiplier every producer already
+// applies to its base output, so building descriptions and breakdowns show it. Read at most once a second; ×100
+// unless set otherwise.
 const oreResources = ['Copper','Iron','Coal','Aluminium','Titanium','Iridium','Uranium','Oil','Neutronium','Adamantite','Elerium','Bolognium','Orichalcum','Unobtainium'];
-const oreSetting = { value: 100, read: 0 };
-export function oreBoost(res){
-    if (!oreResources.includes(res)){
-        return 1;
-    }
+const sourceSettings = {};
+function sourceSetting(key){
+    let setting = sourceSettings[key] || (sourceSettings[key] = { value: 100, read: 0 });
     let now = Date.now();
-    if (now - oreSetting.read > 1000){
-        oreSetting.read = now;
+    if (now - setting.read > 1000){
+        setting.read = now;
         let mult = 100;
         try {
-            let saved = Number(localStorage.getItem('evolve-ore-mult'));
+            let saved = Number(localStorage.getItem(key));
             if (saved > 0){
                 mult = saved;
             }
         }
         catch (e){}
-        oreSetting.value = mult;
+        setting.value = mult;
     }
-    return oreSetting.value;
+    return setting.value;
+}
+export function oreBoost(res){
+    if (oreResources.includes(res)){
+        return sourceSetting('evolve-ore-mult');
+    }
+    if (res === 'Food'){
+        return sourceSetting('evolve-food-mult');
+    }
+    return 1;
 }
 
 export function production(id,val,wiki){

@@ -374,7 +374,8 @@ html.mob-touch #mobNav {
 #containerMult ,
 #moneyMult ,
 #gasMult ,
-#oreMult {
+#oreMult ,
+#foodMult {
     margin: .5rem 0 1rem;
     padding: .5rem .75rem;
     border: 1px solid #555;
@@ -384,14 +385,16 @@ html.mob-touch #mobNav {
 #containerMult h3 ,
 #moneyMult h3 ,
 #gasMult h3 ,
-#oreMult h3 {
+#oreMult h3 ,
+#foodMult h3 {
     margin-bottom: .4rem;
 }
 #yieldMult .ym-row,
 #containerMult .ym-row ,
 #moneyMult .ym-row ,
 #gasMult .ym-row ,
-#oreMult .ym-row {
+#oreMult .ym-row ,
+#foodMult .ym-row {
     display: flex;
     flex-wrap: wrap;
     gap: .35rem;
@@ -401,14 +404,16 @@ html.mob-touch #mobNav {
 #containerMult .ym-row .button ,
 #moneyMult .ym-row .button ,
 #gasMult .ym-row .button ,
-#oreMult .ym-row .button {
+#oreMult .ym-row .button ,
+#foodMult .ym-row .button {
     min-width: 2.8rem;
 }
 #yieldMult .ym-note,
 #containerMult .ym-note ,
 #moneyMult .ym-note ,
 #gasMult .ym-note ,
-#oreMult .ym-note {
+#oreMult .ym-note ,
+#foodMult .ym-note {
     font-size: .85rem;
     opacity: .85;
 }
@@ -416,7 +421,8 @@ html.mob-touch #mobNav {
 #containerMult .ym-row .button.ym-on ,
 #moneyMult .ym-row .button.ym-on ,
 #gasMult .ym-row .button.ym-on ,
-#oreMult .ym-row .button.ym-on {
+#oreMult .ym-row .button.ym-on ,
+#foodMult .ym-row .button.ym-on {
     border-color: #ffdd57;
     color: #ffdd57;
     font-weight: bold;
