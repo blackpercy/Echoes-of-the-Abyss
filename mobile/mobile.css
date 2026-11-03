@@ -29,8 +29,19 @@ html.mob-touch #mobNav {
 @media only screen and (max-width: 768px) {
     html.mob-page {
         overflow-y: auto !important;
+        /* Nothing may make the page wider than the phone: an iPhone would zoom the whole page out to fit it. */
+        overflow-x: hidden !important;
         height: auto;
         -webkit-overflow-scrolling: touch;
+    }
+    body.mob {
+        /* clip, not hidden: hidden would turn body into a scroll box and stop the resource strip from staying on top. */
+        overflow-x: clip;
+        max-width: 100vw;
+    }
+    body.mob .main {
+        max-width: calc(100vw - 1rem);
+        overflow-x: clip;
     }
     body.mob {
         --mob-nav: 3.4rem;
