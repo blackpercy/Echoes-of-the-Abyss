@@ -27,8 +27,11 @@ html.mob-touch #mobNav {
 
 /* --- Narrow screens: one panel at a time --- */
 @media only screen and (max-width: 768px) {
-    html.mob-page {
+    /* While a dialog is open the game adds is-clipped to lock the page behind it; keep that lock. */
+    html.mob-page:not(.is-clipped) {
         overflow-y: auto !important;
+    }
+    html.mob-page {
         /* Nothing may make the page wider than the phone: an iPhone would zoom the whole page out to fit it. */
         overflow-x: hidden !important;
         height: auto;
@@ -192,7 +195,12 @@ html.mob-touch #mobNav {
         min-width: 0 !important;
         width: calc(100vw - 1rem) !important;
         max-height: calc(100vh - 2rem);
+        max-height: calc(100dvh - 2rem);
         margin: 0 .5rem;
+        /* A dialog taller than the screen scrolls by itself, and the swipe stays inside it. */
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
 
     /* The resource strip over the game panel. */
