@@ -37,6 +37,31 @@ export function gasBoost(){
     return mult;
 }
 
+// Added in this copy: Settings → Ore & oil production (mobile/storage.js) multiplies the output of every source
+// of these resources. It rides on psychic_boost, the per-resource multiplier every producer already applies to its
+// base output, so building descriptions and breakdowns show it. Read at most once a second; ×100 unless set otherwise.
+const oreResources = ['Copper','Iron','Coal','Aluminium','Titanium','Iridium','Uranium','Oil','Neutronium','Adamantite','Elerium','Bolognium','Orichalcum','Unobtainium'];
+const oreSetting = { value: 100, read: 0 };
+export function oreBoost(res){
+    if (!oreResources.includes(res)){
+        return 1;
+    }
+    let now = Date.now();
+    if (now - oreSetting.read > 1000){
+        oreSetting.read = now;
+        let mult = 100;
+        try {
+            let saved = Number(localStorage.getItem('evolve-ore-mult'));
+            if (saved > 0){
+                mult = saved;
+            }
+        }
+        catch (e){}
+        oreSetting.value = mult;
+    }
+    return oreSetting.value;
+}
+
 export function production(id,val,wiki){
     switch (id){
         case 'transmitter':
@@ -516,9 +541,9 @@ export function production(id,val,wiki){
                     let rank = global.stats.achieve['nightmare'] && global.stats.achieve.nightmare['mg'] ? global.stats.achieve.nightmare.mg : 0;
                     boost += +(traits.psychic.vars()[3] / 50000 * rank * global.race.psychicPowers.channel.boost).toFixed(3);
                 }
-                return 1 + boost;
+                return (1 + boost) * oreBoost(val);
             }
-            return 1;
+            return oreBoost(val);
         }
         case 'psychic_cash':
         {

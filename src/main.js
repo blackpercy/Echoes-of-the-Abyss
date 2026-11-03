@@ -15,7 +15,7 @@ import { renderTauCeti, syndicate, shipFuelUse, spacePlanetStats, genXYcoord, sh
 import { arpa, buildArpa, sequenceLabs } from './arpa.js';
 import { events, eventList } from './events.js';
 import { defineGovernor, govern, govActive, removeTask } from './governor.js';
-import { production, gasBoost, highPopAdjust, teamster, factoryBonus } from './prod.js';
+import { production, gasBoost, oreBoost, highPopAdjust, teamster, factoryBonus } from './prod.js';
 import { swissKnife } from './tech.js';
 import { vacuumCollapse } from './resets.js';
 import { index, mainVue, initTabs, loadTab } from './index.js';
@@ -6603,7 +6603,7 @@ function fastLoop(){
 
             // Uranium (from coal miners)
             if (global.resource.Uranium.display){
-                let uranium = delta / (global.race['cataclysm'] ? 48 : 115) * production('psychic_boost','Uranium');
+                let uranium = delta / (global.race['cataclysm'] ? 48 : 115) * production('psychic_boost','Uranium') / oreBoost('Coal');
                 global.city.coal_mine['upow'] = +(global.city.coal_mine['cpow'] / (global.race['cataclysm'] ? 48 : 115)).toFixed(5);
                 if (global.city.geology['Uranium']){
                     uranium *= global.city.geology['Uranium'] + 1;
