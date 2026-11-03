@@ -1447,6 +1447,10 @@ if (!global['starDock']){
 if (!global['interstellar']){
     global['interstellar'] = {};
 }
+// Added in this copy: saved data for Additional Dyson Spheres.
+if (!global.interstellar['dyson_extra']){
+    global.interstellar['dyson_extra'] = { count: 0 };
+}
 
 if (!global['galaxy']){
     global['galaxy'] = {};

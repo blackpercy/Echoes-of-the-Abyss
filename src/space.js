@@ -3708,6 +3708,48 @@ const interstellarProjects = {
                 };
             }
         },
+        // Added in this copy: more Dyson spheres after the first. Every 100 segments is one more sphere,
+        // producing as much as your best completed sphere; segments count towards it as they are built.
+        dyson_extra: {
+            id: 'interstellar-dyson_extra',
+            title(){ return 'Additional Dyson Sphere'; },
+            desc(){
+                return `<div>Additional Dyson Sphere</div><div class="has-text-special">${loc('requires_segments',[100])}</div>`;
+            },
+            reqs: { proxima: 3 },
+            queue_size: 10,
+            condition(){
+                return global.interstellar['dyson'] && global.interstellar.dyson.count >= 100 ? true : false;
+            },
+            cost: {
+                Money(){ return 250000; },
+                Adamantite(){ return 10000; },
+                Infernite(){ return 25; },
+                Stanene(){ return 100000; }
+            },
+            effect(wiki){
+                let count = (wiki?.count ?? 0) + (global.interstellar['dyson_extra'] ? global.interstellar.dyson_extra.count : 0);
+                let spheres = Math.floor(count / 100);
+                let next = 100 - (count % 100);
+                let each = dysonSpherePower();
+                return `<div>Another Dyson sphere around the star. Each one produces as much power as your best completed sphere.</div>`
+                    + `<div>${loc('space_dwarf_reactor_effect1',[powerModifier(+(each * count / 100).toFixed(2))])}</div>`
+                    + `<div class="has-text-special">${spheres} complete, ${next} segments to the next. Each sphere: ${powerModifier(each)}MW.</div>`;
+            },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('dyson_extra','interstellar');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['dyson_extra','interstellar']
+                };
+            }
+        },
     },
     int_nebula: {
         info: {
@@ -6699,6 +6741,16 @@ const structDefinitions = {
     sensor_drone: { count: 0, on: 0 },
     attractor: { count: 0, on: 0 },
 };
+
+// Added in this copy: the power one complete sphere of your best finished Dyson tier produces (before modifiers).
+export function dysonSpherePower(){
+    let i = global.interstellar;
+    if (i['elysanite_sphere'] && i.elysanite_sphere.count >= 1000){ return 22500; }
+    if (i['orichalcum_sphere'] && i.orichalcum_sphere.count >= 100){ return 1750; }
+    if (i['dyson_sphere'] && i.dyson_sphere.count >= 100){ return 750; }
+    if (i['dyson'] && i.dyson.count >= 100){ return 175; }
+    return 0;
+}
 
 export function incrementStruct(c_action,sector){
     let struct = c_action;

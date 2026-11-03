@@ -6,7 +6,7 @@ repository at commit `3436358` (version 1.4.10). All credit for the game goes to
 
 ## What is different here
 
-The game's own code is unchanged except for two settings (crate and container capacity, and money storage, below). A small layer is added on top:
+The game's own code is unchanged except for the storage settings and the Additional Dyson Sphere (below). A small layer is added on top:
 
 | File | What it does |
 |------|--------------|
@@ -17,6 +17,7 @@ The game's own code is unchanged except for two settings (crate and container ca
 | `mobile/genes.js` | An **Auto** toggle next to *Assemble Gene* (A.R.P.A. → Genetics): while on, it presses Assemble Gene once a second whenever Knowledge is full, so only knowledge that would go to waste is spent. |
 | `mobile/storage.js` + `src/resources.js`, `src/main.js` | **Crate & container capacity** (×1 to ×10,000) and **Money storage** (×1, ×10, ×100), ×100 by default in the Settings tab. These change the game itself: `crateValue()`, `containerValue()` and the money cap are multiplied through `storageBoost()`, and `evolve/main.js` is rebuilt from `src` with esbuild. |
 | `mobile/multiclick.js` | A tap on the **World Collider** builds 10 segments at once (like Ctrl+click on a keyboard). |
+| `src/space.js`, `src/main.js`, `src/vars.js` | **Additional Dyson Sphere** in Proxima, once the Dyson Net is complete: built in segments at the Dyson Net's cost per segment, without limit. Every 100 segments is another sphere producing as much power as your best completed sphere (175 MW for the Dyson Net, more after the Dyson Sphere upgrades). |
 | `mobile/market.js` | **Auto-trading**, switched on at the top of the Settings tab (on any screen size): auto-sell 1%, 10% or 25% (your choice) of every resource that is full, each second, and when money is over half its cap, auto-buy 100,000 (or else 10,000, 1,000 or 100) of the least-full resource with the money above half. It uses the game's own market buttons, so prices are exactly the game's, and turns on the game's *Preload Tab Content* so the market is there in the background. |
 
 `index.html` loads the files and has phone-friendly meta tags. The Google Analytics tag that reported to
