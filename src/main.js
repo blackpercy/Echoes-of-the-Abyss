@@ -9146,109 +9146,110 @@ function midLoop(){
             caps['Food'] += gain;
             breakdown.c.Food[loc('city_smokehouse')] = gain+'v';
         }
+        // Added in this copy: Settings → Fuel depot storage multiplies what these fuel storage buildings hold.
         if (global.city['oil_well']){
-            let gain = (global.city['oil_well'].count * spatialReasoning(500));
+            let gain = (global.city['oil_well'].count * spatialReasoning(500) * storageBoost('evolve-depot-mult'));
             caps['Oil'] += gain;
             breakdown.c.Oil[loc('city_oil_well')] = gain+'v';
         }
         if (global.city['oil_depot']){
-            let gain = (global.city['oil_depot'].count * spatialReasoning(1000));
+            let gain = (global.city['oil_depot'].count * spatialReasoning(1000) * storageBoost('evolve-depot-mult'));
             gain *= global.tech['world_control'] ? 1.5 : 1;
             caps['Oil'] += gain;
             breakdown.c.Oil[loc('city_oil_depot')] = gain+'v';
             if (global.tech['uranium'] >= 2){
-                gain = (global.city['oil_depot'].count * spatialReasoning(250));
+                gain = (global.city['oil_depot'].count * spatialReasoning(250) * storageBoost('evolve-depot-mult'));
                 gain *= global.tech['world_control'] ? 1.5 : 1;
                 caps['Uranium'] += gain;
                 breakdown.c.Uranium[loc('city_oil_depot')] = gain+'v';
             }
             if (global.resource['Helium_3'].display){
-                gain = (global.city['oil_depot'].count * spatialReasoning(400));
+                gain = (global.city['oil_depot'].count * spatialReasoning(400) * storageBoost('evolve-depot-mult'));
                 gain *= global.tech['world_control'] ? 1.5 : 1;
                 caps['Helium_3'] += gain;
                 breakdown.c.Helium_3[loc('city_oil_depot')] = gain+'v';
             }
         }
         if (global.space['propellant_depot']){
-            let gain = (global.space['propellant_depot'].count * spatialReasoning(1250));
+            let gain = (global.space['propellant_depot'].count * spatialReasoning(1250) * storageBoost('evolve-depot-mult'));
             gain *= global.tech['world_control'] ? 1.5 : 1;
             caps['Oil'] += gain;
             breakdown.c.Oil[loc('space_home_propellant_depot_title')] = gain+'v';
             if (global.resource['Helium_3'].display){
-                gain = (global.space['propellant_depot'].count * spatialReasoning(1000));
+                gain = (global.space['propellant_depot'].count * spatialReasoning(1000) * storageBoost('evolve-depot-mult'));
                 gain *= global.tech['world_control'] ? 1.5 : 1;
                 caps['Helium_3'] += gain;
                 breakdown.c.Helium_3[loc('space_home_propellant_depot_title')] = gain+'v';
             }
         }
         if (p_on['orbital_station']){
-            let gain = (p_on['orbital_station'] * spatialReasoning(15000));
+            let gain = (p_on['orbital_station'] * spatialReasoning(15000) * storageBoost('evolve-depot-mult'));
             caps['Helium_3'] += gain;
             breakdown.c.Helium_3[loc('tau_home_orbital_station')] = gain+'v';
         }
         if (p_on['refueling_station']){
-            let h_gain = (p_on['refueling_station'] * spatialReasoning(10000));
+            let h_gain = (p_on['refueling_station'] * spatialReasoning(10000) * storageBoost('evolve-depot-mult'));
             caps['Helium_3'] += h_gain;
             breakdown.c.Helium_3[loc('tau_gas_refueling_station_title')] = h_gain+'v';
 
             if (global.tech['tau_whale'] >= 2){
-                let o_gain = (p_on['refueling_station'] * spatialReasoning(6500));
+                let o_gain = (p_on['refueling_station'] * spatialReasoning(6500) * storageBoost('evolve-depot-mult'));
                 caps['Oil'] += o_gain;
                 breakdown.c.Oil[loc('tau_gas_refueling_station_title')] = o_gain+'v';
             }
         }
         if (p_on['orbital_platform']){
-            let gain = (p_on['orbital_platform'] * spatialReasoning(17500));
+            let gain = (p_on['orbital_platform'] * spatialReasoning(17500) * storageBoost('evolve-depot-mult'));
             caps['Oil'] += gain;
             breakdown.c.Oil[loc('tau_red_orbital_platform')] = gain+'v';
         }
         if (global.space['gas_storage']){
-            let gain = (global.space['gas_storage'].count * spatialReasoning(3500));
+            let gain = (global.space['gas_storage'].count * spatialReasoning(3500) * storageBoost('evolve-depot-mult'));
             gain *= global.tech['world_control'] ? 1.5 : 1;
             caps['Oil'] += gain;
             breakdown.c.Oil[`${planetName().gas} ${loc('depot')}`] = gain+'v';
 
-            gain = (global.space['gas_storage'].count * spatialReasoning(2500));
+            gain = (global.space['gas_storage'].count * spatialReasoning(2500) * storageBoost('evolve-depot-mult'));
             gain *= global.tech['world_control'] ? 1.5 : 1;
             caps['Helium_3'] += gain;
             breakdown.c.Helium_3[`${planetName().gas} ${loc('depot')}`] = gain+'v';
 
-            gain = (global.space['gas_storage'].count * spatialReasoning(1000));
+            gain = (global.space['gas_storage'].count * spatialReasoning(1000) * storageBoost('evolve-depot-mult'));
             gain *= global.tech['world_control'] ? 1.5 : 1;
             caps['Uranium'] += gain;
             breakdown.c.Uranium[`${planetName().gas} ${loc('depot')}`] = gain+'v';
         }
         if (p_on['xfer_station']){
-            let gain = (p_on['xfer_station'] * spatialReasoning(5000));
+            let gain = (p_on['xfer_station'] * spatialReasoning(5000) * storageBoost('evolve-depot-mult'));
             caps['Helium_3'] += gain;
             breakdown.c.Helium_3[loc('interstellar_xfer_station_title')] = gain+'v';
 
-            gain = (p_on['xfer_station'] * spatialReasoning(4000));
+            gain = (p_on['xfer_station'] * spatialReasoning(4000) * storageBoost('evolve-depot-mult'));
             caps['Oil'] += gain;
             breakdown.c.Oil[loc('interstellar_xfer_station_title')] = gain+'v';
 
-            gain = (p_on['xfer_station'] * spatialReasoning(2500));
+            gain = (p_on['xfer_station'] * spatialReasoning(2500) * storageBoost('evolve-depot-mult'));
             caps['Uranium'] += gain;
             breakdown.c.Uranium[loc('interstellar_xfer_station_title')] = gain+'v';
 
             if (global.resource.Deuterium.display){
-                let deuterium_gain = p_on['xfer_station'] * spatialReasoning(2000);
+                let deuterium_gain = p_on['xfer_station'] * spatialReasoning(2000) * storageBoost('evolve-depot-mult');
                 caps['Deuterium'] += deuterium_gain;
                 breakdown.c.Deuterium[loc('interstellar_xfer_station_title')] = deuterium_gain+'v';
             }
         }
         if (global.space['helium_mine']){
-            let gain = (global.space['helium_mine'].count * spatialReasoning(100));
+            let gain = (global.space['helium_mine'].count * spatialReasoning(100) * storageBoost('evolve-depot-mult'));
             caps['Helium_3'] += gain;
             breakdown.c.Helium_3[loc('space_moon_helium_mine_title')] = gain+'v';
         }
         if (global.portal['pumpjack']){
-            let gain = (global.portal.pumpjack.count * spatialReasoning(500));
+            let gain = (global.portal.pumpjack.count * spatialReasoning(500) * storageBoost('evolve-depot-mult'));
             caps['Oil'] += gain;
             breakdown.c.Oil[loc('portal_pumpjack_title')] = gain+'v';
         }
         if (global.portal['pumpjack']){
-            let gain = (global.portal.pumpjack.count * spatialReasoning(250));
+            let gain = (global.portal.pumpjack.count * spatialReasoning(250) * storageBoost('evolve-depot-mult'));
             caps['Helium_3'] += gain;
             breakdown.c.Helium_3[loc('portal_pumpjack_title')] = gain+'v';
         }
