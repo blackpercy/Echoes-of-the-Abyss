@@ -2691,10 +2691,11 @@ export function containerValue(){
 }
 
 // Added in this copy: storage multipliers set in Settings (mobile/storage.js): crate and container capacity
-// ('evolve-container-mult'), the money cap ('evolve-money-mult') fuel depot storage ('evolve-depot-mult') and all other storage ('evolve-other-mult'), used in main.js.
+// ('evolve-container-mult'), the money cap ('evolve-money-mult') fuel depot storage ('evolve-depot-mult') all other storage ('evolve-other-mult')
+// and Spire supply ('evolve-supply-mult', ×1000 unless set), used in main.js.
 // They are stored in the browser, not in the save; ×100 unless set otherwise.
-export function storageBoost(key){
-    let mult = 100;
+export function storageBoost(key, def = 100){
+    let mult = def;
     try {
         let saved = Number(localStorage.getItem(key));
         if (saved > 0){

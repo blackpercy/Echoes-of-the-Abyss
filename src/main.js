@@ -10546,6 +10546,8 @@ function midLoop(){
             if (spire_on['port']){
                 max += spire_on['port'] * port_value;
             }
+            // Added in this copy: Settings → Spire supply storage multiplies how much supply the Spire can hold.
+            max *= storageBoost('evolve-supply-mult', 1000);
             global.portal.purifier.sup_max = Math.round(max);
         }
 

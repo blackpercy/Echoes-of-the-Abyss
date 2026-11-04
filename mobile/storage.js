@@ -7,11 +7,12 @@
 (function () {
     'use strict';
 
-    const DEFAULT = 100;   // must match storageBoost() in src/resources.js
+    const DEFAULT = 100;   // must match storageBoost() in src/resources.js, unless a panel has its own default
     const PANELS = [
         { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
         { id: 'depotMult', key: 'evolve-depot-mult', choices: [1, 10, 100], title: 'Fuel depot storage', note: 'Fuel depots and other fuel storage (oil, helium-3, uranium, deuterium) hold this many times their normal amount.' },
         { id: 'otherMult', key: 'evolve-other-mult', choices: [1, 10, 100], title: 'Other storage', note: 'Every other storage cap (wood, stone, metals, food, knowledge, alloys and the rest) is this many times its normal size. Crates and containers, money and the fuels have their own settings.' },
+        { id: 'supplyMult', key: 'evolve-supply-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Spire supply storage', note: 'The Spire can hold this many times its normal supply (from Ports and Base Camps).' },
         { id: 'moneyMult', key: 'evolve-money-mult', choices: [1, 10, 100], title: 'Money storage', note: 'Your money cap is this many times its normal size.' },
         { id: 'oreMult', key: 'evolve-ore-mult', choices: [1, 10, 100], title: 'Ore & oil production', note: 'Every source of Copper, Iron, Coal, Aluminium, Titanium, Iridium, Uranium, Oil and the space ores produces this many times its normal amount.' },
         { id: 'foodMult', key: 'evolve-food-mult', choices: [1, 10, 100], title: 'Food production', note: 'Every source of food (farmers, hunters, foragers, buildings) produces this many times its normal amount.' },
@@ -26,9 +27,9 @@
         }
     } catch (e) { /* private mode */ }
 
-    function current(key) {
-        let n = DEFAULT;
-        try { n = Number(localStorage.getItem(key)) || DEFAULT; } catch (e) { /* private mode */ }
+    function current(key, def) {
+        let n = def;
+        try { n = Number(localStorage.getItem(key)) || def; } catch (e) { /* private mode */ }
         return n;
     }
 
@@ -36,7 +37,7 @@
         const settings = document.getElementById('settings');
         let panel = document.getElementById(p.id);
         if (!settings || panel) return panel;
-        const mult = current(p.key);
+        const mult = current(p.key, p.def || DEFAULT);
         panel = document.createElement('div');
         panel.id = p.id;
         panel.className = 'storage-mult';
