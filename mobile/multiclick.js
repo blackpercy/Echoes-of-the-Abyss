@@ -10,6 +10,8 @@
     // Building element id → which of the game's multiplier keys to hold (x10, x25 or x100).
     const TARGETS = {
         'space-world_collider': 'x10',
+        'portal-west_tower': 'x10',
+        'portal-east_tower': 'x10',
     };
 
     function settings() {
