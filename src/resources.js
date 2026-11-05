@@ -2872,8 +2872,9 @@ export function loadEjector(name,color){
                 e: global.interstellar.mass_ejector
             },
             methods: {
+                // Added in this copy: each tap moves 1000 tons (times the game's multiplier keys), still within the ejectors' capacity.
                 ejectMore(r){
-                    let keyMutipler = keyMultiplier();
+                    let keyMutipler = keyMultiplier() * 1000;
                     if (keyMutipler + global.interstellar.mass_ejector.total > p_on['mass_ejector'] * 1000){
                         keyMutipler = p_on['mass_ejector'] * 1000 - global.interstellar.mass_ejector.total;
                     }
@@ -2881,7 +2882,7 @@ export function loadEjector(name,color){
                     global.interstellar.mass_ejector.total += keyMutipler;
                 },
                 ejectLess(r){
-                    let keyMutipler = keyMultiplier();
+                    let keyMutipler = keyMultiplier() * 1000;
                     if (keyMutipler > global.interstellar.mass_ejector[r]){
                         keyMutipler = global.interstellar.mass_ejector[r];
                     }
