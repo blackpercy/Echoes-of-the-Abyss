@@ -5987,7 +5987,7 @@ function fastLoop(){
                 global.eden.soul_compactor.energy += Math.round(drain / 2);
                 if (global.eden.soul_compactor.energy >= 1000000000){
                     global.eden.soul_compactor.energy -= 1000000000;
-                    global.resource.Soul_Gem.amount++;
+                    global.resource.Soul_Gem.amount += storageBoost('evolve-soulgem-mult', 100);
                     global.eden.soul_compactor.report++;
                 }
             }

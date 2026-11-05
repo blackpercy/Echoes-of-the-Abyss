@@ -2,7 +2,7 @@ import { global, seededRandom, keyMultiplier, p_on, support_on, gal_on, spire_on
 import { vBind, clearElement, popover, clearPopper, timeFormat, powerCostMod, spaceCostMultiplier, messageQueue, powerModifier, calcPillar, deepClone, popCost, calcPrestige, get_qlevel, shrineBonusActive, getShrineBonus, buildQueue, timeCheck } from './functions.js';
 import { unlockAchieve, alevel, universeAffix } from './achieve.js';
 import { traits, races, fathomCheck, traitCostMod, orbitLength } from './races.js';
-import { spatialReasoning, unlockContainers, drawResourceTab } from './resources.js';
+import { spatialReasoning, unlockContainers, drawResourceTab, storageBoost } from './resources.js';
 import { loadFoundry, jobScale, limitCraftsmen } from './jobs.js';
 import { armyRating, govCivics, garrisonSize, mercCost, soldierDeath } from './civics.js';
 import { payCosts, powerOnNewStruct, setAction, drawTech, bank_vault, updateDesc, actions, initStruct, storageMultipler, casinoEffect, structName, absorbRace, buildTemplate } from './actions.js';
@@ -17,6 +17,11 @@ import { loc } from './locale.js';
 import { defineIndustry, addSmelter } from './industry.js';
 import { arpa } from './arpa.js';
 import { jobName } from './jobs.js';
+
+// Added in this copy: Settings → Soul Gem gain multiplies every Soul Gem found in Hell (patrols, surveyors, guns, turrets, the Soul Forge).
+export function soulGemGain(){
+    return storageBoost('evolve-soulgem-mult', 100);
+}
 
 const fortressModules = {
     prtl_fortress: {
@@ -4439,7 +4444,7 @@ export function bloodwar(){
                         if (Math.rand(0,gem_chance) === 0){
                             patrol_report.gem++;
                             day_report.stats.gems.patrols++;
-                            global.resource.Soul_Gem.amount++;
+                            global.resource.Soul_Gem.amount += soulGemGain();
                             global.portal.fortress.pity = 0;
                             if (!global.resource.Soul_Gem.display){
                                 global.resource.Soul_Gem.display = true;
@@ -4650,7 +4655,7 @@ export function bloodwar(){
                         if (Math.rand(0,gem_chance) === 0){
                             surv_report.gem++;
                             day_report.stats.gems.surveyors++;
-                            global.resource.Soul_Gem.amount++;
+                            global.resource.Soul_Gem.amount += soulGemGain();
                             global.portal.fortress.pity = 0;
                             if (!global.resource.Soul_Gem.display){
                                 global.resource.Soul_Gem.display = true;
@@ -4722,7 +4727,7 @@ export function bloodwar(){
                 if (Math.rand(0,Math.round(gun_base)) === 0){
                     day_report.gun_emplacements[i+1].gem = true;
                     day_report.stats.gems.guns++;
-                    global.resource.Soul_Gem.amount++;
+                    global.resource.Soul_Gem.amount += soulGemGain();
                 }
             }
         }
@@ -4742,7 +4747,7 @@ export function bloodwar(){
             if (Math.rand(0,forge_base) === 0){
                 day_report.soul_forge.gem = true;
                 day_report.stats.gems.soul_forge++;
-                global.resource.Soul_Gem.amount++;
+                global.resource.Soul_Gem.amount += soulGemGain();
             }
         }
 
@@ -4764,7 +4769,7 @@ export function bloodwar(){
                 drawTech();
             }
             else {
-                global.resource.Soul_Gem.amount += gems;
+                global.resource.Soul_Gem.amount += gems * soulGemGain();
                 day_report.stats.gems.crafted += gems;
             }
         }
@@ -4793,7 +4798,7 @@ export function bloodwar(){
                 if (Math.rand(0,Math.round(gun_base)) === 0){
                     day_report.gate_turrets[i+1].gem = true;
                     day_report.stats.gems.turrets++;
-                    global.resource.Soul_Gem.amount++;
+                    global.resource.Soul_Gem.amount += soulGemGain();
                 }
             }
         }
@@ -4956,7 +4961,7 @@ export function hellguard(){
         if (forgeOperating && global.portal.soul_forge.kills >= Math.round(cap)){
             let gems = Math.floor(global.portal.soul_forge.kills / Math.round(cap));
             global.portal.soul_forge.kills -= Math.round(cap) * gems;
-            global.resource.Soul_Gem.amount += gems;
+            global.resource.Soul_Gem.amount += gems * soulGemGain();
         }
     }
 
