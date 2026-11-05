@@ -506,7 +506,8 @@ popover('powerStatus',function(obj){
         let drain = +(global.city.power_total - global.city.power).toFixed(2);
         Object.keys(power_generated).forEach(function (k){
             if (power_generated[k]){
-                let gen = +power_generated[k];
+                // Added in this copy: shown with Settings → Power generation applied.
+                let gen = +power_generated[k] * (power_generated[k] > 0 ? storageBoost('evolve-power-mult', 1000) : 1);
                 obj.popper.append(`<p class="modal_bd"><span>${k}</span> <span class="has-text-success">+${+gen.toFixed(2)}</span></p>`);
             }
         });
@@ -2044,6 +2045,13 @@ function fastLoop(){
 
         if (global.race['replicator']){
             global.city['replicator'] = { count: global.race.replicator.pow, on: global.race.replicator.pow };
+        }
+
+        // Added in this copy: Settings → Power generation multiplies the power that every source makes.
+        let power_boost = storageBoost('evolve-power-mult', 1000);
+        if (power_boost !== 1 && power_grid > 0){
+            power_grid *= power_boost;
+            max_power *= power_boost;
         }
 
         // Power usage
@@ -10996,6 +11004,8 @@ function midLoop(){
                 if (global.genes['blood'] && global.genes['blood'] >= 2){
                     stones *= 2;
                 }
+                // Added in this copy: Settings → Blood Stone gain multiplies the stones each Spire floor gives.
+                stones *= storageBoost('evolve-blood-mult', 100);
                 global.prestige.Blood_Stone.count += stones;
                 global.stats.blood += stones;
                 arpa('Blood');
