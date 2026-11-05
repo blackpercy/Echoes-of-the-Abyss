@@ -10971,6 +10971,8 @@ function midLoop(){
                 global.portal.spire.time = timeFormat(-1);
             }
             else {
+                // Added in this copy: Settings → Spire progress multiplies how fast the mechs clear a floor.
+                progress *= storageBoost('evolve-spire-mult', 1000);
                 global.portal.spire.progress += progress;
                 global.portal.spire.time = progress === 0 ? timeFormat(-1) : timeFormat((100 - global.portal.spire.progress) / progress);
                 if (global.tech['waygate'] && global.tech.waygate >= 2){
