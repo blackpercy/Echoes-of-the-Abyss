@@ -11,7 +11,8 @@
     const PANELS = [
         { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
         { id: 'depotMult', key: 'evolve-depot-mult', choices: [1, 10, 100], title: 'Fuel depot storage', note: 'Fuel depots and other fuel storage (oil, helium-3, uranium, deuterium) hold this many times their normal amount.' },
-        { id: 'otherMult', key: 'evolve-other-mult', choices: [1, 10, 100], title: 'Other storage', note: 'Every other storage cap (wood, stone, metals, food, knowledge, alloys and the rest) is this many times its normal size. Crates and containers, money and the fuels have their own settings.' },
+        { id: 'otherMult', key: 'evolve-other-mult', choices: [1, 10, 100], title: 'Other storage', note: 'Every other storage cap (wood, stone, metals, food, knowledge, alloys and the rest) is this many times its normal size. Crates and containers, money, the fuels and Elerium have their own settings.' },
+        { id: 'eleriumMult', key: 'evolve-elerium-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Elerium storage', note: 'Your Elerium cap is this many times its normal size.' },
         { id: 'supplyMult', key: 'evolve-supply-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Spire supply storage', note: 'The Spire can hold this many times its normal supply (from Ports and Base Camps).' },
         { id: 'moneyMult', key: 'evolve-money-mult', choices: [1, 10, 100], title: 'Money storage', note: 'Your money cap is this many times its normal size.' },
         { id: 'oreMult', key: 'evolve-ore-mult', choices: [1, 10, 100], title: 'Ore & oil production', note: 'Every source of Copper, Iron, Coal, Aluminium, Titanium, Iridium, Uranium, Oil and the space ores produces this many times its normal amount.' },

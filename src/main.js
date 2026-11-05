@@ -10358,12 +10358,15 @@ function midLoop(){
         // (they have their own settings), crates and containers (boosted through their capacity), or counts that are not storage.
         let other_boost = storageBoost('evolve-other-mult');
         const other_skip = ['Money','Oil','Helium_3','Uranium','Deuterium','Crates','Containers','Slave','Authority','Energy','Sus','Zen','Omniscience'];
+        // Elerium has its own setting (Settings → Elerium storage, ×1000 unless set).
+        let elerium_boost = storageBoost('evolve-elerium-mult', 1000);
         Object.keys(caps).forEach(function (res){
-            if (other_boost !== 1 && caps[res] > 0 && !other_skip.includes(res)){
+            let boost = res === 'Elerium' ? elerium_boost : other_boost;
+            if (boost !== 1 && caps[res] > 0 && !other_skip.includes(res)){
                 if (breakdown.c[res]){
-                    breakdown.c[res]['Storage setting'] = (caps[res] * (other_boost - 1))+'v';
+                    breakdown.c[res]['Storage setting'] = (caps[res] * (boost - 1))+'v';
                 }
-                caps[res] *= other_boost;
+                caps[res] *= boost;
             }
             let crate = global.resource[res].crates * create_value;
             caps[res] += crate;

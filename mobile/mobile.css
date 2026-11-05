@@ -376,6 +376,7 @@ html.mob-touch #mobNav {
 #depotMult ,
 #otherMult ,
 #supplyMult ,
+#eleriumMult ,
 #gasMult ,
 #oreMult ,
 #foodMult {
@@ -390,6 +391,7 @@ html.mob-touch #mobNav {
 #depotMult h3 ,
 #otherMult h3 ,
 #supplyMult h3 ,
+#eleriumMult h3 ,
 #gasMult h3 ,
 #oreMult h3 ,
 #foodMult h3 {
@@ -401,6 +403,7 @@ html.mob-touch #mobNav {
 #depotMult .ym-row ,
 #otherMult .ym-row ,
 #supplyMult .ym-row ,
+#eleriumMult .ym-row ,
 #gasMult .ym-row ,
 #oreMult .ym-row ,
 #foodMult .ym-row {
@@ -415,6 +418,7 @@ html.mob-touch #mobNav {
 #depotMult .ym-row .button ,
 #otherMult .ym-row .button ,
 #supplyMult .ym-row .button ,
+#eleriumMult .ym-row .button ,
 #gasMult .ym-row .button ,
 #oreMult .ym-row .button ,
 #foodMult .ym-row .button {
@@ -426,6 +430,7 @@ html.mob-touch #mobNav {
 #depotMult .ym-note ,
 #otherMult .ym-note ,
 #supplyMult .ym-note ,
+#eleriumMult .ym-note ,
 #gasMult .ym-note ,
 #oreMult .ym-note ,
 #foodMult .ym-note {
@@ -438,6 +443,7 @@ html.mob-touch #mobNav {
 #depotMult .ym-row .button.ym-on ,
 #otherMult .ym-row .button.ym-on ,
 #supplyMult .ym-row .button.ym-on ,
+#eleriumMult .ym-row .button.ym-on ,
 #gasMult .ym-row .button.ym-on ,
 #oreMult .ym-row .button.ym-on ,
 #foodMult .ym-row .button.ym-on {
