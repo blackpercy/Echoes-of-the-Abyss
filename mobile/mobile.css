@@ -583,3 +583,19 @@ html.mob-touch #mobNav {
         margin-left: 0;
     }
 }
+
+/* Mech Lab: the size, type, weapon and equipment pickers list their choices in two columns, so every choice fits on screen. */
+#mechAssembly .bayOptions .dropdown-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .25rem;
+    padding: .5rem;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+}
+#mechAssembly .bayOptions .dropdown-content .dropdown-item {
+    padding: .6rem .5rem;
+    white-space: normal;
+    line-height: 1.2;
+    border-radius: 4px;
+}
