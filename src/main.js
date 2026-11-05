@@ -458,11 +458,7 @@ popover('morale',
             }
         }
 
-        if (global.civic['homeless']){
-            let homeless = global.civic.homeless / 2;
-            total -= homeless;
-            obj.popper.append(`<p class="modal_bd"><span>${loc(`homeless`)}</span> <span class="has-text-danger"> -${homeless}%</span></p>`);
-        }
+        // Added in this copy: homelessness no longer lowers morale, so it is not listed.
 
         if (global.tech['vax_c'] || global.tech['vax_f']){
             let drop = global.tech['vax_c'] ? 10 : 50;
@@ -1347,9 +1343,7 @@ function fastLoop(){
             morale += cheese;
         }
 
-        if (global.civic['homeless']){
-            morale -= global.civic.homeless / 2;
-        }
+        // Added in this copy: homelessness no longer lowers morale.
 
         if (global.tech['vax_c'] || global.tech['vax_f']){
             morale -= global.tech['vax_c'] ? 10 : 50;
@@ -3155,6 +3149,10 @@ function fastLoop(){
         }
 
         stress = +(stress).toFixed(1);
+        // Added in this copy: jobs and the army cause no stress; bonuses (such as Optimistic) still count.
+        if (stress < 0){
+            stress = 0;
+        }
         global.city.morale.stress = stress;
         morale += stress;
 

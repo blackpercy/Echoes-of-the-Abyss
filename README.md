@@ -23,6 +23,7 @@ The game's own code is unchanged except for the storage settings and the Additio
 | `src/main.js` | **Spire progress** (×1, ×10, ×100, ×1000; ×1000 by default): the mechs' progress on the current Spire floor is multiplied (at most one floor per update, as in the game). |
 | `src/main.js` | **Spire supply gain** (×1, ×10, ×100, ×1000; ×1000 by default): the supply that transports and collector mechs bring in is multiplied; the goods shipped are not. |
 | `src/main.js` | **Power generation** (×1, ×10, ×100, ×1000; ×1000 by default): the power all sources make is multiplied before buildings draw from it (shown in the power breakdown). |
+| `src/main.js` | **No job stress or homelessness penalty**: stress from jobs and the army is never below 0 (bonuses such as Optimistic still count), and homeless citizens no longer lower morale. |
 | `src/main.js` | **Blood Stone gain** (×1, ×10, ×100; ×100 by default): the Blood Stones each cleared Spire floor gives are multiplied. |
 | `mobile/multiclick.js` | A tap on the **World Collider** or the **West** and **East Towers** builds 10 segments at once (like Ctrl+click on a keyboard). |
 | `src/prod.js`, `src/main.js` | **Gas production** (×1, ×10, ×100; ×100 by default) in the Settings tab: the base output of every Helium-3 and Deuterium building (Helium Mine, Gas Mining, Gas Harvester, Refueling Station, Raider) is multiplied, so building descriptions and breakdowns show it. |
