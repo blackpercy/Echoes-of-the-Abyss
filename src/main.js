@@ -3402,6 +3402,8 @@ function fastLoop(){
                     }
                 }
             }
+            // Added in this copy: Settings → Spire supply gain multiplies the supply that arrives (the goods shipped stay the same).
+            supply *= storageBoost('evolve-supply-gain-mult', 1000);
             global.portal.purifier.supply += supply;
             global.portal.purifier.diff = supply / time_multiplier;
             if (global.portal.purifier.supply > global.portal.purifier.sup_max){
