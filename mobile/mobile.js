@@ -247,7 +247,20 @@
         return document.getElementById('mainColumn') && document.getElementById('resources');
     }
 
+    // After ascending, the game hides most tabs and draws the Species Generator in the Civilization tab,
+    // but the page can be left on another tab. Show it once each time it appears.
+    let labShown = null;
+    function showLab() {
+        const lab = document.getElementById('celestialLab');
+        if (!lab || lab === labShown) return;
+        labShown = lab;
+        if (lab.offsetParent) return;
+        const tab = [...document.querySelectorAll('#mainTabs > .tabs li a')].find(a => a.offsetParent);
+        if (tab) tab.click();
+    }
+
     function init() {
+        setInterval(showLab, 500);
         buildNav();
         buildTicker();
         apply();

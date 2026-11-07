@@ -635,3 +635,44 @@ html.mob-touch #mobNav {
     line-height: 1.2;
     border-radius: 4px;
 }
+
+/* Species Generator (the screen after ascending): on a phone the genus column, the trait lists and the
+   planet and resource name fields stack in one column at full width instead of squeezing side by side. */
+@media only screen and (max-width: 768px) {
+    body.mob .celestialLab .sequence {
+        flex-direction: column;
+    }
+    body.mob .celestialLab .sequence > div {
+        min-width: 0;
+        max-width: 100%;
+    }
+    body.mob .celestialLab .sequence .genus_selection {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 .75rem;
+    }
+    body.mob .celestialLab .sequence .genus_selection > * {
+        flex: 1 1 9rem;
+    }
+    body.mob .celestialLab .sequence .trait_selection > div {
+        width: 50%;
+        min-width: 0;
+    }
+    body.mob .celestialLab .sequence .trait_selection.summary > div {
+        width: 100%;
+    }
+    body.mob .celestialLab .sequence .planet_selection,
+    body.mob .celestialLab .sequence .res_selection {
+        margin-left: 0;
+    }
+    body.mob .celestialLab .fields .name,
+    body.mob .celestialLab .fields .entity {
+        width: 100%;
+        max-width: 20rem;
+    }
+    body.mob .celestialLab .b-checkbox.checkbox {
+        white-space: normal;
+        align-items: flex-start;
+    }
+}

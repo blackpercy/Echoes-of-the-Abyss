@@ -7577,7 +7577,8 @@ export function ascendLab(hybrid,wiki){
             }
             else {
                 unlockAchieve(`ascended`);
-                if (global.interstellar.thermal_collector.count === 0){
+                // Changed in this copy: a game that never unlocked the Thermal Collector has no record of it.
+                if ((global.interstellar.thermal_collector?.count ?? 0) === 0){
                     unlockFeat(`energetic`);
                 }
             }
