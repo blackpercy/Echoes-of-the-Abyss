@@ -2694,7 +2694,8 @@ export function containerValue(){
 // Storage: crates and containers ('evolve-container-mult'), money ('evolve-money-mult'), fuel depots ('evolve-depot-mult'),
 // all other storage ('evolve-other-mult'), Elerium ('evolve-elerium-mult') and Spire supply ('evolve-supply-mult').
 // Other: Spire floor progress ('evolve-spire-mult'), Spire supply gain ('evolve-supply-gain-mult'), power generation
-// ('evolve-power-mult'), Blood Stones per Spire floor ('evolve-blood-mult') and Soul Gems found ('evolve-soulgem-mult', portal.js).
+// ('evolve-power-mult'), Blood Stones per Spire floor ('evolve-blood-mult'), Soul Gems found ('evolve-soulgem-mult', portal.js)
+// and the power a ship's power plant makes ('evolve-shippower-mult', truepath.js).
 // Each caller passes its default; values are stored in the browser, not in the save.
 export function storageBoost(key, def = 100){
     let mult = def;

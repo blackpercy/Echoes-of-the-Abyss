@@ -1,7 +1,7 @@
 import { global, p_on, support_on, sizeApproximation, keyMap } from './vars.js';
 import { vBind, clearElement, popover, clearPopper, messageQueue, powerCostMod, powerModifier, spaceCostMultiplier, deepClone, calcPrestige, flib, darkEffect, adjustCosts, get_qlevel, timeCheck, timeFormat, buildQueue } from './functions.js';
 import { races, traits, orbitLength } from './races.js';
-import { spatialReasoning, unlockContainers } from './resources.js';
+import { spatialReasoning, unlockContainers, storageBoost } from './resources.js';
 import { armyRating, garrisonSize, soldierDeath } from './civics.js';
 import { jobScale, job_desc, loadFoundry, limitCraftsmen } from './jobs.js';
 import { production, highPopAdjust } from './prod.js';
@@ -4532,6 +4532,10 @@ export function shipPower(ship, wiki){
     }
 
     watts = Math.round(Math.max(watts, powerModifier(watts)));
+    // Added in this copy: Settings → Ship power multiplies what a ship's power plant makes (not what its parts use).
+    if (!wiki){
+        watts *= storageBoost('evolve-shippower-mult', 100);
+    }
 
     switch (ship.weapon){
         case 'railgun':
