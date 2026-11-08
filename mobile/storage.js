@@ -9,7 +9,7 @@
 
     const DEFAULT = 100;   // must match storageBoost() in src/resources.js, unless a panel has its own default
     const PANELS = [
-        { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000, 1000000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
+        { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000, 1000000, 1000000000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
         { id: 'depotMult', key: 'evolve-depot-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Fuel depot storage', note: 'Fuel depots and other fuel storage (oil, helium-3, uranium, deuterium) hold this many times their normal amount.' },
         { id: 'otherMult', key: 'evolve-other-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Other storage', note: 'Every other storage cap (wood, stone, metals, food, knowledge, alloys and the rest) is this many times its normal size. Crates and containers, money, the fuels and Elerium have their own settings.' },
         { id: 'eleriumMult', key: 'evolve-elerium-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Elerium storage', note: 'Your Elerium cap is this many times its normal size.' },
@@ -25,7 +25,7 @@
         { id: 'gasMult', key: 'evolve-gas-mult', choices: [1, 10, 100], title: 'Gas production', note: 'Every Helium-3 and Deuterium building produces this many times its normal amount.' },
     ];
 
-    // One-time updates: switch this game to ×10000, later ×1000000, container capacity when those steps arrive;
+    // One-time updates: switch this game to ×10000, later ×1000000 and ×1000000000, container capacity when those steps arrive;
     // the player's choice wins after that.
     try {
         if (!localStorage.getItem('evolve-container-v2')) {
@@ -40,6 +40,10 @@
         if (!localStorage.getItem('evolve-container-v3')) {
             localStorage.setItem('evolve-container-mult', '1000000');
             localStorage.setItem('evolve-container-v3', '1');
+        }
+        if (!localStorage.getItem('evolve-container-v5')) {
+            localStorage.setItem('evolve-container-mult', '1000000000');
+            localStorage.setItem('evolve-container-v5', '1');
         }
     } catch (e) { /* private mode */ }
 
