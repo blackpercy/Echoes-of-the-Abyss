@@ -733,3 +733,27 @@ html.mob-touch #mobNav {
     line-height: 1.2;
     border-radius: 4px;
 }
+
+/* Ship Yard: the destination picker on each ship lists every system in two columns, as tall as the screen
+   allows, instead of a small box that has to be scrolled. */
+#shipList .location .dropdown-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .25rem;
+    padding: .5rem;
+    max-height: calc(100vh - 8rem) !important;
+    overflow-y: auto;
+}
+#shipList .location .dropdown-content .dropdown-item {
+    padding: .6rem .5rem;
+    white-space: normal;
+    line-height: 1.2;
+    border-radius: 4px;
+}
+@media only screen and (max-width: 768px) {
+    body.mob #shipList .location .dropdown-menu,
+    body.mob #shipList .location .dropdown-content {
+        width: calc(100vw - 2rem) !important;
+        max-width: 24rem;
+    }
+}
