@@ -676,3 +676,60 @@ html.mob-touch #mobNav {
         align-items: flex-start;
     }
 }
+
+/* Ship Yard: on a phone the ship's stats wrap onto more rows, each ship's location button sits below its
+   details instead of in a narrow side column, and the part pickers list their choices in two columns. */
+@media only screen and (max-width: 768px) {
+    body.mob .ShipYardTab {
+        margin-left: 0;
+    }
+    body.mob .ShipYardTab .stats {
+        flex-wrap: wrap;
+        row-gap: .25rem;
+    }
+    body.mob .ShipYardTab .stats > div {
+        margin-left: 0;
+        margin-right: .75rem;
+    }
+    body.mob .ShipYardTab .stats > .registry {
+        flex-basis: 100%;
+    }
+    body.mob .ShipYardTab #shipYardCosts {
+        margin-left: 0;
+    }
+    body.mob .ShipYardTab .shipBayOptions .dropdown {
+        margin-left: 0;
+        margin-right: .5rem;
+    }
+    body.mob .ShipYardTab .assemble {
+        margin-left: 0;
+    }
+    body.mob .ShipYardTab .solarMap {
+        float: none;
+        margin-left: .5rem;
+    }
+    body.mob .ShipYardTab #shipList .shipRow {
+        grid-template-columns: 1fr;
+        margin-left: 0;
+    }
+    body.mob .ShipYardTab #shipList .shipRow .location {
+        grid-column-start: 1;
+        grid-row-start: auto;
+        grid-row-end: auto;
+        margin-top: .25rem;
+    }
+}
+#dwarfShipYard .shipBayOptions .dropdown-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .25rem;
+    padding: .5rem;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+}
+#dwarfShipYard .shipBayOptions .dropdown-content .dropdown-item {
+    padding: .6rem .5rem;
+    white-space: normal;
+    line-height: 1.2;
+    border-radius: 4px;
+}
