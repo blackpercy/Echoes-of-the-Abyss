@@ -10,8 +10,8 @@
     const DEFAULT = 100;   // must match storageBoost() in src/resources.js, unless a panel has its own default
     const PANELS = [
         { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000, 1000000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
-        { id: 'depotMult', key: 'evolve-depot-mult', choices: [1, 10, 100], title: 'Fuel depot storage', note: 'Fuel depots and other fuel storage (oil, helium-3, uranium, deuterium) hold this many times their normal amount.' },
-        { id: 'otherMult', key: 'evolve-other-mult', choices: [1, 10, 100], title: 'Other storage', note: 'Every other storage cap (wood, stone, metals, food, knowledge, alloys and the rest) is this many times its normal size. Crates and containers, money, the fuels and Elerium have their own settings.' },
+        { id: 'depotMult', key: 'evolve-depot-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Fuel depot storage', note: 'Fuel depots and other fuel storage (oil, helium-3, uranium, deuterium) hold this many times their normal amount.' },
+        { id: 'otherMult', key: 'evolve-other-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Other storage', note: 'Every other storage cap (wood, stone, metals, food, knowledge, alloys and the rest) is this many times its normal size. Crates and containers, money, the fuels and Elerium have their own settings.' },
         { id: 'eleriumMult', key: 'evolve-elerium-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Elerium storage', note: 'Your Elerium cap is this many times its normal size.' },
         { id: 'powerMult', key: 'evolve-power-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Power generation', note: 'Every power source (power plants, reactors, Dyson spheres, satellites and the rest) makes this many times its normal power.' },
         { id: 'soulGemMult', key: 'evolve-soulgem-mult', def: 100, choices: [1, 10, 100], title: 'Soul Gem gain', note: 'Every Soul Gem found in Hell (patrols, surveyors, gun emplacements, gate turrets, the Soul Forge, the Soul Compactor) counts as this many.' },
@@ -19,7 +19,7 @@
         { id: 'spireMult', key: 'evolve-spire-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Spire progress', note: 'Your mechs clear Spire floors this many times faster (at most one floor per update).' },
         { id: 'supplyGainMult', key: 'evolve-supply-gain-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Spire supply gain', note: 'Transports and collector mechs bring in this many times their normal supply. The goods they ship are not multiplied.' },
         { id: 'supplyMult', key: 'evolve-supply-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Spire supply storage', note: 'The Spire can hold this many times its normal supply (from Ports and Base Camps).' },
-        { id: 'moneyMult', key: 'evolve-money-mult', choices: [1, 10, 100], title: 'Money storage', note: 'Your money cap is this many times its normal size.' },
+        { id: 'moneyMult', key: 'evolve-money-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Money storage', note: 'Your money cap is this many times its normal size.' },
         { id: 'oreMult', key: 'evolve-ore-mult', choices: [1, 10, 100], title: 'Ore & oil production', note: 'Every source of Copper, Iron, Coal, Aluminium, Titanium, Iridium, Uranium, Oil and the space ores produces this many times its normal amount.' },
         { id: 'foodMult', key: 'evolve-food-mult', choices: [1, 10, 100], title: 'Food production', note: 'Every source of food (farmers, hunters, foragers, buildings) produces this many times its normal amount.' },
         { id: 'gasMult', key: 'evolve-gas-mult', choices: [1, 10, 100], title: 'Gas production', note: 'Every Helium-3 and Deuterium building produces this many times its normal amount.' },
@@ -31,6 +31,11 @@
         if (!localStorage.getItem('evolve-container-v2')) {
             localStorage.setItem('evolve-container-mult', '10000');
             localStorage.setItem('evolve-container-v2', '1');
+        }
+        // ×1000 for the fuel depot, money and other storage settings.
+        if (!localStorage.getItem('evolve-storage-v4')) {
+            for (const k of ['evolve-depot-mult', 'evolve-money-mult', 'evolve-other-mult']) localStorage.setItem(k, '1000');
+            localStorage.setItem('evolve-storage-v4', '1');
         }
         if (!localStorage.getItem('evolve-container-v3')) {
             localStorage.setItem('evolve-container-mult', '1000000');

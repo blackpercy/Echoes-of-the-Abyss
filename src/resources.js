@@ -2690,11 +2690,12 @@ export function containerValue(){
     return Math.round(spatialReasoning(container_value));
 }
 
-// Added in this copy: storage multipliers set in Settings (mobile/storage.js): crate and container capacity
-// ('evolve-container-mult'), the money cap ('evolve-money-mult') fuel depot storage ('evolve-depot-mult') all other storage ('evolve-other-mult')
-// Elerium ('evolve-elerium-mult', ×1000 unless set), Spire floor progress ('evolve-spire-mult'), Spire supply gain ('evolve-supply-gain-mult') and power
-// generation ('evolve-power-mult'), all ×1000 unless set, Blood Stones per Spire floor ('evolve-blood-mult') and Soul Gems found ('evolve-soulgem-mult', in portal.js), and Spire supply ('evolve-supply-mult', ×1000 unless set), used in main.js.
-// They are stored in the browser, not in the save; ×100 unless set otherwise.
+// Added in this copy: multipliers set in Settings (mobile/storage.js), read through storageBoost(key, default).
+// Storage: crates and containers ('evolve-container-mult'), money ('evolve-money-mult'), fuel depots ('evolve-depot-mult'),
+// all other storage ('evolve-other-mult'), Elerium ('evolve-elerium-mult') and Spire supply ('evolve-supply-mult').
+// Other: Spire floor progress ('evolve-spire-mult'), Spire supply gain ('evolve-supply-gain-mult'), power generation
+// ('evolve-power-mult'), Blood Stones per Spire floor ('evolve-blood-mult') and Soul Gems found ('evolve-soulgem-mult', portal.js).
+// Each caller passes its default; values are stored in the browser, not in the save.
 export function storageBoost(key, def = 100){
     let mult = def;
     try {
