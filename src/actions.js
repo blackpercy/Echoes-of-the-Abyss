@@ -6538,10 +6538,23 @@ function runAction(c_action,action,type){
                     let grant = false;
                     let add_queue = false;
                     let loopNum = global.settings.qKey && keyMap.q ? 1 : keyMult;
+                    // Added in this copy: a plain click on a building buys up to 10 while they can be afforded,
+                    // unless it costs Soul Gems. Only a failed first purchase goes to the build queue.
+                    let autoTen = false;
+                    if (loopNum === 1 && keyMult === 1 && !(global.settings.qKey && keyMap.q) && !c_action['no_multi'] && !c_action['grant'] && action !== 'evolution'){
+                        const parts = (c_action.id || '').split('-');
+                        const record = global[parts[0]] ? global[parts[0]][parts[1]] : null;
+                        const costs = typeof c_action.cost === 'function' ? c_action.cost() : (c_action.cost || {});
+                        const soulGems = costs['Soul_Gem'] ? Number(typeof costs.Soul_Gem === 'function' ? costs.Soul_Gem() : costs.Soul_Gem) : 0;
+                        if (record && typeof record.count === 'number' && !(soulGems > 0)){
+                            autoTen = true;
+                            loopNum = 10;
+                        }
+                    }
                     for (let i=0; i<loopNum; i++){
                         let res = false;
                         if ((global.settings.qKey && keyMap.q) || (!(res = c_action.action({isQueue: false})))){
-                            if (res !== 0 && global.tech['queue'] && (keyMult === 1 || (global.settings.qKey && keyMap.q))){
+                            if (res !== 0 && global.tech['queue'] && (keyMult === 1 || (global.settings.qKey && keyMap.q)) && (!autoTen || i === 0)){
                                 let used = 0;
                                 let buid_max = c_action['queue_complete'] ? c_action.queue_complete() : Number.MAX_SAFE_INTEGER;
                                 for (let j=0; j<global.queue.queue.length; j++){
