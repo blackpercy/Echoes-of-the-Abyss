@@ -585,8 +585,10 @@ function loadJob(job, define, impact, stress, color){
                 showJob(j){
                     return global.civic[j].display;
                 },
+                // Added in this copy: each tap moves up to 100 people (times the game's multiplier keys)
+                // between this job and the default job (usually Unemployed).
                 add(){
-                    let keyMult = keyMultiplier();
+                    let keyMult = keyMultiplier() * 100;
                     for (let i=0; i<keyMult; i++){
                         if ((global['civic'][job].max === -1 || global.civic[job].workers < global['civic'][job].max) && (global.civic[global.civic.d_job] && global.civic[global.civic.d_job].workers > 0)){
                             global.civic[job].workers++;
@@ -599,7 +601,7 @@ function loadJob(job, define, impact, stress, color){
                     }
                 },
                 sub(){
-                    let keyMult = keyMultiplier();
+                    let keyMult = keyMultiplier() * 100;
                     for (let i=0; i<keyMult; i++){
                         if (global.civic[job].workers > 0){
                             global.civic[job].workers--;
@@ -898,8 +900,9 @@ export function loadFoundry(servants){
             el: servants ? '#skilledServants' : '#foundry',
             data: bindData,
             methods: {
+                // Added in this copy: craftsmen move 100 at a time (servants still one at a time).
                 add(res){
-                    let keyMult = keyMultiplier();
+                    let keyMult = keyMultiplier() * (servants ? 1 : 100);
                     let tMax = -1;
                     if (res === 'Scarletite' || res === 'Quantium'){
                         tMax = craftsmanCap(res);
@@ -931,7 +934,7 @@ export function loadFoundry(servants){
                     }
                 },
                 sub(res){
-                    let keyMult = keyMultiplier();
+                    let keyMult = keyMultiplier() * (servants ? 1 : 100);
                     for (let i=0; i<keyMult; i++){
                         if (servants){
                             if (global.race.servants.sjobs[res] > 0){
