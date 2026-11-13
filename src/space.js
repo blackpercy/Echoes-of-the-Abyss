@@ -55,6 +55,58 @@ const spaceProjects = {
                 return false;
             }
         },
+        // Added in this copy.
+        crew_academy: {
+            id: 'space-crew_academy',
+            title(){ return 'Crew Academy'; },
+            desc(){ return 'Crew Academy'; },
+            reqs: { space: 3 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('crew_academy', offset, 3000000, 1.22, 'space'); },
+                Aluminium(offset){ return spaceCostMultiplier('crew_academy', offset, 300000, 1.22, 'space'); },
+                Polymer(offset){ return spaceCostMultiplier('crew_academy', offset, 50000, 1.22, 'space'); },
+            },
+            effect(){ return `<div>+50 citizens, housed for ship crews: they join the default job and crew ships from there.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('crew_academy','space');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['crew_academy','space']
+                };
+            }
+        },
+        // Added in this copy.
+        mega_battery: {
+            id: 'space-mega_battery',
+            title(){ return 'Mega Battery Array'; },
+            desc(){ return 'Mega Battery Array'; },
+            reqs: { space: 3 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('mega_battery', offset, 5000000, 1.24, 'space'); },
+                Copper(offset){ return spaceCostMultiplier('mega_battery', offset, 500000, 1.24, 'space'); },
+                Titanium(offset){ return spaceCostMultiplier('mega_battery', offset, 100000, 1.24, 'space'); },
+            },
+            effect(){ return `<div>Adds ${powerModifier(100)}MW of stored power to the grid.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('mega_battery','space');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['mega_battery','space']
+                };
+            }
+        },
         satellite: {
             id: 'space-satellite',
             title: loc('space_home_satellite_title'),
@@ -4149,6 +4201,33 @@ const interstellarProjects = {
                 };
             },
             flair: loc('interstellar_far_reach_flair')
+        },
+        // Added in this copy.
+        exotic_condenser: {
+            id: 'interstellar-exotic_condenser',
+            title(){ return 'Exotic Condenser'; },
+            desc(){ return 'Exotic Condenser'; },
+            condition(){ return global.interstellar['stellar_engine'] && global.interstellar.stellar_engine.count >= 100 ? true : false; },
+            reqs: { blackhole: 5 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('exotic_condenser', offset, 20000000, 1.25, 'interstellar'); },
+                Neutronium(offset){ return spaceCostMultiplier('exotic_condenser', offset, 100000, 1.25, 'interstellar'); },
+                Elerium(offset){ return spaceCostMultiplier('exotic_condenser', offset, 5000, 1.25, 'interstellar'); },
+            },
+            effect(){ return `<div>Turns up to 1,000 Elerium per second into exotic matter (or Infernite when Elerium runs out), ten times as much as a Mass Ejector would make from it.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('exotic_condenser','interstellar');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['exotic_condenser','interstellar']
+                };
+            }
         },
         stellar_engine: {
             id: 'interstellar-stellar_engine',

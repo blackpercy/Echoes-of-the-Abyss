@@ -4322,6 +4322,132 @@ const techs = {
             return false;
         }
     },
+    // Added in this copy.
+    demonic_cartography: {
+        id: 'tech-demonic_cartography',
+        title: 'Demonic Cartography',
+        desc: 'Demonic Cartography',
+        category: 'hell_dimension',
+        era: 'interstellar',
+        reqs: { portal: 4 },
+        grant: ['demon_map',1],
+        cost: {
+            Knowledge(){ return 2000000; },
+            Infernite(){ return 5000; },
+        },
+        effect: 'Maps of Hell lead patrols to demons twice as often: more fights, more kills and more chances at Soul Gems.',
+        action(){
+            if (payCosts($(this)[0])){
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy.
+    accelerated_ejection: {
+        id: 'tech-accelerated_ejection',
+        title: 'Accelerated Ejection',
+        desc: 'Accelerated Ejection',
+        category: 'stellar_engine',
+        era: 'interstellar',
+        reqs: { blackhole: 5 },
+        grant: ['accel_eject',1],
+        cost: {
+            Knowledge(){ return 3000000; },
+            Neutronium(){ return 50000; },
+        },
+        effect: 'Each Mass Ejector can eject 10,000 tons per second instead of 1,000.',
+        action(){
+            if (payCosts($(this)[0])){
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy.
+    quantum_logistics: {
+        id: 'tech-quantum_logistics',
+        title: 'Quantum Logistics',
+        desc: 'Quantum Logistics',
+        category: 'science',
+        era: 'interstellar',
+        reqs: { science: 14 },
+        grant: ['quantum_logistics',1],
+        cost: {
+            Knowledge(){ return 5000000; },
+            Nano_Tube(){ return 500000; },
+        },
+        effect: 'Every job that has a limit gets twice as many places.',
+        action(){
+            if (payCosts($(this)[0])){
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy.
+    gateway_shortcut: {
+        id: 'tech-gateway_shortcut',
+        title: 'Gateway Shortcut',
+        desc: 'Gateway Shortcut',
+        category: 'hell_dimension',
+        era: 'interstellar',
+        reqs: { portal: 5 },
+        grant: ['gateway_shortcut',1],
+        cost: {
+            Knowledge(){ return 4000000; },
+            Infernite(){ return 20000; },
+        },
+        effect: 'The Pit of Souls can be found without the Gateway research: 1,000,000 demon kills are enough.',
+        action(){
+            if (payCosts($(this)[0])){
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy.
+    stellar_overdrive: {
+        id: 'tech-stellar_overdrive',
+        title: 'Stellar Overdrive',
+        desc: 'Stellar Overdrive',
+        category: 'stellar_engine',
+        era: 'interstellar',
+        reqs: { blackhole: 5 },
+        grant: ['stellar_overdrive',1],
+        cost: {
+            Knowledge(){ return 4000000; },
+            Elerium(){ return 20000; },
+        },
+        effect: 'The completed Stellar Engine produces 10 times as much power.',
+        action(){
+            if (payCosts($(this)[0])){
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy.
+    genetic_mastery: {
+        id: 'tech-genetic_mastery',
+        title: 'Genetic Mastery',
+        desc: 'Genetic Mastery',
+        category: 'genes',
+        era: 'interstellar',
+        reqs: { genesis: 3 },
+        grant: ['genetic_mastery',1],
+        cost: {
+            Knowledge(){ return 3000000; },
+            Graphene(){ return 500000; },
+        },
+        effect: 'The Species Generator gives 50 extra genes to spend when you ascend.',
+        action(){
+            if (payCosts($(this)[0])){
+                return true;
+            }
+            return false;
+        }
+    },
     quantum_entanglement: {
         id: 'tech-quantum_entanglement',
         title: loc('tech_quantum_entanglement'),

@@ -2697,6 +2697,11 @@ export function containerValue(){
 // ('evolve-power-mult'), Blood Stones per Spire floor ('evolve-blood-mult'), Soul Gems found ('evolve-soulgem-mult', portal.js)
 // and the power a ship's power plant makes ('evolve-shippower-mult', truepath.js).
 // Each caller passes its default; values are stored in the browser, not in the save.
+// Added in this copy: how many tons per second each Mass Ejector can eject (more with Accelerated Ejection).
+export function ejectorCap(){
+    return global.tech['accel_eject'] ? 10000 : 1000;
+}
+
 export function storageBoost(key, def = 100){
     let mult = def;
     try {
@@ -2828,7 +2833,7 @@ function initEjector(){
                 },
                 real(num){
                     if (p_on['mass_ejector'] < num){
-                        return ` (${loc('interstellar_mass_ejector_active',[p_on['mass_ejector'] * 1000])})`;
+                        return ` (${loc('interstellar_mass_ejector_active',[p_on['mass_ejector'] * ejectorCap()])})`;
                     }
                     return '';
                 },
@@ -2877,8 +2882,8 @@ export function loadEjector(name,color){
                 // Added in this copy: each tap moves 1000 tons (times the game's multiplier keys), still within the ejectors' capacity.
                 ejectMore(r){
                     let keyMutipler = keyMultiplier() * 1000;
-                    if (keyMutipler + global.interstellar.mass_ejector.total > p_on['mass_ejector'] * 1000){
-                        keyMutipler = p_on['mass_ejector'] * 1000 - global.interstellar.mass_ejector.total;
+                    if (keyMutipler + global.interstellar.mass_ejector.total > p_on['mass_ejector'] * ejectorCap()){
+                        keyMutipler = p_on['mass_ejector'] * ejectorCap() - global.interstellar.mass_ejector.total;
                     }
                     global.interstellar.mass_ejector[r] += keyMutipler;
                     global.interstellar.mass_ejector.total += keyMutipler;

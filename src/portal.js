@@ -296,6 +296,33 @@ const fortressModules = {
                 };
             }
         },
+        // Added in this copy.
+        soul_extractor: {
+            id: 'portal-soul_extractor',
+            title(){ return 'Soul Extractor'; },
+            desc(){ return 'Soul Extractor'; },
+            not_trait: ['warlord'],
+            reqs: { portal: 4 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('soul_extractor', offset, 50000000, 1.3, 'portal'); },
+                Infernite(offset){ return spaceCostMultiplier('soul_extractor', offset, 5000, 1.3, 'portal'); },
+                Stanene(offset){ return spaceCostMultiplier('soul_extractor', offset, 1000000, 1.3, 'portal'); },
+            },
+            effect(){ return `<div>Every 10 minutes each Soul Extractor gives 1 ${global.resource.Soul_Gem.name} (times Settings → Soul Gem gain).</div><div class="has-text-special">Next in ${600 - ((global.portal.soul_extractor && global.portal.soul_extractor.timer) || 0)}s.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('soul_extractor','portal');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0, timer: 0 },
+                    p: ['soul_extractor','portal']
+                };
+            }
+        },
         attractor: {
             id: 'portal-attractor',
             title: loc('portal_attractor_title'),
@@ -4311,7 +4338,7 @@ export function bloodwar(){
         day_report.drones = {};
         for (let i=0; i<p_on['war_drone']; i++){
             let drone_report = { encounter: false, kills: 0 };
-            if (Math.rand(0,global.portal.fortress.threat) >= Math.rand(0,999)){
+            if (Math.rand(0,global.portal.fortress.threat * (global.tech['demon_map'] ? 2 : 1)) >= Math.rand(0,999)){ // Changed in this copy: Demonic Cartography doubles the encounter chance.
                 let demons = Math.rand(Math.floor(global.portal.fortress.threat / 50), Math.floor(global.portal.fortress.threat / 10));
                 let killed = global.tech.portal >= 7 ? Math.rand(50,125) : Math.rand(25,75);
                 if (demons < killed){
@@ -4375,7 +4402,7 @@ export function bloodwar(){
     for (let i=0; i<global.portal.fortress.patrols; i++){
         let patrol_report = { encounter: false, droid: false, ambush: false, gem: 0, kills: 0, wounded: 0, died: 0};
         let hurt = brkpnt > (1 / global.portal.fortress.patrols * i) ? Math.ceil(wounded) : Math.floor(wounded);
-        if (Math.rand(0,global.portal.fortress.threat) >= Math.rand(0,999)){
+        if (Math.rand(0,global.portal.fortress.threat * (global.tech['demon_map'] ? 2 : 1)) >= Math.rand(0,999)){ // Changed in this copy: Demonic Cartography doubles the encounter chance.
             patrol_report.encounter = true;
             let pat_size = global.portal.fortress.patrol_size;
             if (terminators > 0){
@@ -4674,7 +4701,7 @@ export function bloodwar(){
         global.portal.fortress.pity++;
     }
 
-    if (global.stats.dkills >= 1000000 && global.tech['gateway'] && !global.tech['hell_pit']){
+    if (global.stats.dkills >= 1000000 && (global.tech['gateway'] || global.tech['gateway_shortcut']) && !global.tech['hell_pit']){ // Changed in this copy: Gateway Shortcut.
         global.tech['hell_pit'] = 1;
         global.settings.portal.pit = true;
         messageQueue(loc('portal_hell_pit_found'),'info',false,['progress','hell']);

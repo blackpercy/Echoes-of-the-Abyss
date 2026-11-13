@@ -1958,6 +1958,87 @@ export const actions = {
             },
         },
         assembly: buildTemplate(`assembly`,'city'),
+        // Added in this copy.
+        command_center: {
+            id: 'city-command_center',
+            title(){ return 'Command Center'; },
+            desc(){ return 'Command Center'; },
+            category: 'military',
+            reqs: { military: 5 },
+            cost: {
+                Money(offset){ return costMultiplier('command_center', offset, 5000000, 1.25); },
+                Steel(offset){ return costMultiplier('command_center', offset, 500000, 1.25); },
+                Alloy(offset){ return costMultiplier('command_center', offset, 100000, 1.25); },
+            },
+            effect(){ return `<div>+20 maximum ${global.resource.Authority.name} and +20 ${global.resource.Authority.name} (Evil universe only).</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('command_center','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['command_center','city']
+                };
+            }
+        },
+        // Added in this copy.
+        recruitment_office: {
+            id: 'city-recruitment_office',
+            title(){ return 'Recruitment Office'; },
+            desc(){ return 'Recruitment Office'; },
+            category: 'military',
+            reqs: { military: 3 },
+            cost: {
+                Money(offset){ return costMultiplier('recruitment_office', offset, 1000000, 1.2); },
+                Steel(offset){ return costMultiplier('recruitment_office', offset, 100000, 1.2); },
+                Cement(offset){ return costMultiplier('recruitment_office', offset, 200000, 1.2); },
+            },
+            effect(){ return `<div>+${jobScale(10)} soldiers in the garrison.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('recruitment_office','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['recruitment_office','city']
+                };
+            }
+        },
+        // Added in this copy.
+        auto_foundry: {
+            id: 'city-auto_foundry',
+            title(){ return 'Auto-Foundry'; },
+            desc(){ return 'Auto-Foundry'; },
+            category: 'industrial',
+            reqs: { foundry: 1 },
+            cost: {
+                Money(offset){ return costMultiplier('auto_foundry', offset, 2000000, 1.22); },
+                Steel(offset){ return costMultiplier('auto_foundry', offset, 250000, 1.22); },
+                Titanium(offset){ return costMultiplier('auto_foundry', offset, 50000, 1.22); },
+            },
+            effect(){ return `<div>Works like 10 craftsmen on every Foundry recipe at once, without taking anyone from a job.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('auto_foundry','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['auto_foundry','city']
+                };
+            }
+        },
         garrison: {
             id: 'city-garrison',
             title(){ return global.race['flier'] ? loc('city_garrison_flier') : loc('city_garrison'); },

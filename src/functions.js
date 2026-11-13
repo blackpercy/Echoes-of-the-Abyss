@@ -2691,6 +2691,11 @@ export function calcGenomeScore(genome,wiki,tRanks){
         }
     }
 
+    // Added in this copy: Genetic Mastery gives 50 extra genes.
+    if (!wiki && global.tech['genetic_mastery']){
+        genes += 50;
+    }
+
     let active_genus = genome.genus === 'hybrid' ? genome.hybrid : [genome.genus];
     let oppose_genus = [];
     active_genus.forEach(function(g){

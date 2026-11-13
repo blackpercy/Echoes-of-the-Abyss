@@ -1,15 +1,15 @@
 import { global, save, seededRandom, webWorker, intervals, keyMap, atrack, resizeGame, breakdown, sizeApproximation, keyMultiplier, power_generated, p_on, support_on, int_on, gal_on, spire_on, set_qlevel, quantum_level, callback_queue, active_rituals } from './vars.js';
 import { loc } from './locale.js';
 import { unlockAchieve, checkAchievements, drawAchieve, alevel, universeAffix, challengeIcon, unlockFeat, checkAdept } from './achieve.js';
-import { gameLoop, vBind, popover, clearPopper, flib, tagEvent, timeCheck, arpaTimeCheck, timeFormat, powerModifier, resetResBuffer, modRes, initMessageQueue, messageQueue, calc_mastery, calcPillar, darkEffect, calcQueueMax, calcRQueueMax, buildQueue, shrineBonusActive, getShrineBonus, eventActive, easterEggBind, trickOrTreatBind, powerGrid, deepClone, addATime, exceededATimeThreshold, loopTimers, calcQuantumLevel, drawPet } from './functions.js';
+import { gameLoop, vBind, popover, clearPopper, flib, tagEvent, timeCheck, arpaTimeCheck, timeFormat, powerModifier, resetResBuffer, modRes, initMessageQueue, messageQueue, calc_mastery, calcPillar, darkEffect, calcQueueMax, calcRQueueMax, buildQueue, shrineBonusActive, getShrineBonus, eventActive, easterEggBind, trickOrTreatBind, powerGrid, deepClone, addATime, exceededATimeThreshold, loopTimers, calcQuantumLevel, drawPet , calcPrestige } from './functions.js';
 import { races, traits, racialTrait, orbitLength, servantTrait, randomMinorTrait, biomes, planetTraits, shapeShift, fathomCheck, blubberFill, cleanRemoveTrait } from './races.js';
-import { defineResources, resource_values, spatialReasoning, craftCost, plasmidBonus, faithBonus, faithTempleCount, tradeRatio, craftingRatio, crateValue, containerValue, storageBoost, tradeSellPrice, tradeBuyPrice, atomic_mass, supplyValue, galaxyOffers } from './resources.js';
+import { defineResources, resource_values, spatialReasoning, craftCost, plasmidBonus, faithBonus, faithTempleCount, tradeRatio, craftingRatio, crateValue, containerValue, storageBoost, ejectorCap, tradeSellPrice, tradeBuyPrice, atomic_mass, supplyValue, galaxyOffers } from './resources.js';
 import { defineJobs, job_desc, loadFoundry, farmerValue, jobName, jobScale, workerScale, limitCraftsmen, loadServants} from './jobs.js';
 import { defineIndustry, f_rate, manaCost, setPowerGrid, gridEnabled, gridDefs, nf_resources, replicator, luxGoodPrice, smelterUnlocked, smelterFuelConfig, setupRituals, maxRitualNum, ritual_types } from './industry.js';
 import { checkControlling, garrisonSize, armyRating, govTitle, govCivics, govEffect, weaponTechModifer } from './civics.js';
 import { actions, updateDesc, checkTechRequirements, drawEvolution, BHStorageMulti, storageMultipler, checkAffordable, checkPowerRequirements, drawCity, drawTech, gainTech, housingLabel, updateQueueNames, wardenLabel, planetGeology, resQueue, bank_vault, start_cataclysm, orbitDecayed, postBuild, skipRequirement, structName, templeCount, initStruct, casino_vault, casinoEarn, doCallbacks, cLabels } from './actions.js';
 import { renderSpace, convertSpaceSector, dysonSpherePower, fuel_adjust, int_fuel_adjust, zigguratBonus, planetName, genPlanets, setUniverse, universe_types, gatewayStorage, piracy, spaceTech, universe_affixes, galaxyRegions, gatewayArmada, galaxy_ship_types } from './space.js';
-import { renderFortress, bloodwar, soulForgeSoldiers, hellSupression, genSpireFloor, mechRating, mechCollect, updateMechbay, hellguard, buildMechQueue, mechCost } from './portal.js';
+import { renderFortress, bloodwar, soulForgeSoldiers, hellSupression, genSpireFloor, mechRating, mechCollect, updateMechbay, hellguard, buildMechQueue, mechCost, soulGemGain } from './portal.js';
 import { asphodelResist, mechStationEffect, renderEdenic } from './edenic.js';
 import { renderTauCeti, syndicate, shipFuelUse, spacePlanetStats, genXYcoord, shipCrewSize, tpStorageMultiplier, tritonWar, sensorRange, erisWar, calcAIDrift, drawMap, tauEnabled, shipCosts, buildTPShipQueue } from './truepath.js';
 import { arpa, buildArpa, sequenceLabs } from './arpa.js';
@@ -876,7 +876,19 @@ resourceAlt();
 
 var firstRun = true;
 var gene_sequence = global.arpa['sequence'] && global.arpa['sequence']['on'] ? global.arpa.sequence.on : 0;
+// Added in this copy: saved data for the buildings this copy adds, created when missing (older saves, new runs).
+function ensureAddedStructs(){
+    [['city','command_center',{ count: 0 }],['city','recruitment_office',{ count: 0 }],['city','auto_foundry',{ count: 0 }],
+     ['space','crew_academy',{ count: 0 }],['space','mega_battery',{ count: 0 }],
+     ['interstellar','exotic_condenser',{ count: 0 }],['portal','soul_extractor',{ count: 0, timer: 0 }]].forEach(function(e){
+        if (global[e[0]] && !global[e[0]][e[1]]){
+            global[e[0]][e[1]] = e[2];
+        }
+    });
+}
+
 function fastLoop(){
+    ensureAddedStructs();
     if (!global.race['no_craft']){
         $('.craft').each(function(e){
             if (typeof $(this).data('val') === 'number'){
@@ -1852,8 +1864,20 @@ function fastLoop(){
             power_generated['Additional Dyson Spheres'] = output;
         }
 
+        // Added in this copy: Mega Battery Arrays add stored power to the grid.
+        if (global.space['mega_battery'] && global.space.mega_battery.count > 0){
+            let output = powerModifier(100) * global.space.mega_battery.count;
+            max_power -= output;
+            power_grid += output;
+            power_generated['Mega Battery Array'] = output;
+        }
+
         if (global.interstellar['stellar_engine'] && global.interstellar.stellar_engine.count >= 100){
             let output = actions.interstellar.int_blackhole.stellar_engine.powered();
+            // Added in this copy: Stellar Overdrive makes the Stellar Engine produce 10 times as much.
+            if (global.tech['stellar_overdrive']){
+                output *= 10;
+            }
             max_power += output;
             power_grid -= output;
             power_generated[loc('tech_stellar_engine')] = -output;
@@ -3336,8 +3360,8 @@ function fastLoop(){
             Object.keys(global.interstellar.mass_ejector).forEach(function (res){
                 if (atomic_mass[res]){
                     let ejected = global.interstellar.mass_ejector[res];
-                    if (total + ejected > p_on['mass_ejector'] * 1000){
-                        ejected = p_on['mass_ejector'] * 1000 - total;
+                    if (total + ejected > p_on['mass_ejector'] * ejectorCap()){
+                        ejected = p_on['mass_ejector'] * ejectorCap() - total;
                     }
                     total += ejected;
 
@@ -7879,6 +7903,10 @@ function fastLoop(){
                 }
                 breakdown.p[craft] = {};
                 let num = workerScale(global.city.foundry[craft],'craftsman');
+                // Added in this copy: each Auto-Foundry works like 10 craftsmen on every recipe.
+                if (global.city['auto_foundry'] && global.city.auto_foundry.count > 0){
+                    num += global.city.auto_foundry.count * 10;
+                }
                 if (global.race['servants'] && global.race.servants.hasOwnProperty('sjobs') && global.race.servants.sjobs.hasOwnProperty(craft)){
                     num += jobScale(global.race.servants.sjobs[craft]);
                 }
@@ -7921,6 +7949,23 @@ function fastLoop(){
                     breakdown.p.consume[used][jobName('craftsman')] = -(crafting_usage[used]);
                 }
             });
+        }
+
+        // Added in this copy: Exotic Condensers turn Elerium (or Infernite) into exotic matter for the black hole.
+        if (global.interstellar['exotic_condenser'] && global.interstellar.exotic_condenser.count > 0 && global.interstellar['stellar_engine'] && global.interstellar.stellar_engine.count >= 100 && global.race.universe !== 'magic'){
+            let budget = global.interstellar.exotic_condenser.count * 1000;
+            let exotic = 0;
+            ['Elerium','Infernite'].forEach(function(res){
+                if (budget <= 0 || !global.resource[res]){ return; }
+                let use = Math.min(budget, global.resource[res].amount / time_multiplier);
+                if (use > 0){
+                    modRes(res, -(use * time_multiplier));
+                    breakdown.p.consume[res]['Exotic Condenser'] = -(use);
+                    exotic += use * atomic_mass[res] * 10;
+                    budget -= use;
+                }
+            });
+            global.interstellar.stellar_engine.exotic += exotic / 10000000000 * time_multiplier;
         }
 
         // Detect new unlocks
@@ -8147,6 +8192,15 @@ function fastLoop(){
 
 function midLoop(){
     const astroSign = astrologySign();
+    // Added in this copy: Soul Extractors give Soul Gems every 10 minutes (this loop runs about once a second).
+    if (global.portal && global.portal['soul_extractor'] && global.portal.soul_extractor.count > 0){
+        global.portal.soul_extractor.timer = (global.portal.soul_extractor.timer || 0) + 1;
+        if (global.portal.soul_extractor.timer >= 600){
+            global.portal.soul_extractor.timer = 0;
+            global.resource.Soul_Gem.amount += global.portal.soul_extractor.count * soulGemGain();
+            global.resource.Soul_Gem.display = true;
+        }
+    }
     if (global.race.species === 'protoplasm'){
         let base = 100;
         if (global.stats.achieve['mass_extinction'] && global.stats.achieve['mass_extinction'].l > 1){
@@ -8354,6 +8408,12 @@ function midLoop(){
                 caps.Authority += gain;
                 breakdown.c.Authority[loc('govern_oligarchy')] = gain+'v';
             }
+            // Added in this copy: Command Centers.
+            if (global.city['command_center'] && global.city.command_center.count > 0){
+                let gain = global.city.command_center.count * 20;
+                caps.Authority += gain;
+                breakdown.c.Authority['Command Center'] = gain+'v';
+            }
             if (global.city['garrison']){
                 let gain = global.city.garrison.on * 0.5;
                 caps.Authority += gain;
@@ -8448,6 +8508,10 @@ function midLoop(){
 
             if (pet !== 0){
                 global.resource.Authority.amount += pet;
+            }
+            // Added in this copy: Command Centers.
+            if (global.city['command_center'] && global.city.command_center.count > 0){
+                global.resource.Authority.amount += global.city.command_center.count * 20;
             }
 
             if ((global.race['lone_survivor'] || global.tech['isolation']) && global.tauceti['colony'] && support_on['colony']){
@@ -8558,6 +8622,12 @@ function midLoop(){
             let houses = global.city.captive_housing.count;
             global.city.captive_housing.raceCap = houses * (global.tech['unfathomable'] && global.tech.unfathomable >= 3 ? 3 : 2);
             global.city.captive_housing.cattleCap = houses * 5;
+        }
+        // Added in this copy: Crew Academies house 50 citizens each.
+        if (global.space['crew_academy'] && global.space.crew_academy.count > 0){
+            let pop = global.space.crew_academy.count * 50;
+            caps[global.race.species] += pop;
+            breakdown.c[global.race.species]['Crew Academy'] = pop + 'v';
         }
         if (global.city['farm']){
             if (global.tech['farm']){
@@ -8744,6 +8814,10 @@ function midLoop(){
         }
         if (global.city['garrison']){
             lCaps['garrison'] += global.city.garrison.on * actions.city.garrison.soldiers();
+        }
+        // Added in this copy: each Recruitment Office adds 10 soldiers.
+        if (global.city['recruitment_office'] && global.city.recruitment_office.count > 0){
+            lCaps['garrison'] += jobScale(10) * global.city.recruitment_office.count;
         }
         if (global.space['space_barracks'] && !global.race['fasting']){
             let soldiers = actions.space.spc_red.space_barracks.soldiers();
@@ -10424,6 +10498,10 @@ function midLoop(){
         });
 
         Object.keys(lCaps).forEach(function (job){
+            // Added in this copy: Quantum Logistics doubles every limited job.
+            if (global.tech['quantum_logistics'] && lCaps[job] > 0){
+                lCaps[job] *= 2;
+            }
             global.civic[job].max = lCaps[job];
             if (global.civic[job].workers > global.civic[job].max && global.civic[job].max !== -1){
                 global.civic[job].workers = global.civic[job].max;
@@ -12688,7 +12766,8 @@ function longLoop(){
             if (global.tech['stablized']){
                 delete global.tech['stablized'];
             }
-            if (!global.race.governor.config.hasOwnProperty('trash') || (global.race.governor.config.hasOwnProperty('trash') && !global.race.governor.config.trash['stab'])){
+            // Changed in this copy: a game without a governor has no governor settings.
+            if (!global.race.governor?.config?.trash?.['stab']){
                 messageQueue(loc('interstellar_blackhole_unstable'),'danger',false,['progress']);
             }
             drawTech();
@@ -13036,3 +13115,12 @@ popover('versionLog',getTopChange(changeLog),{ wide: true });
 if (global.race['start_cataclysm']){
     start_cataclysm();
 }
+
+// Added in this copy: what each reset would give right now, for the prestige overview in Settings (mobile/prestige.js).
+window.evolvePrestige = function(){
+    const out = {};
+    [['mad','MAD'],['bioseed','Bioseed'],['bigbang','Black Hole'],['ascend','Ascension'],['descend','Descension']].forEach(function(r){
+        try { out[r[1]] = calcPrestige(r[0]); } catch (e) { out[r[1]] = null; }
+    });
+    return out;
+};

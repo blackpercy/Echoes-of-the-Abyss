@@ -3,7 +3,7 @@ import { vBind, popover, tagEvent, calcQueueMax, calcRQueueMax, clearElement, ad
 import { races } from './races.js';
 import { actions, checkCityRequirements, housingLabel, wardenLabel, updateQueueNames, checkAffordable, drawTech, drawCity } from './actions.js';
 import { govCivics, govTitle } from './civics.js';
-import { crateGovHook, atomic_mass } from './resources.js';
+import { crateGovHook, atomic_mass, ejectorCap } from './resources.js';
 import { checkHellRequirements, mechSize, mechCost, validWeapons, validEquipment } from './portal.js';
 import { loc } from './locale.js';
 import { jobScale } from './jobs.js';
@@ -1263,7 +1263,7 @@ export const gov_tasks = {
             let mass = function(m){
                 return global.race.universe === 'magic' ? atomic_mass[m] : (['Elerium','Infernite'].includes(m) ? atomic_mass[m] * 10 : atomic_mass[m]);
             };
-            let remain = p_on['mass_ejector'] * 1000;
+            let remain = p_on['mass_ejector'] * ejectorCap();
             Object.keys(atomic_mass).sort((a,b) => (mass(a) < mass(b)) ? 1 : -1).forEach(function(res){
                 let trade = breakdown.p.consume[res].hasOwnProperty(loc('trade')) ? breakdown.p.consume[res][loc('trade')]: 0;
                 let craft = breakdown.p.consume[res].hasOwnProperty(loc('job_craftsman')) ? breakdown.p.consume[res][loc('job_craftsman')]: 0;
@@ -1291,7 +1291,7 @@ export const gov_tasks = {
                     global.interstellar.mass_ejector[res] = 0;
                 }
             });
-            global.interstellar.mass_ejector.total = p_on['mass_ejector'] * 1000 - remain;
+            global.interstellar.mass_ejector.total = p_on['mass_ejector'] * ejectorCap() - remain;
 
             if (global.genes.hasOwnProperty('governor') && global.genes.governor >= 3 && global.race.governor.config.trash.stab){
                 stabilize_blackhole();
