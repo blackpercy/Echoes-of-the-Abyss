@@ -3983,8 +3983,9 @@ export function buildFortress(parent,full){
             threatLevel(){
                 return fortressData('threatLevel');
             },
+            // Added in this copy: each tap stations or recalls 100 soldiers (times the game's multiplier keys).
             aNext(){
-                let inc = keyMultiplier();
+                let inc = keyMultiplier() * 100;
                 if (global.portal.fortress.garrison < global.civic.garrison.workers){
                     global.portal.fortress.garrison += inc;
                     if (global.portal.fortress.garrison > global.civic.garrison.workers){
@@ -3995,7 +3996,7 @@ export function buildFortress(parent,full){
                 }
             },
             aLast(){
-                let dec = keyMultiplier();
+                let dec = keyMultiplier() * 100;
                 let min = global.portal.fortress.patrols * global.portal.fortress.patrol_size;
                 if (p_on['soul_forge'] && !global.race['warlord']){
                     min += soulForgeSoldiers();
