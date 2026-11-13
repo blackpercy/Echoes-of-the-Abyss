@@ -10444,7 +10444,8 @@ function midLoop(){
         let elerium_boost = storageBoost('evolve-elerium-mult', 1000);
         Object.keys(caps).forEach(function (res){
             let boost = res === 'Elerium' ? elerium_boost : other_boost;
-            if (boost !== 1 && caps[res] > 0 && !other_skip.includes(res)){
+            // The population is not storage: its cap is never multiplied.
+            if (boost !== 1 && caps[res] > 0 && !other_skip.includes(res) && res !== global.race.species){
                 if (breakdown.c[res]){
                     breakdown.c[res]['Storage setting'] = (caps[res] * (boost - 1))+'v';
                 }
