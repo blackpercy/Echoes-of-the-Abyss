@@ -1,4 +1,5 @@
 import { global, tmp_vars, keyMultiplier, breakdown, sizeApproximation, p_on, support_on, active_rituals } from './vars.js';
+import { shardEject } from './custom_prestige.js';
 import { vBind, clearElement, modRes, flib, calc_mastery, calcPillar, eventActive, easterEgg, trickOrTreat, popover, harmonyEffect, darkEffect, hoovedRename, messageQueue } from './functions.js';
 import { traits, fathomCheck } from './races.js';
 import { templeCount, actions } from './actions.js';
@@ -2699,7 +2700,7 @@ export function containerValue(){
 // Each caller passes its default; values are stored in the browser, not in the save.
 // Added in this copy: how many tons per second each Mass Ejector can eject (more with Accelerated Ejection).
 export function ejectorCap(){
-    return global.tech['accel_eject'] ? 10000 : 1000;
+    return Math.round((global.tech['accel_eject'] ? 10000 : 1000) * shardEject()); // Star Shards add 10% each
 }
 
 export function storageBoost(key, def = 100){

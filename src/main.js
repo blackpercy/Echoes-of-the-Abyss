@@ -18,6 +18,7 @@ import { defineGovernor, govern, govActive, removeTask } from './governor.js';
 import { production, gasBoost, oreBoost, highPopAdjust, teamster, factoryBonus } from './prod.js';
 import { swissKnife } from './tech.js';
 import { vacuumCollapse } from './resets.js';
+import { checkCustomResets, payEchoes, shardBonus, crownBonus, cp, CP_NAMES, CP_RESETS } from './custom_prestige.js';
 import { index, mainVue, initTabs, loadTab } from './index.js';
 import { setWeather, seasonDesc, astrologySign, astroVal } from './seasons.js';
 import { getTopChange } from './wiki/change.js';
@@ -889,6 +890,7 @@ function ensureAddedStructs(){
 
 function fastLoop(){
     ensureAddedStructs();
+    payEchoes();
     if (!global.race['no_craft']){
         $('.craft').each(function(e){
             if (typeof $(this).data('val') === 'number'){
@@ -2066,7 +2068,7 @@ function fastLoop(){
         }
 
         // Added in this copy: Settings → Power generation multiplies the power that every source makes.
-        let power_boost = storageBoost('evolve-power-mult', 1000);
+        let power_boost = storageBoost('evolve-power-mult', 1000) * shardBonus(); // Star Shards add 2% each
         if (power_boost !== 1 && power_grid > 0){
             power_grid *= power_boost;
             max_power *= power_boost;
@@ -8192,6 +8194,9 @@ function fastLoop(){
 
 function midLoop(){
     const astroSign = astrologySign();
+    if (checkCustomResets()){
+        drawTech();
+    }
     // Added in this copy: Soul Extractors give Soul Gems every 10 minutes (this loop runs about once a second).
     if (global.portal && global.portal['soul_extractor'] && global.portal.soul_extractor.count > 0){
         global.portal.soul_extractor.timer = (global.portal.soul_extractor.timer || 0) + 1;
@@ -11059,7 +11064,7 @@ function midLoop(){
             }
             else {
                 // Added in this copy: Settings → Spire progress multiplies how fast the mechs clear a floor.
-                progress *= storageBoost('evolve-spire-mult', 1000);
+                progress *= storageBoost('evolve-spire-mult', 1000) * crownBonus(); // Spire Crowns add 5% each
                 global.portal.spire.progress += progress;
                 global.portal.spire.time = progress === 0 ? timeFormat(-1) : timeFormat((100 - global.portal.spire.progress) / progress);
                 if (global.tech['waygate'] && global.tech.waygate >= 2){
@@ -11082,7 +11087,7 @@ function midLoop(){
                     stones *= 2;
                 }
                 // Added in this copy: Settings → Blood Stone gain multiplies the stones each Spire floor gives.
-                stones *= storageBoost('evolve-blood-mult', 100);
+                stones = Math.round(stones * storageBoost('evolve-blood-mult', 100) * crownBonus()); // Spire Crowns add 5% each
                 global.prestige.Blood_Stone.count += stones;
                 global.stats.blood += stones;
                 arpa('Blood');
@@ -13123,5 +13128,14 @@ window.evolvePrestige = function(){
     [['mad','MAD'],['bioseed','Bioseed'],['bigbang','Black Hole'],['ascend','Ascension'],['descend','Descension']].forEach(function(r){
         try { out[r[1]] = calcPrestige(r[0]); } catch (e) { out[r[1]] = null; }
     });
+    // The new resets: their own resource plus a MAD reset's Plasmids, and whether they are unlocked yet.
+    Object.keys(CP_RESETS).forEach(function(k){
+        const r = CP_RESETS[k];
+        let g = {};
+        try { g = Object.assign({}, calcPrestige('mad')); } catch (e) {}
+        try { g[r.res] = r.gain(); g.locked = !r.ready(); } catch (e) { g.locked = true; }
+        out[r.title] = g;
+    });
+    out._owned = Object.assign({}, cp());
     return out;
 };

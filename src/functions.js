@@ -2793,6 +2793,10 @@ export function calcGenomeScore(genome,wiki,tRanks){
 }
 
 export function updateResetStats(){
+    // Added in this copy: demon kills for Hellgate Collapse count from the start of each run.
+    if (global.stats['cprest']){
+        global.stats.cprest.kills_base = global.stats.dkills || 0;
+    }
     global.stats.reset++;
     global.stats.tdays += global.stats.days;
     global.stats.days = 0;

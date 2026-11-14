@@ -17,6 +17,7 @@ import { loc } from './locale.js';
 import { defineIndustry, addSmelter } from './industry.js';
 import { arpa } from './arpa.js';
 import { jobName } from './jobs.js';
+import { sigilBonus } from './custom_prestige.js';
 
 // Added in this copy: Settings → Soul Gem gain multiplies every Soul Gem found in Hell (patrols, surveyors, guns, turrets, the Soul Forge).
 export function soulGemGain(){
@@ -4379,6 +4380,7 @@ export function bloodwar(){
         gem_chance = Math.round(gem_chance * ((100 - (traits.ghostly.vars(1)[2] * wendFathom)) / 100));
     }
 
+    gem_chance = Math.round(gem_chance / sigilBonus()); // Added in this copy: Demon Sigils.
     if (gem_chance < 12){
         gem_chance = 12;
     }
@@ -4411,7 +4413,7 @@ export function bloodwar(){
                 pat_size += global.tech['hdroid'] ? jobScale(2) : jobScale(1);
                 terminators--;
             }
-            let pat_rating = Math.round(armyRating(pat_size,'hellArmy',hurt));
+            let pat_rating = Math.round(armyRating(pat_size,'hellArmy',hurt) * sigilBonus()); // Demon Sigils add 2% each
 
             let demons = Math.rand(Math.floor(global.portal.fortress.threat / 50), Math.floor(global.portal.fortress.threat / 10));
 

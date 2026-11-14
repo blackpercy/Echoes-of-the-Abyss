@@ -2,6 +2,7 @@ import { global, save, seededRandom, webWorker, clearSavedMessages, clearStates 
 import { tagEvent, calcPrestige, updateResetStats } from './functions.js';
 import { races, planetTraits } from './races.js';
 import { unlockAchieve, unlockFeat, checkAchievements, universeAffix, alevel } from './achieve.js';
+import { cp, CP_RESETS } from './custom_prestige.js';
 
 // Mutual Assured Destruction
 export function warhead(){
@@ -81,6 +82,72 @@ export function warhead(){
         save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
         window.location.reload();
     }
+}
+
+// Added in this copy: the four new resets (see custom_prestige.js). Each gives its own prestige resource plus
+// the Plasmids (or Anti-Plasmids) a MAD reset would give, and starts a new run in the same universe.
+export function customReset(kind){
+    const r = CP_RESETS[kind];
+    if (!r || !r.ready() || global['sim']){ return false; }
+    save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
+    clearSavedMessages();
+
+    let god = global.race.species;
+    let old_god = global.race.gods;
+    let orbit = global.city.calendar.orbit;
+    let biome = global.city.biome;
+    let atmo = global.city.ptrait;
+    let geo = global.city.geology;
+
+    let gains = calcPrestige('mad');
+    let earned = r.gain();
+
+    updateResetStats();
+    if (global.race.universe === 'antimatter'){
+        global.prestige.AntiPlasmid.count += gains.plasmid;
+        global.stats.antiplasmid += gains.plasmid;
+    }
+    else {
+        global.prestige.Plasmid.count += gains.plasmid;
+        global.stats.plasmid += gains.plasmid;
+    }
+    global.stats.pdebt = gains.pdebt;
+
+    const c = cp();
+    c[r.res] = (c[r.res] || 0) + earned;
+    c.kills_base = global.stats.dkills || 0;
+    unlockAchieve(`extinct_${god}`);
+    checkAchievements();
+
+    let srace = global.race.hasOwnProperty('srace') ? global.race.srace : false;
+    let corruption = global.race.hasOwnProperty('corruption') && global.race.corruption > 1 ? global.race.corruption - 1 : 0;
+    global['race'] = {
+        species : 'protoplasm',
+        gods: god,
+        old_gods: old_god,
+        rapid_mutation: 1,
+        ancient_ruins: 1,
+        universe: global.race.universe,
+        seeded: false,
+        ascended: global.race.hasOwnProperty('ascended') ? global.race.ascended : false,
+    };
+    if (corruption > 0){
+        global.race['corruption'] = corruption;
+    }
+    if (srace){
+        global.race['srace'] = srace;
+    }
+
+    resetCommon({
+        orbit: orbit,
+        biome: biome,
+        ptrait: atmo,
+        geology: geo
+    });
+
+    save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
+    window.location.reload();
+    return true;
 }
 
 //Bioseed

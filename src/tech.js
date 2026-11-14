@@ -13,7 +13,8 @@ import { setOrbits, drawShipYard, jumpGateShutdown } from './truepath.js';
 import { arpa } from './arpa.js';
 import { setPowerGrid, defineIndustry, addSmelter, setupRituals } from './industry.js';
 import { defineGovernor, removeTask } from './governor.js';
-import { big_bang, cataclysm_end, descension, aiApocalypse } from './resets.js';
+import { big_bang, cataclysm_end, descension, aiApocalypse, customReset } from './resets.js';
+import { CP_RESETS, CP_NAMES } from './custom_prestige.js';
 
 const techs = {
     club: {
@@ -4317,6 +4318,114 @@ const techs = {
         effect(){ return loc('tech_dimensional_readings_effect'); },
         action(){
             if (payCosts($(this)[0])){
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy: a new reset (custom_prestige.js). It asks before anything happens and never runs from the queue.
+    hellgate_collapse: {
+        id: 'tech-hellgate_collapse',
+        title(){ return CP_RESETS.hellgate.title; },
+        desc(){ return CP_RESETS.hellgate.title; },
+        category: 'hell_dimension',
+        era: 'interstellar',
+        reqs: { cp_hellgate: 1 },
+        grant: ['cp_hellgate',2],
+        no_queue(){ return true; },
+        cost: {
+            Knowledge(){ return 1000000; }
+        },
+        effect(){ return `<div>Tear the gate to Hell shut, crushing the demons behind it. Demon Sigils make patrols 2% stronger and Soul Gems 2% more likely each, in every future run.</div><div class="has-text-special">Reset now for ${CP_RESETS.hellgate.gain().toLocaleString()} ${CP_NAMES[CP_RESETS.hellgate.res]}, plus the Plasmids a MAD reset would give. A new run starts.</div>`; },
+        action(args){
+            if (args && args.isQueue){ return false; }
+            const r = CP_RESETS.hellgate;
+            if (!window.confirm(`${r.title}: reset now for ${r.gain().toLocaleString()} ${CP_NAMES[r.res]} and a MAD reset's Plasmids? Everything else starts over.`)){
+                return false;
+            }
+            if (payCosts($(this)[0])){
+                customReset('hellgate');
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy: a new reset (custom_prestige.js). It asks before anything happens and never runs from the queue.
+    supernova: {
+        id: 'tech-supernova',
+        title(){ return CP_RESETS.supernova.title; },
+        desc(){ return CP_RESETS.supernova.title; },
+        category: 'stellar_engine',
+        era: 'interstellar',
+        reqs: { cp_supernova: 1 },
+        grant: ['cp_supernova',2],
+        no_queue(){ return true; },
+        cost: {
+            Knowledge(){ return 1000000; }
+        },
+        effect(){ return `<div>Collapse your Dyson spheres into the star. Star Shards give 2% more power and 10% more Mass Ejector capacity each, in every future run.</div><div class="has-text-special">Reset now for ${CP_RESETS.supernova.gain().toLocaleString()} ${CP_NAMES[CP_RESETS.supernova.res]}, plus the Plasmids a MAD reset would give. A new run starts.</div>`; },
+        action(args){
+            if (args && args.isQueue){ return false; }
+            const r = CP_RESETS.supernova;
+            if (!window.confirm(`${r.title}: reset now for ${r.gain().toLocaleString()} ${CP_NAMES[r.res]} and a MAD reset's Plasmids? Everything else starts over.`)){
+                return false;
+            }
+            if (payCosts($(this)[0])){
+                customReset('supernova');
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy: a new reset (custom_prestige.js). It asks before anything happens and never runs from the queue.
+    spire_conquest: {
+        id: 'tech-spire_conquest',
+        title(){ return CP_RESETS.spire.title; },
+        desc(){ return CP_RESETS.spire.title; },
+        category: 'hell_dimension',
+        era: 'interstellar',
+        reqs: { cp_spire: 1 },
+        grant: ['cp_spire',2],
+        no_queue(){ return true; },
+        cost: {
+            Knowledge(){ return 1000000; }
+        },
+        effect(){ return `<div>Claim the Spire and return as a conqueror. Spire Crowns give 5% more Blood Stones and 5% faster Spire progress each, in every future run.</div><div class="has-text-special">Reset now for ${CP_RESETS.spire.gain().toLocaleString()} ${CP_NAMES[CP_RESETS.spire.res]}, plus the Plasmids a MAD reset would give. A new run starts.</div>`; },
+        action(args){
+            if (args && args.isQueue){ return false; }
+            const r = CP_RESETS.spire;
+            if (!window.confirm(`${r.title}: reset now for ${r.gain().toLocaleString()} ${CP_NAMES[r.res]} and a MAD reset's Plasmids? Everything else starts over.`)){
+                return false;
+            }
+            if (payCosts($(this)[0])){
+                customReset('spire');
+                return true;
+            }
+            return false;
+        }
+    },
+    // Added in this copy: a new reset (custom_prestige.js). It asks before anything happens and never runs from the queue.
+    time_loop: {
+        id: 'tech-time_loop',
+        title(){ return CP_RESETS.timeloop.title; },
+        desc(){ return CP_RESETS.timeloop.title; },
+        category: 'science',
+        era: 'interstellar',
+        reqs: { cp_timeloop: 1 },
+        grant: ['cp_timeloop',2],
+        no_queue(){ return true; },
+        cost: {
+            Knowledge(){ return 1000000; }
+        },
+        effect(){ return `<div>Loop time back to the beginning. Each Echo Fragment gives a free copy of each of your first buildings (houses, farms, storage, banks, libraries, temples) in every future run.</div><div class="has-text-special">Reset now for ${CP_RESETS.timeloop.gain().toLocaleString()} ${CP_NAMES[CP_RESETS.timeloop.res]}, plus the Plasmids a MAD reset would give. A new run starts.</div>`; },
+        action(args){
+            if (args && args.isQueue){ return false; }
+            const r = CP_RESETS.timeloop;
+            if (!window.confirm(`${r.title}: reset now for ${r.gain().toLocaleString()} ${CP_NAMES[r.res]} and a MAD reset's Plasmids? Everything else starts over.`)){
+                return false;
+            }
+            if (payCosts($(this)[0])){
+                customReset('timeloop');
                 return true;
             }
             return false;

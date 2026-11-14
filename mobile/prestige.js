@@ -6,7 +6,9 @@
 (function () {
     'use strict';
 
-    const NAMES = { plasmid: 'Plasmids', phage: 'Phage', dark: 'Dark Energy', harmony: 'Harmony', artifact: 'Artifacts' };
+    const NAMES = { plasmid: 'Plasmids', phage: 'Phage', dark: 'Dark Energy', harmony: 'Harmony', artifact: 'Artifacts',
+        sigils: 'Demon Sigils', shards: 'Star Shards', crowns: 'Spire Crowns', echoes: 'Echo Fragments' };
+    const OWNED = ['sigils', 'shards', 'crowns', 'echoes'];
 
     function fmt(n) {
         return Number(n).toLocaleString('en-US', { maximumFractionDigits: 3 });
@@ -27,13 +29,16 @@
         if (!panel.offsetParent) return;
         let gains;
         try { gains = window.evolvePrestige(); } catch (e) { return; }
-        const rows = Object.keys(gains).map(reset => {
+        const owned = gains._owned || {};
+        const rows = Object.keys(gains).filter(reset => reset !== '_owned').map(reset => {
             const g = gains[reset];
             if (!g) return '';
             const parts = Object.keys(NAMES).filter(k => g[k] > 0).map(k => `<span class="has-text-advanced">${fmt(g[k])}</span> ${NAMES[k]}`);
-            return `<div class="po-row"><span class="has-text-caution">${reset}</span>: ${parts.length ? parts.join(', ') : 'nothing'}</div>`;
+            const lock = g.locked ? ' <span class="has-text-danger">(not unlocked yet)</span>' : '';
+            return `<div class="po-row"><span class="has-text-caution">${reset}</span>${lock}: ${parts.length ? parts.join(', ') : 'nothing'}</div>`;
         });
-        panel.querySelector('.po-body').innerHTML = rows.join('');
+        const have = OWNED.map(k => `<span class="has-text-advanced">${fmt(owned[k] || 0)}</span> ${NAMES[k]}`).join(', ');
+        panel.querySelector('.po-body').innerHTML = `<div class="po-row"><span class="has-text-warning">You have</span>: ${have}</div>` + rows.join('');
     }
 
     setInterval(draw, 2000);
