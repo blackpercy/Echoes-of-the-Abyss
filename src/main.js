@@ -881,7 +881,10 @@ var gene_sequence = global.arpa['sequence'] && global.arpa['sequence']['on'] ? g
 function ensureAddedStructs(){
     [['city','command_center',{ count: 0 }],['city','recruitment_office',{ count: 0 }],['city','auto_foundry',{ count: 0 }],
      ['space','crew_academy',{ count: 0 }],['space','mega_battery',{ count: 0 }],
-     ['interstellar','exotic_condenser',{ count: 0 }],['portal','soul_extractor',{ count: 0, timer: 0 }]].forEach(function(e){
+     ['interstellar','exotic_condenser',{ count: 0 }],['portal','soul_extractor',{ count: 0, timer: 0 }],
+     ['city','grand_library',{ count: 0 }],['city','mint',{ count: 0 }],['city','hydroponic_tower',{ count: 0 }],['city','deep_core_drill',{ count: 0 }],
+     ['city','war_college',{ count: 0 }],['space','arcology',{ count: 0 }],['space','orbital_foundry',{ count: 0 }],
+     ['interstellar','neutron_harvester',{ count: 0 }],['portal','infernal_forge',{ count: 0 }],['portal','supply_depot',{ count: 0 }]].forEach(function(e){
         if (global[e[0]] && !global[e[0]][e[1]]){
             global[e[0]][e[1]] = e[2];
         }
@@ -7953,6 +7956,31 @@ function fastLoop(){
             });
         }
 
+        // Added in this copy: buildings that produce resources directly (per building, per second).
+        [
+            ['city','grand_library',{ Knowledge: 500 },'Grand Library'],
+            ['city','mint',{ Money: 100000 },'Mint'],
+            ['city','hydroponic_tower',{ Food: 5000 },'Hydroponic Tower'],
+            ['city','deep_core_drill',{ Copper: 1000, Iron: 1000, Coal: 1000, Aluminium: 1000, Titanium: 1000 },'Deep Core Drill'],
+            ['space','orbital_foundry',{ Alloy: 100, Polymer: 100, Nano_Tube: 100, Graphene: 100, Stanene: 100 },'Orbital Foundry'],
+            ['interstellar','neutron_harvester',{ Neutronium: 50, Elerium: 5 },'Neutron Harvester'],
+            ['portal','infernal_forge',{ Infernite: 20, Adamantite: 50 },'Infernal Forge'],
+        ].forEach(function(b){
+            const rec = global[b[0]] && global[b[0]][b[1]];
+            if (!rec || !(rec.count > 0)){ return; }
+            Object.keys(b[2]).forEach(function(res){
+                if (!global.resource[res] || !global.resource[res].display){ return; }
+                const rate = b[2][res] * rec.count;
+                if (breakdown.p[res]){
+                    breakdown.p[res][b[3]] = rate + 'v';
+                }
+                modRes(res, rate * time_multiplier);
+            });
+        });
+        if (global.portal['supply_depot'] && global.portal.supply_depot.count > 0 && global.portal['purifier']){
+            global.portal.purifier.supply = Math.min(global.portal.purifier.sup_max, global.portal.purifier.supply + 5000 * global.portal.supply_depot.count * time_multiplier);
+        }
+
         // Added in this copy: Exotic Condensers turn Elerium (or Infernite) into exotic matter for the black hole.
         if (global.interstellar['exotic_condenser'] && global.interstellar.exotic_condenser.count > 0 && global.interstellar['stellar_engine'] && global.interstellar.stellar_engine.count >= 100 && global.race.universe !== 'magic'){
             let budget = global.interstellar.exotic_condenser.count * 1000;
@@ -8628,12 +8656,15 @@ function midLoop(){
             global.city.captive_housing.raceCap = houses * (global.tech['unfathomable'] && global.tech.unfathomable >= 3 ? 3 : 2);
             global.city.captive_housing.cattleCap = houses * 5;
         }
-        // Added in this copy: Crew Academies house 50 citizens each.
-        if (global.space['crew_academy'] && global.space.crew_academy.count > 0){
-            let pop = global.space.crew_academy.count * 50;
-            caps[global.race.species] += pop;
-            breakdown.c[global.race.species]['Crew Academy'] = pop + 'v';
-        }
+        // Added in this copy: Crew Academies, Hydroponic Towers and Arcologies house citizens.
+        [['space','crew_academy',50,'Crew Academy'],['city','hydroponic_tower',10,'Hydroponic Tower'],['space','arcology',200,'Arcology']].forEach(function(b){
+            const rec = global[b[0]] && global[b[0]][b[1]];
+            if (rec && rec.count > 0){
+                let pop = rec.count * b[2];
+                caps[global.race.species] += pop;
+                breakdown.c[global.race.species][b[3]] = pop + 'v';
+            }
+        });
         if (global.city['farm']){
             if (global.tech['farm']){
                 let pop = global.city.farm.count * actions.city.farm.citizens();
@@ -8823,6 +8854,10 @@ function midLoop(){
         // Added in this copy: each Recruitment Office adds 10 soldiers.
         if (global.city['recruitment_office'] && global.city.recruitment_office.count > 0){
             lCaps['garrison'] += jobScale(10) * global.city.recruitment_office.count;
+        }
+        // Added in this copy: each War College adds 25 soldiers.
+        if (global.city['war_college'] && global.city.war_college.count > 0){
+            lCaps['garrison'] += jobScale(25) * global.city.war_college.count;
         }
         if (global.space['space_barracks'] && !global.race['fasting']){
             let soldiers = actions.space.spc_red.space_barracks.soldiers();

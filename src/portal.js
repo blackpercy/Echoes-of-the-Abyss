@@ -324,6 +324,33 @@ const fortressModules = {
                 };
             }
         },
+        // Added in this copy.
+        infernal_forge: {
+            id: 'portal-infernal_forge',
+            title(){ return 'Infernal Forge'; },
+            desc(){ return 'Infernal Forge'; },
+            not_trait: ['warlord'],
+            reqs: { infernite: 1 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('infernal_forge', offset, 60000000, 1.28, 'portal'); },
+                Adamantite(offset){ return spaceCostMultiplier('infernal_forge', offset, 1000000, 1.28, 'portal'); },
+                Infernite(offset){ return spaceCostMultiplier('infernal_forge', offset, 20000, 1.28, 'portal'); },
+            },
+            effect(){ return `<div>+20 Infernite and +50 Adamantite per second.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('infernal_forge','portal');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['infernal_forge','portal']
+                };
+            }
+        },
         attractor: {
             id: 'portal-attractor',
             title: loc('portal_attractor_title'),
@@ -3136,6 +3163,32 @@ const fortressModules = {
                     p: ['purifier','portal']
                 };
             },
+        },
+        // Added in this copy.
+        supply_depot: {
+            id: 'portal-supply_depot',
+            title(){ return 'Supply Depot'; },
+            desc(){ return 'Supply Depot'; },
+            reqs: { hell_spire: 3 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('supply_depot', offset, 100000000, 1.28, 'portal'); },
+                Graphene(offset){ return spaceCostMultiplier('supply_depot', offset, 2000000, 1.28, 'portal'); },
+                Infernite(offset){ return spaceCostMultiplier('supply_depot', offset, 50000, 1.28, 'portal'); },
+            },
+            effect(){ return `<div>+5,000 Spire supply per second, up to its storage.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('supply_depot','portal');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['supply_depot','portal']
+                };
+            }
         },
         port: {
             id: 'portal-port',

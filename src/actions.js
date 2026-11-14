@@ -2039,6 +2039,141 @@ export const actions = {
                 };
             }
         },
+        // Added in this copy.
+        grand_library: {
+            id: 'city-grand_library',
+            title(){ return 'Grand Library'; },
+            desc(){ return 'Grand Library'; },
+            category: 'science',
+            reqs: { science: 5 },
+            cost: {
+                Money(offset){ return costMultiplier('grand_library', offset, 3000000, 1.2); },
+                Lumber(offset){ return costMultiplier('grand_library', offset, 2000000, 1.2); },
+                Cement(offset){ return costMultiplier('grand_library', offset, 500000, 1.2); },
+            },
+            effect(){ return `<div>+500 Knowledge per second.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('grand_library','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['grand_library','city']
+                };
+            }
+        },
+        // Added in this copy.
+        mint: {
+            id: 'city-mint',
+            title(){ return 'Mint'; },
+            desc(){ return 'Mint'; },
+            category: 'commercial',
+            reqs: { banking: 5 },
+            cost: {
+                Money(offset){ return costMultiplier('mint', offset, 10000000, 1.22); },
+                Steel(offset){ return costMultiplier('mint', offset, 300000, 1.22); },
+                Iron(offset){ return costMultiplier('mint', offset, 1000000, 1.22); },
+            },
+            effect(){ return `<div>+100,000 Money per second.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('mint','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['mint','city']
+                };
+            }
+        },
+        // Added in this copy.
+        hydroponic_tower: {
+            id: 'city-hydroponic_tower',
+            title(){ return 'Hydroponic Tower'; },
+            desc(){ return 'Hydroponic Tower'; },
+            category: 'residential',
+            reqs: { genetics: 1 },
+            cost: {
+                Money(offset){ return costMultiplier('hydroponic_tower', offset, 2000000, 1.2); },
+                Steel(offset){ return costMultiplier('hydroponic_tower', offset, 200000, 1.2); },
+                Polymer(offset){ return costMultiplier('hydroponic_tower', offset, 50000, 1.2); },
+            },
+            effect(){ return `<div>+5,000 Food per second and room for 10 citizens.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('hydroponic_tower','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['hydroponic_tower','city']
+                };
+            }
+        },
+        // Added in this copy.
+        deep_core_drill: {
+            id: 'city-deep_core_drill',
+            title(){ return 'Deep Core Drill'; },
+            desc(){ return 'Deep Core Drill'; },
+            category: 'industrial',
+            reqs: { mining: 4 },
+            cost: {
+                Money(offset){ return costMultiplier('deep_core_drill', offset, 5000000, 1.22); },
+                Steel(offset){ return costMultiplier('deep_core_drill', offset, 500000, 1.22); },
+                Titanium(offset){ return costMultiplier('deep_core_drill', offset, 100000, 1.22); },
+            },
+            effect(){ return `<div>+1,000 Copper, Iron, Coal, Aluminium and Titanium per second.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('deep_core_drill','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['deep_core_drill','city']
+                };
+            }
+        },
+        // Added in this copy.
+        war_college: {
+            id: 'city-war_college',
+            title(){ return 'War College'; },
+            desc(){ return 'War College'; },
+            category: 'military',
+            reqs: { military: 5 },
+            cost: {
+                Money(offset){ return costMultiplier('war_college', offset, 8000000, 1.22); },
+                Steel(offset){ return costMultiplier('war_college', offset, 800000, 1.22); },
+                Alloy(offset){ return costMultiplier('war_college', offset, 200000, 1.22); },
+            },
+            effect(){ return `<div>+${jobScale(25)} soldiers in the garrison.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('war_college','city');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['war_college','city']
+                };
+            }
+        },
         garrison: {
             id: 'city-garrison',
             title(){ return global.race['flier'] ? loc('city_garrison_flier') : loc('city_garrison'); },

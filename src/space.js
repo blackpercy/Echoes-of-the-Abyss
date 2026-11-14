@@ -107,6 +107,58 @@ const spaceProjects = {
                 };
             }
         },
+        // Added in this copy.
+        arcology: {
+            id: 'space-arcology',
+            title(){ return 'Arcology'; },
+            desc(){ return 'Arcology'; },
+            reqs: { space: 6 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('arcology', offset, 50000000, 1.25, 'space'); },
+                Steel(offset){ return spaceCostMultiplier('arcology', offset, 2000000, 1.25, 'space'); },
+                Nano_Tube(offset){ return spaceCostMultiplier('arcology', offset, 500000, 1.25, 'space'); },
+            },
+            effect(){ return `<div>Room for 200 citizens.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('arcology','space');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['arcology','space']
+                };
+            }
+        },
+        // Added in this copy.
+        orbital_foundry: {
+            id: 'space-orbital_foundry',
+            title(){ return 'Orbital Foundry'; },
+            desc(){ return 'Orbital Foundry'; },
+            reqs: { space: 6 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('orbital_foundry', offset, 30000000, 1.24, 'space'); },
+                Titanium(offset){ return spaceCostMultiplier('orbital_foundry', offset, 2000000, 1.24, 'space'); },
+                Iridium(offset){ return spaceCostMultiplier('orbital_foundry', offset, 500000, 1.24, 'space'); },
+            },
+            effect(){ return `<div>+100 Alloy, Polymer, Nano Tube, Graphene and Stanene per second.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('orbital_foundry','space');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['orbital_foundry','space']
+                };
+            }
+        },
         satellite: {
             id: 'space-satellite',
             title: loc('space_home_satellite_title'),
@@ -3952,6 +4004,32 @@ const interstellarProjects = {
         info: {
             name: loc('interstellar_neutron_name'),
             desc(){ return global.tech['neutron'] ? loc('interstellar_neutron_desc2',[races[global.race.species].home]) : loc('interstellar_neutron_desc1'); },
+        },
+        // Added in this copy.
+        neutron_harvester: {
+            id: 'interstellar-neutron_harvester',
+            title(){ return 'Neutron Harvester'; },
+            desc(){ return 'Neutron Harvester'; },
+            reqs: { neutron: 1 },
+            cost: {
+                Money(offset){ return spaceCostMultiplier('neutron_harvester', offset, 40000000, 1.25, 'interstellar'); },
+                Adamantite(offset){ return spaceCostMultiplier('neutron_harvester', offset, 500000, 1.25, 'interstellar'); },
+                Stanene(offset){ return spaceCostMultiplier('neutron_harvester', offset, 1000000, 1.25, 'interstellar'); },
+            },
+            effect(){ return `<div>+50 Neutronium and +5 Elerium per second.</div>`; },
+            action(args){
+                if (payCosts($(this)[0])){
+                    incrementStruct('neutron_harvester','interstellar');
+                    return true;
+                }
+                return false;
+            },
+            struct(){
+                return {
+                    d: { count: 0 },
+                    p: ['neutron_harvester','interstellar']
+                };
+            }
         },
         neutron_mission: {
             id: 'interstellar-neutron_mission',
