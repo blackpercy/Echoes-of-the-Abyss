@@ -2792,47 +2792,7 @@ export function calcGenomeScore(genome,wiki,tRanks){
     return genes;
 }
 
-// Added in this copy: a share of the ordinary resources is kept through a reset (Settings → Kept after reset)
-// and paid out in the next run as each resource unlocks. Every reset calls updateResetStats() before it clears them.
-const heritage_skip = ['Crates','Containers','Slave','Authority','Energy','Sus','Zen','Omniscience','RNA','DNA','Genes','Population'];
-function keepResources(){
-    if (global['sim'] || !global.resource){ return; }
-    let pct = 10;
-    try {
-        let saved = Number(localStorage.getItem('evolve-heritage-pct'));
-        if (saved > 0){ pct = saved; }
-    }
-    catch (e){}
-    let kept = global.stats['heritage'] || {};
-    Object.keys(global.resource).forEach(function(res){
-        let r = global.resource[res];
-        if (!r || res === global.race.species || heritage_skip.includes(res) || !(r.amount > 0)){ return; }
-        kept[res] = (kept[res] || 0) + r.amount * pct / 100;
-    });
-    global.stats['heritage'] = kept;
-}
-
-// Pays out kept resources as they unlock, up to the free storage; the rest waits.
-export function payHeritage(){
-    let kept = global.stats['heritage'];
-    if (!kept || global.race.species === 'protoplasm'){ return; }
-    Object.keys(kept).forEach(function(res){
-        let r = global.resource[res];
-        if (!r || !r.display || !(kept[res] > 0)){ return; }
-        let room = r.max >= 0 ? r.max - r.amount : kept[res];
-        let give = Math.min(kept[res], Math.max(room, 0));
-        if (give > 0){
-            r.amount += give;
-            kept[res] -= give;
-        }
-        if (kept[res] < 1){
-            delete kept[res];
-        }
-    });
-}
-
 export function updateResetStats(){
-    keepResources();
     global.stats.reset++;
     global.stats.tdays += global.stats.days;
     global.stats.days = 0;

@@ -11,7 +11,6 @@
     const PANELS = [
         { id: 'containerMult', key: 'evolve-container-mult', choices: [1, 10, 100, 1000, 10000, 100000, 1000000, 1000000000], title: 'Crate & container capacity', note: 'Each crate and container holds this many times its normal amount.' },
         { id: 'depotMult', key: 'evolve-depot-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Fuel depot storage', note: 'Fuel depots and other fuel storage (oil, helium-3, uranium, deuterium) hold this many times their normal amount.' },
-        { id: 'heritagePct', key: 'evolve-heritage-pct', def: 10, unit: '%', choices: [1, 10, 50, 100], title: 'Kept after reset', note: 'This share of every ordinary resource you hold (money, knowledge, metals, Elerium, Soul Gems and the rest) is kept through any reset and paid out in the next run as each resource unlocks, up to its storage.' },
         { id: 'otherMult', key: 'evolve-other-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Other storage', note: 'Every other storage cap (wood, stone, metals, food, knowledge, alloys and the rest) is this many times its normal size. Crates and containers, money, the fuels and Elerium have their own settings.' },
         { id: 'eleriumMult', key: 'evolve-elerium-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Elerium storage', note: 'Your Elerium cap is this many times its normal size.' },
         { id: 'powerMult', key: 'evolve-power-mult', def: 1000, choices: [1, 10, 100, 1000], title: 'Power generation', note: 'Every power source (power plants, reactors, Dyson spheres, satellites and the rest) makes this many times its normal power.' },
@@ -64,7 +63,7 @@
         panel.id = p.id;
         panel.className = 'storage-mult';
         panel.innerHTML = `<h3 class="has-text-warning">${p.title}</h3>
-            <div class="ym-row">${p.choices.map(n => `<button type="button" class="button is-small${n === mult ? ' ym-on' : ''}" data-mult="${n}">${p.unit ? n + p.unit : '×' + n.toLocaleString('en-US')}</button>`).join('')}</div>
+            <div class="ym-row">${p.choices.map(n => `<button type="button" class="button is-small${n === mult ? ' ym-on' : ''}" data-mult="${n}">×${n.toLocaleString('en-US')}</button>`).join('')}</div>
             <div class="ym-note">${p.note}</div>`;
         panel.addEventListener('click', e => {
             const btn = e.target.closest('[data-mult]');
